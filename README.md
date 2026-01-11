@@ -50,7 +50,7 @@ Automatically download and apply poster sets from ThePosterDB and MediUX to your
      "token": "your_plex_token_here",
      "movie_library": "Movies",
      "tv_library": "TV Shows",
-     "bulk_txt": "bulk_import.txt",
+     "bulk_files": ["bulk_import.txt"],
      "mediux_filters": ["poster", "backdrop", "title_card"],
      "title_mappings": {
        "Pluribus": "PLUR1BUS",
@@ -67,11 +67,13 @@ Automatically download and apply poster sets from ThePosterDB and MediUX to your
    | `token` | Plex authentication token ([How to find](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)) | `"aBc123XyZ..."` |
    | `movie_library` | Name of your Movies library | `"Movies"` or `["Movies", "4K Movies"]` |
    | `tv_library` | Name of your TV Shows library | `"TV Shows"` or `["TV", "Anime"]` |
-   | `bulk_txt` | Default file for bulk imports | `"bulk_import.txt"` |
+   | `bulk_files` | List of bulk import text files | `["bulk_import.txt", "movies.txt"]` |
    | `mediux_filters` | MediUX media types to download | `["poster", "backdrop", "title_card"]` |
    | `title_mappings` | Manual title overrides for non-matching names | `{"Source Title": "Plex Title"}` |
 
    > **Multiple Libraries:** You can specify multiple libraries as arrays to apply posters across all of them simultaneously.
+   
+   > **Multiple Bulk Files:** The `bulk_files` array supports multiple text files for organizing different import lists (e.g., movies, TV shows, seasonal updates).
 
 ---
 
@@ -120,11 +122,38 @@ python main.py gui
 
 ![GUI Overview](https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/refs/heads/main/assets/gui_overview.png)
 
-The GUI provides:
-- Easy URL input with real-time validation
-- Visual progress tracking
-- Status updates and error reporting
-- Bulk import file management
+The GUI provides an intuitive interface with multiple tabs:
+
+**Settings Tab:**
+- Configure Plex server URL and authentication token
+- Set up movie and TV show libraries
+- Configure MediUX download filters
+- Adjust concurrent worker settings (1 to CPU core count)
+
+**Title Mappings Tab:**
+- Visual editor for title mapping overrides
+- Add/remove mappings with dedicated buttons
+- Manual save control for all changes
+
+**Bulk Import Tab:**
+- Manage multiple bulk import files via dropdown
+- Create new bulk files or delete existing ones
+- Row-based URL editor with duplicate detection
+- Comment support (lines starting with `#` or `//`)
+- Manual save/reload functionality
+
+**Poster Scrape Tab:**
+- Add multiple URLs for concurrent processing
+- Real-time visual feedback (orange border = processing, green = completed, red = error)
+- Progress bar showing active workers and completion status
+- Configurable worker count for parallel processing
+
+**Advanced Features:**
+- **Concurrent Processing:** Process multiple URLs simultaneously with configurable worker threads
+- **Visual Progress Tracking:** See which URLs are currently being processed with color-coded borders
+- **Cancel Operation:** Stop bulk imports or scraping operations at any time with the Cancel button
+- **Duplicate Detection:** Automatically prevents adding duplicate URLs to import lists
+- **Memory Management:** Proper cleanup on window close prevents memory leaks
 
 ---
 
@@ -149,6 +178,23 @@ The GUI provides:
 ---
 
 ## Advanced Features
+
+### Concurrent Processing
+
+The tool supports parallel processing of multiple URLs simultaneously, dramatically improving import speed:
+
+- **Configurable Workers:** Set worker count from 1 to your CPU core count (default: 3)
+- **Visual Feedback:** Color-coded borders show processing status:
+  - **Orange border** - Currently being processed
+  - **Green border** - Successfully completed
+  - **Red border** - Error occurred
+- **Progress Tracking:** Real-time display of active workers and completion status
+- **Cancel Anytime:** Stop operations mid-process with the Cancel button
+
+**Performance Example:**
+- Single-threaded: 9 URLs ≈ 90 seconds
+- 3 workers: 9 URLs ≈ 30 seconds
+- Maximum throughput with CPU-based worker scaling
 
 ### Bulk Import
 
@@ -176,18 +222,30 @@ Or use the default file specified in `config.json`:
 python main.py bulk
 ```
 
+**Multiple Bulk Files:**
+The GUI supports managing multiple bulk import files through a dropdown selector:
+- Create new bulk files with the "New File" button
+- Add existing .txt files (automatically detected and loaded)
+- Switch between files without losing unsaved changes
+- Delete files you no longer need (minimum 1 file retained)
+- All files are tracked in `config.json` under `bulk_files` array
+- Protection against accidentally overwriting existing files
+
 ### MediUX Filters
 
 Control which types of media are downloaded from MediUX by editing the `mediux_filters` in `config.json`:
 
 ```json
-"mediux_filters": ["poster", "background", "season_cover", "title_card"]
+"mediux_filters": ["poster", "backdrop", "title_card"]
 ```
 
 **Available filters:**
 - `poster` - Standard movie/show posters and season covers
-- `backdrop` - Background/backdrop images
+- `backdrop` - Background/backdrop images  
 - `title_card` - Episode title cards
+- `season_cover` - Season-specific cover art
+- `show_cover` - Show-level cover art
+- `background` - Alternative background images
 
 Remove any filter to skip that media type during import.
 
@@ -277,6 +335,20 @@ A pre-built Windows executable is available in the `dist/` folder. To build it y
 - Ensure Playwright browser is properly installed: `playwright install chromium`
 - Some networks may block automated access; try from a different network
 - Check if the source website is accessible in your browser
+
+### Operations Not Stopping
+
+**Problem:** Cancel button doesn't immediately stop processing  
+**Solution:** The cancel operation stops accepting new tasks and cancels pending futures, but currently running tasks must complete. This is expected behavior with ThreadPoolExecutor. Close the application window for immediate termination with proper cleanup.
+
+### GUI Performance Issues
+
+**Problem:** GUI becomes unresponsive during large imports  
+**Solutions:**
+- Reduce worker count to 1-2 for system with limited resources
+- Process URLs in smaller batches
+- Close other resource-intensive applications
+- The progress indicators and cancel button should remain responsive during normal operation
 
 ### Media Not Found in Library
 

@@ -135,10 +135,32 @@ class PlexPosterCLI:
     
     def _handle_bulk_import(self):
         """Handle bulk import from file."""
-        file_path = input(f"Enter the path to the bulk import file, or press [Enter] to use '{self.config.bulk_txt}': ").strip()
-        
-        if not file_path:
-            file_path = self.config.bulk_txt
+        # Show available bulk files
+        if self.config.bulk_files and len(self.config.bulk_files) > 1:
+            print("\nAvailable bulk import files:")
+            for i, filename in enumerate(self.config.bulk_files, 1):
+                print(f"  {i}. {filename}")
+            print(f"  {len(self.config.bulk_files) + 1}. Enter custom path")
+            
+            choice = input(f"\nSelect a file (1-{len(self.config.bulk_files) + 1}) or press [Enter] for default: ").strip()
+            
+            if not choice:
+                file_path = self.config.bulk_files[0]
+            elif choice.isdigit():
+                idx = int(choice) - 1
+                if 0 <= idx < len(self.config.bulk_files):
+                    file_path = self.config.bulk_files[idx]
+                elif idx == len(self.config.bulk_files):
+                    file_path = input("Enter custom file path: ").strip()
+                else:
+                    print("Invalid selection.")
+                    return
+            else:
+                file_path = choice
+        else:
+            file_path = input(f"Enter the path to the bulk import file, or press [Enter] to use '{self.config.bulk_files[0] if self.config.bulk_files else 'bulk_import.txt'}': ").strip()
+            if not file_path:
+                file_path = self.config.bulk_files[0] if self.config.bulk_files else "bulk_import.txt"
         
         self.process_bulk_file(file_path)
     

@@ -11,7 +11,7 @@ class Config:
     """Configuration data class."""
     base_url: str = ""
     token: str = ""
-    bulk_txt: str = "bulk_import.txt"
+    bulk_files: List[str] = None  # Support multiple bulk files
     tv_library: List[str] = None
     movie_library: List[str] = None
     mediux_filters: List[str] = None
@@ -27,6 +27,8 @@ class Config:
             self.mediux_filters = ["title_card", "background", "season_cover", "show_cover"]
         if self.title_mappings is None:
             self.title_mappings = {}
+        if self.bulk_files is None:
+            self.bulk_files = ["bulk_import.txt"]
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert config to dictionary."""
