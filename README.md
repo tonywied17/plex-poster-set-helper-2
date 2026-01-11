@@ -346,7 +346,6 @@ A pre-built Windows executable is available in the `dist/` folder. To build it y
 **Solutions:**
 - Check your internet connection
 - Ensure Playwright browser is properly installed: `playwright install chromium`
-- Some networks may block automated access; try from a different network
 - Check if the source website is accessible in your browser
 
 ### Operations Not Stopping
@@ -443,7 +442,9 @@ pip install --user -r requirements.txt
 pip3 install -r requirements.txt
 ```
 
-For **Unraid** Docker setup, create a simple `Dockerfile`:
+For Docker setup:
+
+**1. Create a Dockerfile** in the project root directory (same folder as `main.py`):
 ```dockerfile
 FROM python:3.11-slim
 
@@ -464,6 +465,50 @@ RUN pip install --no-cache-dir -r requirements.txt && \
 COPY . .
 
 CMD ["python", "main.py", "cli"]
+```
+
+**2. Edit your `config.json`** with your Plex server details before building.
+
+**3. Build the Docker image:**
+```bash
+cd /path/to/plex-poster-set-helper
+docker build -t plex-poster-helper .
+```
+
+**4. Run the container:**
+
+Simple mode (config is copied into container):
+```bash
+docker run -it --rm plex-poster-helper
+```
+
+Advanced mode (config persists on your system):
+```bash
+docker run -it --rm \
+  -v $(pwd)/config.json:/app/config.json \
+  -v $(pwd)/bulk_import.txt:/app/bulk_import.txt \
+  plex-poster-helper
+```
+
+**To update the container:**
+```bash
+# Pull latest code
+git pull
+
+# Rebuild with new changes
+docker build -t plex-poster-helper .
+
+# Stop and remove old container
+docker stop plex-poster-helper
+docker rm plex-poster-helper
+
+# Start new container with same configuration
+docker run -d \
+  --name plex-poster-helper \
+  -v /path/to/config:/app/config.json \
+  -v /path/to/bulk_import:/app/bulk_import.txt \
+  --restart unless-stopped \
+  plex-poster-helper
 ```
 
 ---
