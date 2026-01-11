@@ -204,3 +204,180 @@ class PlexService:
             print(message)
         else:
             print(message)
+    
+    def get_items_by_label(self, label: str) -> List:
+        """Get all items with a specific label.
+        
+        Args:
+            label: Label to search for.
+            
+        Returns:
+            List of items with the specified label.
+        """
+        items = []
+        
+        # Search in all configured libraries
+        all_libraries = self.tv_libraries + self.movie_libraries
+        
+        for library in all_libraries:
+            try:
+                # Search for items with the label
+                labeled_items = library.search(label=label)
+                items.extend(labeled_items)
+            except Exception as e:
+                print(f"Error searching library {library.title}: {str(e)}")
+        
+        return items
+    
+    def remove_label_from_items(self, items: List, label: str) -> int:
+        """Remove a label from a list of items.
+        
+        Note: Only shows have labels, not their seasons/episodes.
+        
+        Args:
+            items: List of Plex items.
+            label: Label to remove.
+            
+        Returns:
+            Number of items successfully processed.
+        """
+        count = 0
+        for item in items:
+            try:
+                item.removeLabel(label)
+                count += 1
+            except Exception as e:
+                # Silently continue if label doesn't exist
+                pass
+        
+        return count
+    
+    def delete_posters_from_items(self, items: List) -> int:
+        """Reset items to use their default posters.
+        
+        Note: This does not delete uploaded poster files from Plex's database,
+        it only selects the default poster from metadata agents.
+        Use a tool like ImageMaid to clean up orphaned uploaded files.
+        
+        Args:
+            items: List of Plex items.
+            
+        Returns:
+            Number of items successfully processed.
+        """
+        count = 0
+        for item in items:
+            # If this is a show, also reset all its labeled seasons and episodes
+            if item.type == 'show':
+                count += self._reset_show_and_children(item)
+            else:
+                count += self._reset_single_item(item)
+        
+        return count
+    
+    def _reset_show_and_children(self, show) -> int:
+        """Reset a show and all its seasons/episodes.
+        
+        Args:
+            show: TV show item.
+            
+        Returns:
+            Number of items successfully processed.
+        """
+        count = 0
+        
+        # Reset the show poster itself
+        count += self._reset_single_item(show)
+        
+        # Reset ALL seasons and episodes (they don't have labels, only the show does)
+        try:
+            for season in show.seasons():
+                # Reset season poster
+                count += self._reset_single_item(season)
+                
+                # Reset all episodes in this season
+                try:
+                    for episode in season.episodes():
+                        count += self._reset_single_item(episode)
+                except Exception as e:
+                    print(f"⚠ Could not process episodes in season {season.index}: {str(e)}")
+        except Exception as e:
+            print(f"✗ Error processing seasons for {show.title}: {str(e)}")
+        
+        return count
+    
+    def _reset_single_item(self, item) -> int:
+        """Reset a single item's poster and background art to default.
+        
+        Args:
+            item: Plex item to reset.
+            
+        Returns:
+            1 if successful, 0 if failed.
+        """
+        try:
+            # Unlock the poster/art so we can modify it
+            try:
+                item.edit(**{'poster.locked': 0, 'art.locked': 0})
+            except:
+                pass  # If locking not supported, continue anyway
+            
+            # Reset poster
+            all_posters = item.posters()
+            
+            if all_posters:
+                # Find the first non-uploaded poster (from agents/providers)
+                default_poster = None
+                
+                for poster in all_posters:
+                    if poster.provider != 'upload':
+                        default_poster = poster
+                        break
+                
+                # Set the default poster as active
+                if default_poster:
+                    try:
+                        item.setPoster(default_poster)
+                        item_desc = f"{item.title}"
+                        if item.type == 'episode':
+                            item_desc = f"episode {item.title}"
+                        print(f"✓ Reset to default poster: {item_desc}")
+                    except Exception as e:
+                        print(f"✗ Could not set default poster for {item.title}: {str(e)}")
+                else:
+                    print(f"⚠ No default poster found for: {item.title} (only uploaded posters exist)")
+            else:
+                print(f"ℹ No posters found for: {item.title}")
+            
+            # Reset background art (for shows, movies, etc.)
+            # Episodes don't typically have background art
+            if item.type in ['show', 'movie', 'season']:
+                try:
+                    all_arts = item.arts()
+                    
+                    if all_arts:
+                        # Find the first non-uploaded art (from agents/providers)
+                        default_art = None
+                        
+                        for art in all_arts:
+                            if art.provider != 'upload':
+                                default_art = art
+                                break
+                        
+                        # Set the default art as active
+                        if default_art:
+                            try:
+                                item.setArt(default_art)
+                                print(f"✓ Reset to default background: {item.title}")
+                            except Exception as e:
+                                print(f"✗ Could not set default background for {item.title}: {str(e)}")
+                        else:
+                            print(f"⚠ No default background found for: {item.title} (only uploaded backgrounds exist)")
+                except Exception as e:
+                    # Don't fail the whole operation if background reset fails
+                    print(f"ℹ Could not reset background for {item.title}: {str(e)}")
+            
+            return 1
+        except Exception as e:
+            print(f"✗ Error processing {item.title}: {str(e)}")
+            return 0

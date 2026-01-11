@@ -84,6 +84,29 @@ class PosterUploadService:
         elif source == 'posterdb':
             time.sleep(0.5)
     
+    def _add_label(self, item, label: str):
+        """Add a label to a Plex item.
+        
+        Args:
+            item: Plex item (movie, show, season, episode, or collection)
+            label: Label string to add
+        """
+        try:
+            item.addLabel(label)
+        except Exception as e:
+            # Silently fail if labels aren't supported or there's an error
+            pass
+    
+    def _add_source_labels(self, item, source: str):
+        """Add both main label and source-specific label.
+        
+        Args:
+            item: Plex item to label
+            source: Source of the poster (mediux, posterdb, etc.)
+        """
+        self._add_label(item, 'plex_poster_set_helper')
+        self._add_label(item, f'plex_poster_set_helper_{source}')
+    
     def upload_movie_poster(self, poster: PosterInfo, library_name: str):
         """Upload poster to a movie."""
         # Get library objects
@@ -110,6 +133,8 @@ class PosterUploadService:
                     # Read file and upload via Plex API
                     with open(image_path, 'rb') as img_file:
                         movie_item.uploadPoster(filepath=image_path)
+                    # Add label to track posters uploaded by this app
+                    self._add_source_labels(movie_item, poster.source)
                     print(f'✓ Uploaded art for {poster.title} in {movie_item.librarySectionTitle} library.')
                     self._rate_limit(poster.source)
                 except Exception as e:
@@ -144,6 +169,8 @@ class PosterUploadService:
                     # Read file and upload via Plex API
                     with open(image_path, 'rb') as img_file:
                         collection.uploadPoster(filepath=image_path)
+                    # Add label to track posters uploaded by this app
+                    self._add_source_labels(collection, poster.source)
                     print(f'✓ Uploaded art for {poster.title} in {collection.librarySectionTitle} library.')
                     self._rate_limit(poster.source)
                 except Exception as e:
@@ -242,6 +269,8 @@ class PosterUploadService:
                         else:
                             upload_target.uploadPoster(filepath=image_path)
                     
+                    # Add label to track posters uploaded by this app
+                    self._add_source_labels(upload_target, poster.source)
                     print(f"✓ Uploaded art for {target_desc}")
                     self._rate_limit(poster.source)
                 except Exception as e:

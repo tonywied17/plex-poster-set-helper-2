@@ -21,6 +21,13 @@ Automatically download and apply poster sets from ThePosterDB and MediUX to your
   - Automatic media detection and matching
   - Support for movies, TV shows, seasons, and collections
   - Multiple library support
+
+- **Poster Management & Tracking**
+  - Automatic label tracking for all uploaded posters
+  - Source-specific tracking (MediUX vs ThePosterDB)
+  - Visual stats dashboard showing upload counts and library breakdown
+  - Reset individual items or bulk reset all posters to defaults
+  - Hierarchical reset for TV shows (show, seasons, and episodes)
 ---
 
 ## Installation
@@ -110,11 +117,14 @@ python main.py
 
 ![CLI Overview](https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/refs/heads/main/.github/cli.png)
 
-**Menu Options:**
-1. **Single URL Import** - Paste a ThePosterDB or MediUX link to import that set
-2. **Bulk Import** - Process multiple URLs from a text file
-3. **Launch GUI** - Open the graphical interface
-4. **Exit** - Close the application
+**Main Menu Options:**
+1. **Enter a URL** - Import a single ThePosterDB or MediUX set
+2. **Run Bulk Import** - Process multiple URLs from text files
+3. **Manage Title Mappings** - Add, remove, or view title overrides
+4. **Reset Posters to Default** - Browse and reset uploaded posters
+5. **View Detailed Stats** - See comprehensive upload statistics
+6. **Launch GUI** - Open the graphical interface
+7. **Exit** - Close the application
 
 ### Command-Line Arguments
 
@@ -143,20 +153,16 @@ python main.py gui
 
 ![GUI 1](https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/refs/heads/main/.github/bulk.png)
 ![GUI 2](https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/refs/heads/main/.github/title_mappings.png)
-![GUI 3](https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/refs/heads/main/.github/config.png)
+![GUI 3](https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/refs/heads/main/.github/reset_posters.png)
+![GUI 4](https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/refs/heads/main/.github/config.png)
 
 The GUI provides an intuitive interface with multiple tabs:
 
-**Settings Tab:**
-- Configure Plex server URL and authentication token
-- Set up movie and TV show libraries
-- Configure MediUX download filters
-- Adjust concurrent worker settings (1 to CPU core count)
-
-**Title Mappings Tab:**
-- Visual editor for title mapping overrides
-- Add/remove mappings with dedicated buttons
-- Manual save control for all changes
+**Poster Scrape Tab:**
+- Add multiple URLs for concurrent processing
+- Real-time visual feedback (orange border = processing, green = completed, red = error)
+- Progress bar showing active workers and completion status
+- Configurable worker count for parallel processing
 
 **Bulk Import Tab:**
 - Manage multiple bulk import files via dropdown
@@ -165,11 +171,28 @@ The GUI provides an intuitive interface with multiple tabs:
 - Comment support (lines starting with `#` or `//`)
 - Manual save/reload functionality
 
-**Poster Scrape Tab:**
-- Add multiple URLs for concurrent processing
-- Real-time visual feedback (orange border = processing, green = completed, red = error)
-- Progress bar showing active workers and completion status
-- Configurable worker count for parallel processing
+**Title Mappings Tab:**
+- Visual editor for title mapping overrides
+- Add/remove mappings with dedicated buttons
+- Manual save control for all changes
+
+**Reset Posters Tab:**
+- View all media with custom posters uploaded by this app
+- Comprehensive stats dashboard showing:
+  - Total items with custom posters
+  - Upload source breakdown (MediUX vs ThePosterDB counts)
+  - Library distribution with type icons (movies/TV shows/collections)
+- Each item displays: title, source (🌐 MediUX / 🎨 ThePosterDB), and library
+- Reset individual items with dedicated Reset buttons
+- Bulk reset all posters to defaults with a single click
+- Automatic label management (removes tracking labels on reset)
+- TV show support: resets show poster, season posters, episode thumbnails, and backgrounds
+
+**Settings Tab:**
+- Configure Plex server URL and authentication token
+- Set up movie and TV show libraries
+- Configure MediUX download filters
+- Adjust concurrent worker settings (1 to CPU core count)
 
 **Advanced Features:**
 - **Concurrent Processing:** Process multiple URLs simultaneously with configurable worker threads
@@ -177,6 +200,11 @@ The GUI provides an intuitive interface with multiple tabs:
 - **Cancel Operation:** Stop bulk imports or scraping operations at any time with the Cancel button
 - **Duplicate Detection:** Automatically prevents adding duplicate URLs to import lists
 - **Memory Management:** Proper cleanup on window close prevents memory leaks
+- **Automatic Label Tracking:** Every uploaded poster is automatically tagged with:
+  - `Plex_poster_set_helper` - Main tracking label
+  - `Plex_poster_set_helper_mediux` - Source-specific label for MediUX uploads
+  - `Plex_poster_set_helper_posterdb` - Source-specific label for ThePosterDB uploads
+- **Smart Reset System:** Reset posters back to Plex's default metadata agent artwork while removing tracking labels
 
 ---
 
