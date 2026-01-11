@@ -44,7 +44,12 @@ class ConfigManager:
         Args:
             config_path: Path to the configuration file.
         """
-        self.config_path = config_path
+        # Ensure config_path is absolute for cross-platform compatibility
+        if not os.path.isabs(config_path):
+            from ..utils.helpers import get_exe_dir
+            self.config_path = os.path.join(get_exe_dir(), config_path)
+        else:
+            self.config_path = config_path
         self._config: Config = None
     
     def load(self) -> Config:

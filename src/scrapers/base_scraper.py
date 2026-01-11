@@ -38,54 +38,45 @@ class BaseScraper(ABC):
         if not self._playwright:
             import os
             import sys
+            import platform
             
             self._playwright = sync_playwright().start()
+            
+            # Common browser launch arguments for cross-platform compatibility
+            browser_args = [
+                '--disable-blink-features=AutomationControlled',
+                '--disable-dev-shm-usage',
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-web-security',
+                '--disable-features=IsolateOrigins,site-per-process'
+            ]
             
             # Handle PyInstaller frozen executable
             if getattr(sys, 'frozen', False):
                 # Running in PyInstaller bundle
-                # Set browser path to use system-installed browsers
-                browser_path = os.path.join(os.path.expanduser('~'), '.cache', 'ms-playwright', 'chromium-1124', 'chrome-win', 'chrome.exe')
-                
-                # If Playwright browsers aren't installed, try to use channel="chrome"
+                # Try to use system Chrome/Chromium first (cross-platform)
                 try:
+                    # Detect platform and use appropriate browser channel
+                    system = platform.system()
+                    channel = "chrome" if system in ["Windows", "Darwin"] else "chromium"
+                    
                     self._browser = self._playwright.chromium.launch(
-                        channel="chrome",  # Use system Chrome instead
+                        channel=channel,  # Use system browser
                         headless=True,
-                        args=[
-                            '--disable-blink-features=AutomationControlled',
-                            '--disable-dev-shm-usage',
-                            '--no-sandbox',
-                            '--disable-setuid-sandbox',
-                            '--disable-web-security',
-                            '--disable-features=IsolateOrigins,site-per-process'
-                        ]
+                        args=browser_args
                     )
                 except:
-                    # Fallback to regular chromium
+                    # Fallback to regular chromium (requires playwright install)
                     self._browser = self._playwright.chromium.launch(
                         headless=True,
-                        args=[
-                            '--disable-blink-features=AutomationControlled',
-                            '--disable-dev-shm-usage',
-                            '--no-sandbox',
-                            '--disable-setuid-sandbox',
-                            '--disable-web-security',
-                            '--disable-features=IsolateOrigins,site-per-process'
-                        ]
+                        args=browser_args
                     )
             else:
                 # Running as script - normal launch
                 self._browser = self._playwright.chromium.launch(
                     headless=True,
-                    args=[
-                        '--disable-blink-features=AutomationControlled',
-                        '--disable-dev-shm-usage',
-                        '--no-sandbox',
-                        '--disable-setuid-sandbox',
-                        '--disable-web-security',
-                        '--disable-features=IsolateOrigins,site-per-process'
-                    ]
+                    args=browser_args
                 )
             
             # Create context with realistic settings

@@ -782,7 +782,11 @@ class PlexPosterGUI:
         """Save bulk import URLs from rows to file."""
         try:
             bulk_txt_path = os.path.join(get_exe_dir(), self.current_bulk_file or "bulk_import.txt")
-            os.makedirs(os.path.dirname(bulk_txt_path), exist_ok=True)
+            
+            # Ensure parent directory exists (only if needed)
+            parent_dir = os.path.dirname(bulk_txt_path)
+            if parent_dir and not os.path.exists(parent_dir):
+                os.makedirs(parent_dir, exist_ok=True)
             
             # Collect URLs from rows
             urls = []

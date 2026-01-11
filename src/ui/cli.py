@@ -81,6 +81,13 @@ class PlexPosterCLI:
         Args:
             file_path: Path to bulk import file.
         """
+        import os
+        from ..utils.helpers import get_exe_dir
+        
+        # Convert relative path to absolute for cross-platform compatibility
+        if not os.path.isabs(file_path):
+            file_path = os.path.join(get_exe_dir(), file_path)
+        
         self._setup_services()
         
         if not self._check_libraries():

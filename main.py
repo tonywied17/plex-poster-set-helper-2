@@ -42,7 +42,8 @@ def main():
             if len(sys.argv) > 2:
                 file_path = sys.argv[2]
             else:
-                file_path = cli.config.bulk_txt
+                # Use first bulk file from config or default
+                file_path = cli.config.bulk_files[0] if cli.config.bulk_files else "bulk_import.txt"
             
             cli.process_bulk_file(file_path)
         

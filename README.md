@@ -3,6 +3,8 @@
 
 Automatically download and apply poster sets from ThePosterDB and MediUX to your Plex Media Server in seconds. This tool streamlines the process of updating your Plex library with high-quality custom posters, supporting both movies and TV shows with season and episode artwork.
 
+> **Cross-Platform Support:** Fully compatible with Windows, Linux (Ubuntu, Debian, Unraid), and macOS. See [Linux-specific instructions](#linux-specific-issues-ubuntudebianunraid) for Ubuntu/Unraid users.
+
 ## Features
 
 - **Multiple Source Support**
@@ -26,6 +28,7 @@ Automatically download and apply poster sets from ThePosterDB and MediUX to your
 ### Prerequisites
 - Python 3.8 or higher
 - Plex Media Server with API access
+- **Linux Users:** tkinter for GUI support (see Linux-specific instructions below)
 
 ### Setup
 
@@ -39,6 +42,24 @@ Automatically download and apply poster sets from ThePosterDB and MediUX to your
    ```bash
    pip install -r requirements.txt
    ```
+   
+   **For Linux (Ubuntu/Debian/Unraid):**
+   ```bash
+   # Install system dependencies for GUI support
+   sudo apt update
+   sudo apt install python3-tk python3-pip
+   
+   # Install Python packages
+   pip3 install -r requirements.txt
+   
+   # Install Playwright browser
+   python3 -m playwright install chromium
+   python3 -m playwright install-deps chromium
+   ```
+   
+   **For Unraid Docker Users:**
+   - Use CLI mode: `python main.py cli`
+   - Or set up a Docker container with GUI support (see Troubleshooting section)
 
 3. **Configure your Plex connection**
    
@@ -307,6 +328,198 @@ A pre-built Windows executable is available in the `dist/` folder. To build it y
 ---
 
 ## Troubleshooting
+
+### Linux-Specific Issues (Ubuntu/Debian/Unraid)
+
+#### GUI Not Launching
+
+**Problem:** Error when trying to launch GUI on Linux  
+**Solutions:**
+```bash
+# Install tkinter for Python GUI support
+sudo apt install python3-tk  # Ubuntu/Debian
+```
+
+For **Unraid** users, if using Python in a Docker container:
+```bash
+# Install tkinter in your container
+apt-get update && apt-get install -y python3-tk
+```
+
+#### Display/X11 Errors
+
+**Problem:** `_tkinter.TclError: no display name and no $DISPLAY environment variable`  
+**Solutions:**
+
+For headless servers (Unraid), use CLI mode instead:
+```bash
+python main.py cli
+```
+
+Or set up X11 forwarding if connecting via SSH:
+```bash
+# On your SSH connection
+ssh -X user@server
+export DISPLAY=:0
+python main.py gui
+```
+
+For systems with Wayland display server:
+```bash
+export GDK_BACKEND=x11
+python main.py gui
+```
+
+#### Chromium/Browser Not Found
+
+**Problem:** `playwright._impl._api_types.Error: Executable doesn't exist`  
+**Solutions:**
+
+Install Playwright browsers:
+```bash
+# Option 1: Install Playwright browsers (recommended)
+python -m playwright install chromium
+
+# Option 2: Install system Chromium (Ubuntu/Debian)
+sudo apt install chromium-browser
+
+# Option 3: For Unraid Docker containers
+docker exec -it <container-name> python -m playwright install chromium
+docker exec -it <container-name> apt-get install -y chromium
+```
+
+If still having issues, install dependencies:
+```bash
+# Ubuntu/Debian
+python -m playwright install-deps chromium
+
+# Or manually install required libraries
+sudo apt install -y libnss3 libnspr4 libdbus-1-3 libatk1.0-0 \
+  libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libatspi2.0-0 \
+  libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 \
+  libpango-1.0-0 libcairo2 libasound2
+```
+
+#### Permission Denied Errors
+
+**Problem:** Cannot create or write to config files  
+**Solutions:**
+```bash
+# Check file permissions
+ls -la config.json
+
+# Fix ownership (replace 'user' with your username)
+sudo chown user:user config.json bulk_import.txt
+sudo chmod 664 config.json bulk_import.txt
+
+# Or run from a directory with write permissions
+cd ~/plex-poster-helper/
+python main.py
+```
+
+For **Unraid** Docker containers, ensure volume mappings have correct permissions:
+```bash
+# In your Docker run command or compose file
+-v /mnt/user/appdata/plex-poster-helper:/app/config
+
+# Set permissions on the host
+chmod -R 755 /mnt/user/appdata/plex-poster-helper
+```
+
+#### Python Version Issues
+
+**Problem:** Wrong Python version or `python` command not found  
+**Solutions:**
+```bash
+# Check Python version (must be 3.8+)
+python3 --version
+
+# Use python3 explicitly if python command doesn't work
+python3 main.py
+
+# Or create an alias
+alias python=python3
+echo "alias python=python3" >> ~/.bashrc
+source ~/.bashrc
+```
+
+#### Package Installation Issues
+
+**Problem:** pip install fails or packages not found  
+**Solutions:**
+```bash
+# Ensure pip is installed
+sudo apt install python3-pip
+
+# Update pip
+python3 -m pip install --upgrade pip
+
+# Install requirements with user flag if permission denied
+pip install --user -r requirements.txt
+
+# Or use pip3 explicitly
+pip3 install -r requirements.txt
+```
+
+For **Unraid** Docker setup, create a simple `Dockerfile`:
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    chromium \
+    python3-tk \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt && \
+    playwright install chromium
+
+# Copy application
+COPY . .
+
+CMD ["python", "main.py", "cli"]
+```
+
+#### File Path Issues
+
+**Problem:** Config or bulk import files not found  
+**Solutions:**
+```bash
+# Always run from the project directory
+cd /path/to/plex-poster-set-helper
+python main.py
+
+# Or use absolute paths in config.json
+{
+  "bulk_files": ["/home/user/plex-helper/bulk_import.txt"]
+}
+
+# Check current directory
+pwd
+
+# Verify files exist
+ls -la config.json bulk_import.txt
+```
+
+#### Network/Firewall Issues
+
+**Problem:** Cannot connect to Plex server or scraping sources  
+**Solutions:**
+```bash
+# Test Plex server connection
+curl http://your-plex-server:32400/identity
+
+# Check if firewall is blocking
+sudo ufw status
+sudo ufw allow 32400/tcp  # If needed
+
+# For Unraid, ensure Docker bridge network is configured
+docker network inspect bridge
+```
 
 ### "Poster set not found" Error
 
