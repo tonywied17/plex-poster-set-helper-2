@@ -1,7 +1,9 @@
 """CLI interface for Plex Poster Set Helper."""
 
 import sys
+import threading
 from typing import List
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from ..core.config import ConfigManager
 from ..services.plex_service import PlexService
@@ -75,11 +77,12 @@ class PlexPosterCLI:
         except Exception as e:
             print(f"Error processing URL: {str(e)}")
     
-    def process_bulk_file(self, file_path: str):
+    def process_bulk_file(self, file_path: str, concurrent: bool = True):
         """Process bulk import file.
         
         Args:
             file_path: Path to bulk import file.
+            concurrent: Whether to use concurrent processing (default True).
         """
         import os
         from ..utils.helpers import get_exe_dir
@@ -107,23 +110,17 @@ class PlexPosterCLI:
                 print("No valid URLs found in file.")
                 return
             
-            print(f"\nProcessing {len(valid_urls)} URLs from {file_path}...")
+            total_urls = len(valid_urls)
+            max_workers = getattr(self.config, 'max_workers', 3)
             
-            for i, url in enumerate(valid_urls, 1):
-                print(f"\n[{i}/{len(valid_urls)}] Processing: {url}")
-                
-                try:
-                    movie_posters, show_posters, collection_posters = self.scraper_factory.scrape_url(url)
-                    
-                    # Process all posters
-                    all_posters = collection_posters + movie_posters + show_posters
-                    for poster in all_posters:
-                        self.upload_service.process_poster(poster)
-                    
-                    print(f"Completed: {url}")
-                
-                except Exception as e:
-                    print(f"Error processing {url}: {str(e)}")
+            print(f"\nProcessing {total_urls} URLs from {file_path}...")
+            
+            if concurrent and total_urls > 1:
+                print(f"Using {max_workers} concurrent workers for parallel processing\n")
+                self._process_urls_concurrent(valid_urls, max_workers)
+            else:
+                print("Using sequential processing\n")
+                self._process_urls_sequential(valid_urls)
             
             print("\nBulk import completed.")
         
@@ -131,6 +128,85 @@ class PlexPosterCLI:
             print(f"File not found: {file_path}")
         except Exception as e:
             print(f"Error reading file: {str(e)}")
+    
+    def _process_urls_sequential(self, urls: List[str]):
+        """Process URLs sequentially.
+        
+        Args:
+            urls: List of URLs to process.
+        """
+        for i, url in enumerate(urls, 1):
+            print(f"[{i}/{len(urls)}] Processing: {url}")
+            
+            try:
+                movie_posters, show_posters, collection_posters = self.scraper_factory.scrape_url(url)
+                
+                # Process all posters
+                all_posters = collection_posters + movie_posters + show_posters
+                for poster in all_posters:
+                    self.upload_service.process_poster(poster)
+                
+                print(f"✓ Completed: {url}")
+            
+            except Exception as e:
+                print(f"✗ Error processing {url}: {str(e)}")
+    
+    def _process_urls_concurrent(self, urls: List[str], max_workers: int):
+        """Process URLs concurrently using thread pool.
+        
+        Args:
+            urls: List of URLs to process.
+            max_workers: Maximum number of concurrent workers.
+        """
+        total_urls = len(urls)
+        completed = 0
+        total_posters = 0
+        
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_url = {
+                executor.submit(self._scrape_and_upload_url, url): url 
+                for url in urls
+            }
+            
+            for future in as_completed(future_to_url):
+                url = future_to_url[future]
+                completed += 1
+                
+                try:
+                    poster_count, error = future.result()
+                    
+                    if error:
+                        print(f"✗ [{completed}/{total_urls}] Error: {error}")
+                    else:
+                        total_posters += poster_count
+                        print(f"✓ [{completed}/{total_urls}] Completed {url} - Uploaded {poster_count} posters")
+                
+                except Exception as e:
+                    print(f"✗ [{completed}/{total_urls}] Exception processing {url}: {str(e)}")
+        
+        print(f"\n📊 Total: {total_posters} posters uploaded from {total_urls} URLs")
+    
+    def _scrape_and_upload_url(self, url: str):
+        """Scrape and upload posters from a single URL (thread-safe).
+        
+        Args:
+            url: URL to process.
+            
+        Returns:
+            Tuple of (poster_count, error_message or None)
+        """
+        try:
+            movie_posters, show_posters, collection_posters = self.scraper_factory.scrape_url(url)
+            
+            # Process all posters
+            all_posters = collection_posters + movie_posters + show_posters
+            for poster in all_posters:
+                self.upload_service.process_poster(poster)
+            
+            return (len(all_posters), None)
+        
+        except Exception as e:
+            return (0, f"{url} - {str(e)}")
     
     def _handle_single_url(self):
         """Handle single URL input."""

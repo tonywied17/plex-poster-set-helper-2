@@ -1486,11 +1486,13 @@ class PlexPosterGUI:
             self._update_progress(0, total_urls, active_count=max_workers)
             self._show_cancel_button()
             
-            # Use ThreadPoolExecutor for concurrent scraping
+            # Use ThreadPoolExecutor for concurrent scraping and uploading
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 self.active_executor = executor
-                # Submit all URL scraping tasks
-                future_to_url = {executor.submit(self._scrape_single_url, url): url for url in urls}
+                # Submit all URL scraping and upload tasks
+                future_to_url = {executor.submit(self._scrape_and_upload_url, url): url for url in urls}
+                
+                print(f"📋 Submitted {len(urls)} URL processing tasks to {max_workers} concurrent workers")
                 
                 # Mark initial batch as processing
                 initial_batch = min(max_workers, total_urls)
@@ -1498,6 +1500,7 @@ class PlexPosterGUI:
                     self._set_url_row_status(urls[i], 'processing', self.poster_scrape_rows)
                 
                 completed = 0
+                total_posters_uploaded = 0
                 
                 for future in as_completed(future_to_url):
                     if self.is_cancelled:
@@ -1516,19 +1519,15 @@ class PlexPosterGUI:
                     active_workers = min(remaining, max_workers)
                     
                     try:
-                        movie_posters, show_posters, collection_posters = future.result()
+                        poster_count, error = future.result()
                         
-                        # Upload posters
-                        for poster in collection_posters:
-                            self.upload_service.process_poster(poster)
+                        if error:
+                            self._set_url_row_status(url, 'error', self.poster_scrape_rows)
+                            print(f"⚠ {error}")
+                        else:
+                            self._set_url_row_status(url, 'completed', self.poster_scrape_rows)
+                            total_posters_uploaded += poster_count
                         
-                        for poster in movie_posters:
-                            self.upload_service.process_poster(poster)
-                        
-                        for poster in show_posters:
-                            self.upload_service.process_poster(poster)
-                        
-                        self._set_url_row_status(url, 'completed', self.poster_scrape_rows)
                         completed += 1
                         
                         # Mark next URL as processing if there are more
@@ -1540,6 +1539,7 @@ class PlexPosterGUI:
                         
                     except Exception as e:
                         self._set_url_row_status(url, 'error', self.poster_scrape_rows)
+                        print(f"⚠ Exception: {str(e)}")
                         completed += 1
                         
                         # Still mark next URL as processing
@@ -1553,7 +1553,7 @@ class PlexPosterGUI:
             
             self.active_executor = None
             if not self.is_cancelled:
-                self._update_status(f"All {total_urls} URL(s) processed successfully!", color="#E5A00D")
+                self._update_status(f"✓ Processed {total_urls} URL(s) - Uploaded {total_posters_uploaded} posters!", color="#E5A00D")
             self._hide_progress()
         
         except Exception as e:
@@ -1563,16 +1563,38 @@ class PlexPosterGUI:
         finally:
             self._enable_buttons()
     
-    def _scrape_single_url(self, url: str):
-        """Scrape a single URL and return poster lists.
+    def _scrape_and_upload_url(self, url: str):
+        """Scrape a single URL and upload all its posters.
         
         Args:
-            url: URL to scrape.
+            url: URL to scrape and process.
             
         Returns:
-            Tuple of (movie_posters, show_posters, collection_posters)
+            Tuple of (total_posters_uploaded, error_message or None)
         """
-        return self.scraper_factory.scrape_url(url)
+        try:
+            print(f"🔍 [{threading.current_thread().name}] Starting scrape for: {url}")
+            movie_posters, show_posters, collection_posters = self.scraper_factory.scrape_url(url)
+            print(f"📦 [{threading.current_thread().name}] Scraped {len(movie_posters)} movies, {len(show_posters)} shows, {len(collection_posters)} collections from: {url}")
+            
+            total_posters = len(movie_posters) + len(show_posters) + len(collection_posters)
+            
+            # Upload all posters from this URL
+            for poster in collection_posters:
+                self.upload_service.process_poster(poster)
+            
+            for poster in movie_posters:
+                self.upload_service.process_poster(poster)
+            
+            for poster in show_posters:
+                self.upload_service.process_poster(poster)
+            
+            print(f"✓ [{threading.current_thread().name}] Completed upload of {total_posters} posters from: {url}")
+            return (total_posters, None)
+        except Exception as e:
+            error_msg = f"Error processing {url}: {str(e)}"
+            print(f"✗ [{threading.current_thread().name}] {error_msg}")
+            return (0, error_msg)
     
     def _process_bulk_import(self, valid_urls: List[str]):
         """Process bulk import URLs with concurrent processing.
@@ -1599,7 +1621,9 @@ class PlexPosterGUI:
             # Use ThreadPoolExecutor for concurrent processing
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 self.active_executor = executor
-                future_to_url = {executor.submit(self._scrape_single_url, url): url for url in valid_urls}
+                future_to_url = {executor.submit(self._scrape_and_upload_url, url): url for url in valid_urls}
+                
+                print(f"📋 Submitted {len(valid_urls)} bulk import tasks to {max_workers} concurrent workers")
                 
                 # Mark initial batch as processing
                 initial_batch = min(max_workers, total_urls)
@@ -1607,6 +1631,7 @@ class PlexPosterGUI:
                     self._set_url_row_status(valid_urls[i], 'processing', self.bulk_import_rows)
                 
                 completed = 0
+                total_posters_uploaded = 0
                 
                 for future in as_completed(future_to_url):
                     if self.is_cancelled:
@@ -1625,18 +1650,15 @@ class PlexPosterGUI:
                     active_workers = min(remaining, max_workers)
                     
                     try:
-                        movie_posters, show_posters, collection_posters = future.result()
+                        poster_count, error = future.result()
                         
-                        for poster in collection_posters:
-                            self.upload_service.process_poster(poster)
+                        if error:
+                            self._set_url_row_status(url, 'error', self.bulk_import_rows)
+                            print(f"⚠ {error}")
+                        else:
+                            self._set_url_row_status(url, 'completed', self.bulk_import_rows)
+                            total_posters_uploaded += poster_count
                         
-                        for poster in movie_posters:
-                            self.upload_service.process_poster(poster)
-                        
-                        for poster in show_posters:
-                            self.upload_service.process_poster(poster)
-                        
-                        self._set_url_row_status(url, 'completed', self.bulk_import_rows)
                         completed += 1
                         
                         # Mark next URL as processing if there are more
@@ -1648,6 +1670,7 @@ class PlexPosterGUI:
                         
                     except Exception as e:
                         self._set_url_row_status(url, 'error', self.bulk_import_rows)
+                        print(f"⚠ Exception: {str(e)}")
                         completed += 1
                         
                         # Still mark next URL as processing
@@ -1661,7 +1684,7 @@ class PlexPosterGUI:
             
             self.active_executor = None
             if not self.is_cancelled:
-                self._update_status(f"Bulk import completed! Processed {total_urls} URL(s).", color="#E5A00D")
+                self._update_status(f"✓ Bulk import completed! Processed {total_urls} URL(s) - Uploaded {total_posters_uploaded} posters!", color="#E5A00D")
             self._hide_progress()
         
         except Exception as e:

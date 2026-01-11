@@ -2,6 +2,7 @@
 
 from typing import Tuple, List
 from bs4 import BeautifulSoup
+import threading
 
 from ..core.models import PosterInfo
 from ..core.config import Config
@@ -21,6 +22,9 @@ class ScraperFactory:
         """
         self.config = config
         self.use_playwright = use_playwright
+        self._lock = threading.Lock()
+        self._posterdb_scraper = None
+        self._mediux_scraper = None
     
     def scrape_url(self, url: str) -> Tuple[List[PosterInfo], List[PosterInfo], List[PosterInfo]]:
         """Scrape URL using appropriate scraper.
@@ -31,6 +35,8 @@ class ScraperFactory:
         Returns:
             Tuple of (movie_posters, show_posters, collection_posters).
         """
+        # For concurrent scraping, disable Playwright to avoid browser session conflicts
+        # Each thread will use requests-based scraping instead
         if "theposterdb.com" in url:
             return self._scrape_posterdb(url)
         elif "mediux.pro" in url and "sets" in url:
@@ -47,7 +53,9 @@ class ScraperFactory:
             url: ThePosterDB URL.
             
         Returns:
-            Tuple of poster lists.
+        # Use requests-based scraping (no Playwright) for thread-safe concurrent scraping
+        # PosterDB works fine with requests as it's server-side rendered
+        with PosterDBScraper(use_playwright=False
         """
         with PosterDBScraper(use_playwright=self.use_playwright) as scraper:
             if "/set/" in url or "/user/" in url:
@@ -68,7 +76,9 @@ class ScraperFactory:
             url: MediUX URL.
             
         Returns:
-            Tuple of poster lists.
+        # Use requests-based scraping (no Playwright) for thread-safe concurrent scraping
+        # This avoids browser session conflicts when multiple threads scrape simultaneously
+        with MediuxScraper(config=self.config, use_playwright=False
         """
         with MediuxScraper(config=self.config, use_playwright=self.use_playwright) as scraper:
             return scraper.scrape(url)
@@ -90,3 +100,20 @@ class ScraperFactory:
         # Use PosterDB scraper for HTML files (assuming PosterDB format)
         with PosterDBScraper(use_playwright=False) as scraper:
             return scraper._parse_posterdb(soup)
+    
+    def cleanup(self):
+        """Clean up any open scraper resources."""
+        # This method is called when the GUI closes
+        if self._posterdb_scraper:
+            try:
+                self._posterdb_scraper.__exit__(None, None, None)
+            except:
+                pass
+            self._posterdb_scraper = None
+        
+        if self._mediux_scraper:
+            try:
+                self._mediux_scraper.__exit__(None, None, None)
+            except:
+                pass
+            self._mediux_scraper = None
