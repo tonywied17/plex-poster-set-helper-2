@@ -8,7 +8,7 @@ from src.ui.cli import PlexPosterCLI
 
 
 # Interactive CLI mode flag
-INTERACTIVE_CLI = True  # Set to False when building executable for GUI default
+INTERACTIVE_CLI = False  # Set to False when building executable for GUI default
 
 
 def cleanup():
