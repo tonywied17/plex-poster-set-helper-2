@@ -283,7 +283,7 @@ For cases where poster source names don't match your Plex library, use `title_ma
 "title_mappings": {
   "Pluribus": "PLUR1BUS",
   "The Office": "The Office (US)",
-  "Star Wars Episode IV": "Star Wars"
+  "Star Wars Episode IV": "Star Wars: A New Hope"
 }
 ```
 
@@ -292,7 +292,7 @@ When the scraper finds "Pluribus", it will automatically look for "PLUR1BUS" in 
 **2. Fuzzy Matching** (Automatic fallback)
 If exact matching fails, the tool automatically tries fuzzy matching with 80% similarity:
 - "The Batman" might match "Batman (2022)"
-- "Star Wars: A New Hope" might match "Star Wars Episode IV"
+- "Shogun" might match "Shōgun"
 
 The tool will notify you when fuzzy matching is used: `ℹ Fuzzy matched 'Title A' to 'Title B'`
 
@@ -331,6 +331,49 @@ A pre-built Windows executable is available in the `dist/` folder. To build it y
 
 ## Troubleshooting
 
+### Posters Not Applying to Plex
+
+**Problem:** Tool downloads posters but they don't appear in Plex  
+**Solutions:**
+- Verify library names in `config.json` match exactly (case-sensitive)
+- Ensure media exists in Plex with matching titles and years
+- Check that your Plex token has write permissions
+- Confirm the Plex server is accessible at the configured URL
+
+### Connection Errors
+
+**Problem:** Cannot connect to scraping sources  
+**Solutions:**
+- Check your internet connection
+- Ensure Playwright browser is properly installed: `playwright install chromium`
+- Some networks may block automated access; try from a different network
+- Check if the source website is accessible in your browser
+
+### Operations Not Stopping
+
+**Problem:** Cancel button doesn't immediately stop processing  
+**Solution:** The cancel operation stops accepting new tasks and cancels pending futures, but currently running tasks must complete. This is expected behavior with ThreadPoolExecutor. Close the application window for immediate termination with proper cleanup.
+
+### GUI Performance Issues
+
+**Problem:** GUI becomes unresponsive during large imports  
+**Solutions:**
+- Reduce worker count to 1-2 for system with limited resources
+- Process URLs in smaller batches
+- Close other resource-intensive applications
+- The progress indicators and cancel button should remain responsive during normal operation
+
+### Media Not Found in Library
+
+**Problem:** Tool reports media not found even though it exists  
+**Solutions:**
+- Verify the media title and year match between the poster source and Plex
+- Check for special characters or formatting differences
+- Ensure the media is properly scanned and visible in your Plex library
+- Try refreshing metadata in Plex before running the tool
+
+---
+
 ### Linux-Specific Issues (Ubuntu/Debian/Unraid)
 
 #### GUI Not Launching
@@ -342,34 +385,14 @@ A pre-built Windows executable is available in the `dist/` folder. To build it y
 sudo apt install python3-tk  # Ubuntu/Debian
 ```
 
-For **Unraid** users, if using Python in a Docker container:
-```bash
-# Install tkinter in your container
-apt-get update && apt-get install -y python3-tk
-```
-
 #### Display/X11 Errors
 
 **Problem:** `_tkinter.TclError: no display name and no $DISPLAY environment variable`  
 **Solutions:**
 
-For headless servers (Unraid), use CLI mode instead:
+For headless servers, use CLI mode instead:
 ```bash
 python main.py cli
-```
-
-Or set up X11 forwarding if connecting via SSH:
-```bash
-# On your SSH connection
-ssh -X user@server
-export DISPLAY=:0
-python main.py gui
-```
-
-For systems with Wayland display server:
-```bash
-export GDK_BACKEND=x11
-python main.py gui
 ```
 
 #### Chromium/Browser Not Found
@@ -400,49 +423,6 @@ sudo apt install -y libnss3 libnspr4 libdbus-1-3 libatk1.0-0 \
   libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libatspi2.0-0 \
   libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 \
   libpango-1.0-0 libcairo2 libasound2
-```
-
-#### Permission Denied Errors
-
-**Problem:** Cannot create or write to config files  
-**Solutions:**
-```bash
-# Check file permissions
-ls -la config.json
-
-# Fix ownership (replace 'user' with your username)
-sudo chown user:user config.json bulk_import.txt
-sudo chmod 664 config.json bulk_import.txt
-
-# Or run from a directory with write permissions
-cd ~/plex-poster-helper/
-python main.py
-```
-
-For **Unraid** Docker containers, ensure volume mappings have correct permissions:
-```bash
-# In your Docker run command or compose file
--v /mnt/user/appdata/plex-poster-helper:/app/config
-
-# Set permissions on the host
-chmod -R 755 /mnt/user/appdata/plex-poster-helper
-```
-
-#### Python Version Issues
-
-**Problem:** Wrong Python version or `python` command not found  
-**Solutions:**
-```bash
-# Check Python version (must be 3.8+)
-python3 --version
-
-# Use python3 explicitly if python command doesn't work
-python3 main.py
-
-# Or create an alias
-alias python=python3
-echo "alias python=python3" >> ~/.bashrc
-source ~/.bashrc
 ```
 
 #### Package Installation Issues
@@ -485,94 +465,6 @@ COPY . .
 
 CMD ["python", "main.py", "cli"]
 ```
-
-#### File Path Issues
-
-**Problem:** Config or bulk import files not found  
-**Solutions:**
-```bash
-# Always run from the project directory
-cd /path/to/plex-poster-set-helper
-python main.py
-
-# Or use absolute paths in config.json
-{
-  "bulk_files": ["/home/user/plex-helper/bulk_import.txt"]
-}
-
-# Check current directory
-pwd
-
-# Verify files exist
-ls -la config.json bulk_import.txt
-```
-
-#### Network/Firewall Issues
-
-**Problem:** Cannot connect to Plex server or scraping sources  
-**Solutions:**
-```bash
-# Test Plex server connection
-curl http://your-plex-server:32400/identity
-
-# Check if firewall is blocking
-sudo ufw status
-sudo ufw allow 32400/tcp  # If needed
-
-# For Unraid, ensure Docker bridge network is configured
-docker network inspect bridge
-```
-
-### "Poster set not found" Error
-
-**Problem:** Error when using ThePosterDB single poster URLs  
-**Solution:** This has been fixed in the latest version. The scraper now properly handles the updated page structure where set links are in tooltip elements.
-
-### MediUX Images Not Downloading
-
-**Problem:** Images appear blank or fail to download  
-**Solution:** The scraper now uses direct API URLs (`https://api.mediux.pro/assets/`) instead of the Next.js proxy. Ensure you have network access to this domain.
-
-### Posters Not Applying to Plex
-
-**Problem:** Tool downloads posters but they don't appear in Plex  
-**Solutions:**
-- Verify library names in `config.json` match exactly (case-sensitive)
-- Ensure media exists in Plex with matching titles and years
-- Check that your Plex token has write permissions
-- Confirm the Plex server is accessible at the configured URL
-
-### Connection Errors
-
-**Problem:** Cannot connect to scraping sources  
-**Solutions:**
-- Check your internet connection
-- Ensure Playwright browser is properly installed: `playwright install chromium`
-- Some networks may block automated access; try from a different network
-- Check if the source website is accessible in your browser
-
-### Operations Not Stopping
-
-**Problem:** Cancel button doesn't immediately stop processing  
-**Solution:** The cancel operation stops accepting new tasks and cancels pending futures, but currently running tasks must complete. This is expected behavior with ThreadPoolExecutor. Close the application window for immediate termination with proper cleanup.
-
-### GUI Performance Issues
-
-**Problem:** GUI becomes unresponsive during large imports  
-**Solutions:**
-- Reduce worker count to 1-2 for system with limited resources
-- Process URLs in smaller batches
-- Close other resource-intensive applications
-- The progress indicators and cancel button should remain responsive during normal operation
-
-### Media Not Found in Library
-
-**Problem:** Tool reports media not found even though it exists  
-**Solutions:**
-- Verify the media title and year match between the poster source and Plex
-- Check for special characters or formatting differences
-- Ensure the media is properly scanned and visible in your Plex library
-- Try refreshing metadata in Plex before running the tool
 
 ---
 
