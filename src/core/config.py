@@ -17,6 +17,7 @@ class Config:
     mediux_filters: List[str] = None
     title_mappings: Dict[str, str] = None
     max_workers: int = 3
+    log_file: str = "debug.log"  # Path to log file
     
     def __post_init__(self):
         """Initialize default values for mutable fields."""

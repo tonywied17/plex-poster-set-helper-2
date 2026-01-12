@@ -22,6 +22,85 @@ class PosterDBScraper(BaseScraper):
         soup = self.fetch_page(url)
         return self._parse_posterdb(soup)
     
+    def scrape_single_poster(self, url: str) -> Tuple[List[PosterInfo], List[PosterInfo], List[PosterInfo]]:
+        """Scrape a single poster from a poster detail page.
+        
+        Args:
+            url: Single poster URL (e.g., https://theposterdb.com/poster/12345).
+            
+        Returns:
+            Tuple of (movie_posters, show_posters, collection_posters) with only the main poster.
+        """
+        soup = self.fetch_page(url)
+        
+        movie_posters = []
+        show_posters = []
+        collection_posters = []
+        
+        try:
+            # Extract poster ID from URL
+            poster_id = url.rstrip('/').split('/')[-1]
+            poster_url = f"https://theposterdb.com/api/assets/{poster_id}"
+            
+            # Get the page title which contains the title and media info
+            # Example: "Now You See Me 2 (2016) - The Poster Database (TPDb)"
+            title_tag = soup.find('title')
+            if not title_tag:
+                print("Could not find page title")
+                return movie_posters, show_posters, collection_posters
+            
+            page_title = title_tag.get_text(strip=True)
+            # Remove suffixes - handle both formats:
+            # "Title (Year) - uploader | The Poster Database (TPDb)"
+            # "Title (Year) Poster | TPDb"
+            if ' | ' in page_title:
+                title_text = page_title.split(' | ')[0].strip()
+                # Remove " - uploader" part if present
+                if ' - ' in title_text:
+                    # Keep only the part before the last " - " (which is before uploader name)
+                    parts = title_text.split(' - ')
+                    # Check if the last part looks like an uploader name (not a subtitle)
+                    # Usually uploader names are single words, subtitles have spaces or years
+                    if len(parts) > 1 and not any(char.isdigit() for char in parts[-1]):
+                        title_text = ' - '.join(parts[:-1]).strip()
+            else:
+                title_text = page_title.split(' - The Poster Database')[0].strip()
+            
+            # Remove " Poster" suffix if present (from second title format)
+            if title_text.endswith(' Poster'):
+                title_text = title_text[:-7].strip()
+            
+            # Try to get media type from the page
+            # Look for the "Type:" label in any <p> tag
+            media_type = None
+            all_paragraphs = soup.find_all('p')
+            for p in all_paragraphs:
+                text = p.get_text(strip=True)
+                if 'Type:' in text:
+                    # Extract just the type value after "Type:"
+                    media_type = text.split('Type:')[-1].strip()
+                    break
+            
+            if not media_type:
+                print("Could not determine media type")
+                return movie_posters, show_posters, collection_posters
+            
+            # Parse based on media type
+            if media_type == "Show":
+                poster_info = self._parse_show_poster(title_text, poster_url)
+                show_posters.append(poster_info)
+            elif media_type == "Movie":
+                poster_info = self._parse_movie_poster(title_text, poster_url)
+                movie_posters.append(poster_info)
+            elif media_type == "Collection":
+                poster_info = self._parse_collection_poster(title_text, poster_url)
+                collection_posters.append(poster_info)
+            
+        except Exception as e:
+            print(f"Error parsing single poster page: {str(e)}")
+        
+        return movie_posters, show_posters, collection_posters
+    
     def scrape_set_from_poster(self, url: str) -> Tuple[List[PosterInfo], List[PosterInfo], List[PosterInfo]]:
         """Scrape entire set from a single poster URL.
         

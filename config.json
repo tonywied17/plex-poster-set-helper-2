@@ -1,6 +1,6 @@
 {
     "base_url": "http://127.0.0.1:32400",
-    "token": "",
+    "token": "q2Ja8qquBNgaPoPok7jj",
     "bulk_files": [
         "bulk_import.txt",
         "test.txt"
@@ -19,5 +19,6 @@
     "title_mappings": {
         "Pluribus": "PLUR1BUS"
     },
-    "max_workers": 4
+    "max_workers": 4,
+    "log_file": "debug.log"
 }

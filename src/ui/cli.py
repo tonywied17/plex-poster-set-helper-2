@@ -6,6 +6,7 @@ from typing import List
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from ..core.config import ConfigManager
+from ..core.logger import get_logger
 from ..services.plex_service import PlexService
 from ..services.poster_upload_service import PosterUploadService
 from ..scrapers.scraper_factory import ScraperFactory
@@ -19,6 +20,11 @@ class PlexPosterCLI:
         """Initialize the CLI."""
         self.config_manager = ConfigManager()
         self.config = self.config_manager.load()
+        
+        # Initialize logger with config
+        self.logger = get_logger()
+        self.logger.configure(log_file=self.config.log_file)
+        self.logger.info("CLI Application initializing...")
         
         self.plex_service: PlexService = None
         self.upload_service: PosterUploadService = None
@@ -92,9 +98,11 @@ class PlexPosterCLI:
             return
         
         try:
+            self.logger.info(f"Processing URL: {url}")
             print(f"\nScraping: {url}")
             movie_posters, show_posters, collection_posters = self.scraper_factory.scrape_url(url)
             
+            self.logger.debug(f"Scraped {len(collection_posters)} collections, {len(movie_posters)} movies, {len(show_posters)} shows")
             print(f"Found {len(collection_posters)} collection posters, {len(movie_posters)} movie posters, {len(show_posters)} show posters.")
             
             # Process all posters
@@ -102,9 +110,11 @@ class PlexPosterCLI:
             for poster in all_posters:
                 self.upload_service.process_poster(poster)
             
+            self.logger.info(f"Successfully completed processing: {url}")
             print(f"\nCompleted processing: {url}")
         
         except Exception as e:
+            self.logger.exception(f"Error processing URL {url}: {str(e)}")
             print(f"Error processing URL: {str(e)}")
     
     def process_bulk_file(self, file_path: str, concurrent: bool = True):

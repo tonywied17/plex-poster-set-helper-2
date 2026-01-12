@@ -1,6 +1,7 @@
 """GUI application for Plex Poster Set Helper."""
 
 import os
+import sys
 import threading
 import webbrowser
 import tkinter as tk
@@ -11,6 +12,7 @@ import customtkinter as ctk
 from PIL import Image
 
 from ..core.config import ConfigManager, Config
+from ..core.logger import get_logger
 from ..services.plex_service import PlexService
 from ..services.poster_upload_service import PosterUploadService
 from ..scrapers.scraper_factory import ScraperFactory
@@ -25,6 +27,11 @@ class PlexPosterGUI:
         """Initialize the GUI application."""
         self.config_manager = ConfigManager()
         self.config = self.config_manager.load()
+        
+        # Initialize logger with config
+        self.logger = get_logger()
+        self.logger.configure(log_file=self.config.log_file)
+        self.logger.info("GUI Application initializing...")
         
         self.plex_service: PlexService = None
         self.upload_service: PosterUploadService = None
@@ -61,7 +68,6 @@ class PlexPosterGUI:
         self.labeled_count_label = None
         self.labeled_library_label = None
         self.labeled_source_label = None
-        self.labeled_source_stats_label = None
         self.is_refreshing_labels = False
         self.labeled_items_all = []  # Store all items for filtering
         self.labeled_search_var = None
@@ -340,6 +346,22 @@ class PlexPosterGUI:
         
         max_workers_value_label = ctk.CTkLabel(max_workers_frame, textvariable=self.max_workers_var, text_color="#E5A00D", font=("Roboto", 15, "bold"))
         max_workers_value_label.grid(row=0, column=1, pady=0, padx=0, sticky="e")
+        row += 1
+        
+        # Log File Path
+        log_file_frame = ctk.CTkFrame(main_scroll, fg_color="transparent")
+        log_file_frame.grid(row=row, column=0, pady=(5, 10), padx=10, sticky="ew")
+        log_file_frame.grid_columnconfigure(1, weight=1)
+        
+        log_file_label = ctk.CTkLabel(log_file_frame, text="Log File Path", text_color="#696969", font=("Roboto", 14))
+        log_file_label.grid(row=0, column=0, pady=0, padx=(0, 10), sticky="w")
+        
+        self.log_file_entry = ctk.CTkEntry(log_file_frame, placeholder_text="debug.log", fg_color="#1C1E1E")
+        self.log_file_entry.grid(row=0, column=1, pady=0, padx=(0, 5), sticky="ew")
+        
+        open_log_button = self._create_button(log_file_frame, text="Open Log", command=self._open_log_file)
+        open_log_button.grid(row=0, column=2, pady=0, padx=0, ipadx=15, sticky="e")
+        row += 1
         
         # Buttons fixed at bottom outside scroll area
         button_frame = ctk.CTkFrame(settings_tab, fg_color="transparent")
@@ -585,18 +607,7 @@ class PlexPosterGUI:
         )
         self.labeled_count_label.grid(row=0, column=0, columnspan=2, pady=(10, 2), padx=10, sticky="w")
         
-        # Source stats label (prominent display)
-        self.labeled_source_stats_label = ctk.CTkLabel(
-            stats_frame,
-            text="",
-            text_color="#A0A0A0",
-            font=("Roboto", 13),
-            anchor="w",
-            justify="left"
-        )
-        self.labeled_source_stats_label.grid(row=1, column=0, columnspan=2, pady=(0, 8), padx=10, sticky="w")
-        
-        # Library breakdown label (multi-line)
+        # Library breakdown label (multi-line) - Left Column
         self.labeled_library_label = ctk.CTkLabel(
             stats_frame,
             text="",
@@ -605,9 +616,9 @@ class PlexPosterGUI:
             anchor="w",
             justify="left"
         )
-        self.labeled_library_label.grid(row=2, column=0, pady=(0, 10), padx=10, sticky="w")
+        self.labeled_library_label.grid(row=1, column=0, pady=(0, 10), padx=10, sticky="nw")
         
-        # Source breakdown label
+        # Source breakdown label - Right Column
         self.labeled_source_label = ctk.CTkLabel(
             stats_frame,
             text="",
@@ -616,7 +627,7 @@ class PlexPosterGUI:
             anchor="w",
             justify="left"
         )
-        self.labeled_source_label.grid(row=2, column=1, pady=(0, 10), padx=10, sticky="w")
+        self.labeled_source_label.grid(row=1, column=1, pady=(0, 10), padx=10, sticky="nw")
         
         # Filter frame
         filter_frame = ctk.CTkFrame(manage_labels_tab, fg_color="#1C1E1E", corner_radius=8)
@@ -629,7 +640,7 @@ class PlexPosterGUI:
             text_color="#CECECE",
             font=("Roboto", 12, "bold")
         )
-        filter_label.grid(row=0, column=0, padx=(10, 5), pady=8, sticky="w")
+        filter_label.grid(row=0, column=0, padx=(10, 5), pady=(8, 4), sticky="w")
         
         # Search box
         self.labeled_search_var = ctk.StringVar()
@@ -642,15 +653,24 @@ class PlexPosterGUI:
             height=28,
             font=("Roboto", 12)
         )
-        search_entry.grid(row=0, column=1, padx=5, pady=8, sticky="w")
+        search_entry.grid(row=0, column=1, columnspan=5, padx=5, pady=(8, 4), sticky="ew")
         
         # Source filter checkboxes
         self.labeled_filter_mediux = ctk.BooleanVar(value=True)
         self.labeled_filter_posterdb = ctk.BooleanVar(value=True)
         
-        # Source filter checkboxes
-        self.labeled_filter_mediux = ctk.BooleanVar(value=True)
-        self.labeled_filter_posterdb = ctk.BooleanVar(value=True)
+        # Library type filter checkboxes
+        self.labeled_filter_movies = ctk.BooleanVar(value=True)
+        self.labeled_filter_tv = ctk.BooleanVar(value=True)
+        
+        # Checkbox row
+        checkbox_label = ctk.CTkLabel(
+            filter_frame,
+            text="Source:",
+            text_color="#A0A0A0",
+            font=("Roboto", 11)
+        )
+        checkbox_label.grid(row=1, column=0, padx=(10, 5), pady=(4, 8), sticky="w")
         
         mediux_check = ctk.CTkCheckBox(
             filter_frame,
@@ -664,7 +684,7 @@ class PlexPosterGUI:
             hover_color="#FFA500",
             border_color="#484848"
         )
-        mediux_check.grid(row=0, column=2, padx=(15, 5), pady=8, sticky="w")
+        mediux_check.grid(row=1, column=1, padx=5, pady=(4, 8), sticky="w")
         
         posterdb_check = ctk.CTkCheckBox(
             filter_frame,
@@ -678,7 +698,53 @@ class PlexPosterGUI:
             hover_color="#FFA500",
             border_color="#484848"
         )
-        posterdb_check.grid(row=0, column=3, padx=5, pady=8, sticky="w")
+        posterdb_check.grid(row=1, column=2, padx=5, pady=(4, 8), sticky="w")
+        
+        # Separator
+        sep_label = ctk.CTkLabel(
+            filter_frame,
+            text="|",
+            text_color="#484848",
+            font=("Roboto", 11)
+        )
+        sep_label.grid(row=1, column=3, padx=5, pady=(4, 8), sticky="w")
+        
+        type_label = ctk.CTkLabel(
+            filter_frame,
+            text="Type:",
+            text_color="#A0A0A0",
+            font=("Roboto", 11)
+        )
+        type_label.grid(row=1, column=4, padx=(5, 5), pady=(4, 8), sticky="w")
+        
+        # Library type filter checkboxes
+        movies_check = ctk.CTkCheckBox(
+            filter_frame,
+            text="🎬 Movies",
+            variable=self.labeled_filter_movies,
+            command=self._apply_label_filters,
+            font=("Roboto", 11),
+            checkbox_width=18,
+            checkbox_height=18,
+            fg_color="#E5A00D",
+            hover_color="#FFA500",
+            border_color="#484848"
+        )
+        movies_check.grid(row=1, column=5, padx=5, pady=(4, 8), sticky="w")
+        
+        tv_check = ctk.CTkCheckBox(
+            filter_frame,
+            text="📺 TV Shows",
+            variable=self.labeled_filter_tv,
+            command=self._apply_label_filters,
+            font=("Roboto", 11),
+            checkbox_width=18,
+            checkbox_height=18,
+            fg_color="#E5A00D",
+            hover_color="#FFA500",
+            border_color="#484848"
+        )
+        tv_check.grid(row=1, column=6, padx=5, pady=(4, 8), sticky="w")
         
         # Clear filters button
         clear_btn = ctk.CTkButton(
@@ -691,7 +757,7 @@ class PlexPosterGUI:
             fg_color="#484848",
             hover_color="#5A5A5A"
         )
-        clear_btn.grid(row=0, column=4, padx=(10, 10), pady=8, sticky="e")
+        clear_btn.grid(row=1, column=7, padx=(10, 10), pady=(4, 8), sticky="e")
         
         # Auto-load items when tab is created
         self.app.after(100, self._refresh_labeled_items)
@@ -857,6 +923,14 @@ class PlexPosterGUI:
             message: Status message.
             color: Text color.
         """
+        # Log the status message
+        if color == "red":
+            self.logger.error(f"GUI Status: {message}")
+        elif color in ["orange", "#FF6B6B"]:
+            self.logger.warning(f"GUI Status: {message}")
+        else:
+            self.logger.info(f"GUI Status: {message}")
+        
         self.app.after(0, lambda: self.status_label.configure(text=message, text_color=color))
     
     def _update_progress(self, current: int, total: int, url: str = "", active_count: int = 0):
@@ -942,6 +1016,26 @@ class PlexPosterGUI:
         self.url_entry.delete("1.0", ctk.END)
         self._update_status("URLs cleared.", color="orange")
     
+    def _open_log_file(self):
+        """Open the log file in the default text editor."""
+        try:
+            log_path = self.logger.log_file_path
+            if log_path and os.path.exists(log_path):
+                self.logger.info(f"Opening log file: {log_path}")
+                # Open with default application
+                if os.name == 'nt':  # Windows
+                    os.startfile(log_path)
+                elif os.name == 'posix':  # macOS and Linux
+                    import subprocess
+                    subprocess.call(['open' if sys.platform == 'darwin' else 'xdg-open', log_path])
+                self._update_status("Log file opened!", color="#E5A00D")
+            else:
+                self.logger.warning(f"Log file not found: {log_path}")
+                self._update_status("Log file not found or hasn't been created yet.", color="orange")
+        except Exception as e:
+            self.logger.error(f"Error opening log file: {str(e)}")
+            self._update_status(f"Error opening log file: {str(e)}", color="red")
+    
     def _set_default_tab(self, tabview):
         """Set default tab based on configuration.
         
@@ -1011,6 +1105,12 @@ class PlexPosterGUI:
             max_workers_value = getattr(self.config, 'max_workers', 3)
             self.max_workers_var.set(max_workers_value)
         
+        # Load log file path
+        if self.log_file_entry:
+            self.log_file_entry.delete(0, ctk.END)
+            log_file_value = getattr(self.config, 'log_file', 'debug.log')
+            self.log_file_entry.insert(0, log_file_value)
+        
         self._load_bulk_import_file()
         self._load_title_mappings()
         
@@ -1049,11 +1149,15 @@ class PlexPosterGUI:
             mediux_filters=mediux_filters,
             bulk_files=self.config.bulk_files,  # Preserve bulk files list
             title_mappings=self.config.title_mappings,  # Preserve title mappings
-            max_workers=self.max_workers_var.get() if self.max_workers_var else 3
+            max_workers=self.max_workers_var.get() if self.max_workers_var else 3,
+            log_file=self.log_file_entry.get().strip() if self.log_file_entry.get().strip() else "debug.log"
         )
         
         if self.config_manager.save(new_config):
             self.config = new_config
+            # Reconfigure logger with new log file path
+            self.logger.configure(log_file=self.config.log_file)
+            self.logger.info("Configuration saved and logger reconfigured")
             self._load_and_update_ui()
             self._update_status("Configuration saved successfully!", color="#E5A00D")
         else:
@@ -1878,11 +1982,16 @@ class PlexPosterGUI:
     
     def _setup_services(self):
         """Setup Plex and scraper services."""
+        self.logger.info("Setting up Plex and scraper services...")
+        self.logger.debug(f"Config - Base URL: {self.config.base_url}, Max Workers: {self.config.max_workers}")
+        
         self.plex_service = PlexService(self.config)
         self.plex_service.setup(gui_mode=True)
         
         self.upload_service = PosterUploadService(self.plex_service)
         self.scraper_factory = ScraperFactory(self.config, use_playwright=True)
+        
+        self.logger.info("Services setup completed successfully")
     
     def _disable_buttons(self):
         """Disable action buttons during processing."""
@@ -1908,24 +2017,23 @@ class PlexPosterGUI:
         """Refresh the list of labeled items in a separate thread."""
         if self.is_refreshing_labels:
             return  # Already refreshing, skip
-        threading.Thread(target=self._load_labeled_items).start()
-    
-    def _load_labeled_items(self):
-        """Load all items with the plex_poster_set_helper label."""
-        self.is_refreshing_labels = True
+        self.logger.info("Loading labeled items from Plex...")
         try:
             self._setup_services()
             
             if not self.plex_service.tv_libraries and not self.plex_service.movie_libraries:
+                self.logger.warning("Plex setup incomplete - no libraries configured")
                 self.app.after(0, lambda: self.labeled_count_label.configure(text="Plex setup incomplete. Please configure your settings."))
                 return
             
             # Get items with the label
             items = self.plex_service.get_items_by_label('plex_poster_set_helper')
+            self.logger.debug(f"Found {len(items)} items with main label")
             
             # Also get items with source-specific labels (in case main label was removed)
             mediux_items = self.plex_service.get_items_by_label('plex_poster_set_helper_mediux')
             posterdb_items = self.plex_service.get_items_by_label('plex_poster_set_helper_posterdb')
+            self.logger.debug(f"Found {len(mediux_items)} MediUX items, {len(posterdb_items)} PosterDB items")
             
             # Combine and deduplicate by rating key
             all_items_dict = {item.ratingKey: item for item in items}
@@ -1935,11 +2043,13 @@ class PlexPosterGUI:
                 all_items_dict[item.ratingKey] = item
             
             combined_items = list(all_items_dict.values())
+            self.logger.info(f"Total labeled items after deduplication: {len(combined_items)}")
             
             # Schedule widget cleanup and recreation on main thread
             self.app.after(0, lambda: self._update_labeled_items_display(combined_items))
         
         except Exception as e:
+            self.logger.exception(f"Error loading labeled items: {str(e)}")
             self.app.after(0, lambda: self.labeled_count_label.configure(text=f"Error loading items: {str(e)}"))
         finally:
             self.is_refreshing_labels = False
@@ -1965,6 +2075,8 @@ class PlexPosterGUI:
         search_text = self.labeled_search_var.get().lower() if self.labeled_search_var else ""
         show_mediux = self.labeled_filter_mediux.get() if self.labeled_filter_mediux else True
         show_posterdb = self.labeled_filter_posterdb.get() if self.labeled_filter_posterdb else True
+        show_movies = self.labeled_filter_movies.get() if self.labeled_filter_movies else True
+        show_tv = self.labeled_filter_tv.get() if self.labeled_filter_tv else True
         
         # Filter items
         filtered_items = []
@@ -1984,6 +2096,13 @@ class PlexPosterGUI:
             if item_source == 'mediux' and not show_mediux:
                 continue
             if item_source == 'posterdb' and not show_posterdb:
+                continue
+            
+            # Apply library type filter
+            item_type = item.type
+            if item_type == 'movie' and not show_movies:
+                continue
+            if item_type in ['show', 'season', 'episode'] and not show_tv:
                 continue
             
             # Apply search filter
@@ -2040,36 +2159,41 @@ class PlexPosterGUI:
             count_text = f"Showing {filtered_count} of {all_count} item{'s' if all_count != 1 else ''} with custom posters"
         self.labeled_count_label.configure(text=count_text)
         
-        # Update source stats (from ALL items)
-        source_stats_text = ""
-        if source_counts['mediux'] > 0 or source_counts['posterdb'] > 0:
-            stats_parts = []
-            if source_counts['mediux'] > 0:
-                stats_parts.append(f"🌐 MediUX: {source_counts['mediux']}")
-            if source_counts['posterdb'] > 0:
-                stats_parts.append(f"🎨 ThePosterDB: {source_counts['posterdb']}")
-            source_stats_text = "  |  ".join(stats_parts)
-        self.labeled_source_stats_label.configure(text=source_stats_text)
+        # Build library breakdown text (from ALL items) - Left Column
+        library_text_parts = []
+        movie_count = 0
+        tv_count = 0
         
-        # Build library breakdown text (from ALL items)
         if library_counts:
-            library_text_parts = []
             for library, lib_count in sorted(library_counts.items()):
                 lib_type = library_types.get(library, 'movie')
                 if lib_type in ['show', 'season', 'episode']:
                     icon = "📺"
+                    tv_count += lib_count
                 elif lib_type == 'collection':
                     icon = "📚"
                 else:
                     icon = "🎬"
-                
-                library_text_parts.append(f"{icon} {library}: {lib_count}")
-            library_text = "\n".join(library_text_parts)
-        else:
-            library_text = ""
+                    movie_count += lib_count
         
+        # Build library type summary
+        if movie_count > 0:
+            library_text_parts.append(f"🎬 Movies: {movie_count}")
+        if tv_count > 0:
+            library_text_parts.append(f"📺 TV Shows: {tv_count}")
+        
+        library_text = "\n".join(library_text_parts) if library_text_parts else ""
         self.labeled_library_label.configure(text=library_text)
-        self.labeled_source_label.configure(text="")
+        
+        # Build source breakdown text - Right Column
+        source_text_parts = []
+        if source_counts['mediux'] > 0:
+            source_text_parts.append(f"🌐 MediUX: {source_counts['mediux']}")
+        if source_counts['posterdb'] > 0:
+            source_text_parts.append(f"🎨 ThePosterDB: {source_counts['posterdb']}")
+        
+        source_text = "\n".join(source_text_parts) if source_text_parts else ""
+        self.labeled_source_label.configure(text=source_text)
         
         # Display filtered items
         for idx, item in enumerate(items):
@@ -2097,6 +2221,10 @@ class PlexPosterGUI:
             self.labeled_filter_mediux.set(True)
         if self.labeled_filter_posterdb:
             self.labeled_filter_posterdb.set(True)
+        if self.labeled_filter_movies:
+            self.labeled_filter_movies.set(True)
+        if self.labeled_filter_tv:
+            self.labeled_filter_tv.set(True)
         self._apply_label_filters()
     
     def _create_labeled_item_row(self, item, row_index):

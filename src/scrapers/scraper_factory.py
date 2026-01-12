@@ -53,19 +53,18 @@ class ScraperFactory:
             url: ThePosterDB URL.
             
         Returns:
-        # Use requests-based scraping (no Playwright) for thread-safe concurrent scraping
-        # PosterDB works fine with requests as it's server-side rendered
-        with PosterDBScraper(use_playwright=False
+            Tuple of (movie_posters, show_posters, collection_posters).
         """
         with PosterDBScraper(use_playwright=self.use_playwright) as scraper:
-            if "/set/" in url or "/user/" in url:
-                # Check if it's a user page
-                if "/user/" in url:
-                    return scraper.scrape_user_uploads(url)
-                else:
-                    return scraper.scrape(url)
+            if "/user/" in url:
+                # User page - scrape all uploads
+                return scraper.scrape_user_uploads(url)
+            elif "/set/" in url:
+                # Set URL - scrape the entire set
+                return scraper.scrape(url)
             elif "/poster/" in url:
-                return scraper.scrape_set_from_poster(url)
+                # Single poster URL - scrape only that specific poster
+                return scraper.scrape_single_poster(url)
             else:
                 raise ValueError("Unsupported PosterDB URL format.")
     

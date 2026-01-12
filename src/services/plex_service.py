@@ -177,17 +177,40 @@ class PlexService:
             List of found collections or None.
         """
         collections = []
+        
+        # Try different title variations
+        search_titles = [title]
+        
+        # If title ends with " Collection", also try without it
+        if title.endswith(" Collection"):
+            search_titles.append(title[:-11].strip())
+        # If title doesn't end with " Collection", also try adding it
+        else:
+            search_titles.append(f"{title} Collection")
+        
         for lib in libraries:
             try:
                 movie_collections = lib.collections()
                 for plex_collection in movie_collections:
-                    if plex_collection.title == title:
+                    # Check exact matches first
+                    if plex_collection.title in search_titles:
                         collections.append(plex_collection)
+                        continue
+                    
+                    # Try case-insensitive match
+                    for search_title in search_titles:
+                        if plex_collection.title.lower() == search_title.lower():
+                            collections.append(plex_collection)
+                            break
             except:
                 pass
         
         if collections:
             return collections
+        
+        # If no exact matches found, print available collections for debugging
+        if not collections:
+            print(f"Available collections in library: {[c.title for lib in libraries for c in lib.collections()][:10]}")
         
         return None
     
