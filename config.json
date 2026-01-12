@@ -1,6 +1,6 @@
 {
     "base_url": "http://127.0.0.1:32400",
-    "token": "q2Ja8qquBNgaPoPok7jj",
+    "token": "",
     "bulk_files": [
         "bulk_import.txt",
         "test.txt"
