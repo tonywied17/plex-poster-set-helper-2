@@ -94,16 +94,28 @@ Automatically download and apply poster sets from ThePosterDB and MediUX to your
 
    ```json
    {
-     "base_url": "http://192.168.1.100:32400",
-     "token": "your_plex_token_here",
-     "movie_library": "Movies",
-     "tv_library": "TV Shows",
-     "bulk_files": ["bulk_import.txt"],
-     "mediux_filters": ["poster", "backdrop", "title_card"],
+     "base_url": "http://127.0.0.1:32400",
+     "token": "",
+     "bulk_files": [
+       "bulk_import.txt",
+       "test.txt"
+     ],
+     "tv_library": [
+       "TV Shows"
+     ],
+     "movie_library": [
+       "Movies"
+     ],
+     "mediux_filters": [
+       "poster",
+       "backdrop",
+       "title_card"
+     ],
      "title_mappings": {
-       "Pluribus": "PLUR1BUS",
-       "The Office": "The Office (US)"
-     }
+       "Pluribus": "PLUR1BUS"
+     },
+     "max_workers": 4,
+     "log_file": "debug.log"
    }
    ```
 
@@ -111,13 +123,15 @@ Automatically download and apply poster sets from ThePosterDB and MediUX to your
    
    | Option | Description | Example |
    |--------|-------------|---------|
-   | `base_url` | Your Plex server URL and port | `"http://192.168.1.100:32400"` |
+   | `base_url` | Your Plex server URL and port | `"http://127.0.0.1:32400"` |
    | `token` | Plex authentication token ([How to find](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)) | `"aBc123XyZ..."` |
-   | `movie_library` | Name of your Movies library | `"Movies"` or `["Movies", "4K Movies"]` |
-   | `tv_library` | Name of your TV Shows library | `"TV Shows"` or `["TV", "Anime"]` |
-   | `bulk_files` | List of bulk import text files | `["bulk_import.txt", "movies.txt"]` |
+   | `bulk_files` | List of bulk import text files | `["bulk_import.txt", "test.txt"]` |
+   | `tv_library` | Name(s) of your TV Shows library | `["TV Shows"]` or `["TV", "Anime"]` |
+   | `movie_library` | Name(s) of your Movies library | `["Movies"]` or `["Movies", "4K Movies"]` |
    | `mediux_filters` | MediUX media types to download | `["poster", "backdrop", "title_card"]` |
-   | `title_mappings` | Manual title overrides for non-matching names | `{"Source Title": "Plex Title"}` |
+   | `title_mappings` | Manual title overrides for non-matching names | `{"Pluribus": "PLUR1BUS"}` |
+   | `max_workers` | Number of concurrent workers for bulk operations | `4` |
+   | `log_file` | Path to log file for debugging | `"debug.log"` |
 
    > **Multiple Libraries:** You can specify multiple libraries as arrays to apply posters across all of them simultaneously.
    
