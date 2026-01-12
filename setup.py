@@ -6,19 +6,56 @@ import subprocess
 import sys
 import platform
 
+def detect_package_manager():
+    """Detect which package manager is available on Linux."""
+    managers = {
+        'apt': ['apt', 'update', '&&', 'sudo', 'apt', 'install', '-y', 'python3-tk', 'python3-pip'],
+        'dnf': ['dnf', 'install', '-y', 'python3-tkinter', 'python3-pip'],
+        'yum': ['yum', 'install', '-y', 'python3-tkinter', 'python3-pip'],
+        'pacman': ['pacman', '-S', '--noconfirm', 'tk', 'python-pip'],
+        'zypper': ['zypper', 'install', '-y', 'python3-tk', 'python3-pip']
+    }
+    
+    for manager in managers:
+        try:
+            subprocess.check_call(['which', manager], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return manager, managers[manager]
+        except subprocess.CalledProcessError:
+            continue
+    return None, None
+
 def main():
     # Install system dependencies for Linux
     if platform.system() == "Linux":
-        print("Installing system dependencies...")
+        print("Installing system dependencies for GUI support...")
         print("(This requires sudo privileges)")
-        try:
-            # Install GUI support
-            subprocess.check_call(["sudo", "apt", "update"])
-            subprocess.check_call(["sudo", "apt", "install", "-y", "python3-tk", "python3-pip"])
-            print("✓ GUI dependencies installed successfully")
-        except subprocess.CalledProcessError as e:
-            print(f"⚠ Could not install GUI dependencies: {e}")
-            print("  Please run manually: sudo apt update && sudo apt install python3-tk python3-pip")
+        
+        pkg_manager, install_cmd = detect_package_manager()
+        
+        if pkg_manager:
+            print(f"Detected package manager: {pkg_manager}")
+            try:
+                if pkg_manager == 'apt':
+                    subprocess.check_call(["sudo", "apt", "update"])
+                    subprocess.check_call(["sudo", "apt", "install", "-y", "python3-tk", "python3-pip"])
+                else:
+                    subprocess.check_call(["sudo"] + install_cmd)
+                print("✓ System dependencies installed successfully")
+            except subprocess.CalledProcessError as e:
+                print(f"⚠ Could not install system dependencies: {e}")
+                if pkg_manager == 'apt':
+                    print("  Please run manually: sudo apt update && sudo apt install python3-tk python3-pip")
+                elif pkg_manager == 'dnf':
+                    print("  Please run manually: sudo dnf install python3-tkinter python3-pip")
+                elif pkg_manager == 'yum':
+                    print("  Please run manually: sudo yum install python3-tkinter python3-pip")
+                elif pkg_manager == 'pacman':
+                    print("  Please run manually: sudo pacman -S tk python-pip")
+                elif pkg_manager == 'zypper':
+                    print("  Please run manually: sudo zypper install python3-tk python3-pip")
+        else:
+            print("⚠ Could not detect package manager")
+            print("  Please install python3-tk and python3-pip manually for your distribution")
         print("")
     
     # Install system dependencies for macOS
@@ -69,8 +106,10 @@ def main():
         print(f"✗ Failed to install Playwright browser: {e}")
         sys.exit(1)
     
-    # Install Playwright system dependencies
+    # Install Playwright system dependencies for Linux
     if platform.system() == "Linux":
+        print("\nInstalling Playwright system dependencies...")
+        print("(This may require sudo privileges)")
         try:
             subprocess.check_call([sys.executable, "-m", "playwright", "install-deps", "chromium"])
             print("✓ Playwright system dependencies installed successfully")
