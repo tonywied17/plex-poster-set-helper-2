@@ -99,10 +99,16 @@ def main():
         sys.exit(1)
     
     print("\nInstalling Playwright Chromium browser...")
+    print("(This may take a few minutes to download)")
     try:
-        subprocess.check_call([sys.executable, "-m", "playwright", "install", "chromium"])
-        print("✓ Playwright Chromium installed successfully")
-    except subprocess.CalledProcessError as e:
+        # Run without capturing output so user sees download progress
+        result = subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"])
+        if result.returncode == 0:
+            print("✓ Playwright Chromium installed successfully")
+        else:
+            print(f"✗ Failed to install Playwright browser")
+            sys.exit(1)
+    except Exception as e:
         print(f"✗ Failed to install Playwright browser: {e}")
         sys.exit(1)
     
