@@ -1120,6 +1120,12 @@ class PlexPosterGUI:
     
     def _save_config(self):
         """Save configuration from UI fields."""
+        # Store old config values to detect changes
+        old_base_url = self.config.base_url
+        old_token = self.config.token
+        old_tv_library = self.config.tv_library.copy()
+        old_movie_library = self.config.movie_library.copy()
+        
         # Collect TV libraries
         tv_libraries = []
         for row_widgets in self.tv_library_rows:
@@ -1154,11 +1160,33 @@ class PlexPosterGUI:
         )
         
         if self.config_manager.save(new_config):
+            # Check if Plex-related config changed
+            plex_config_changed = (
+                new_config.base_url != old_base_url or 
+                new_config.token != old_token or
+                new_config.tv_library != old_tv_library or
+                new_config.movie_library != old_movie_library
+            )
+            
             self.config = new_config
             # Reconfigure logger with new log file path
             self.logger.configure(log_file=self.config.log_file)
             self.logger.info("Configuration saved and logger reconfigured")
             self._load_and_update_ui()
+            
+            # Reinitialize Plex service if Plex config changed
+            if plex_config_changed:
+                try:
+                    self.logger.info("Plex config changed, reinitializing services...")
+                    self.plex_service = None
+                    self.upload_service = None
+                    self._setup_services()
+                    # Refresh the Reset Posters tab if it exists
+                    self.app.after(100, self._refresh_labeled_items)
+                    self.logger.info("Services reinitialized successfully")
+                except Exception as e:
+                    self.logger.error(f"Error reinitializing services: {e}")
+            
             self._update_status("Configuration saved successfully!", color="#E5A00D")
         else:
             self._update_status("Error saving configuration.", color="red")
