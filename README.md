@@ -37,7 +37,7 @@ Automatically download and apply poster sets from ThePosterDB and MediUX to your
 - Plex Media Server with API access
 - **Linux Users:** tkinter for GUI support (see Linux-specific instructions below)
 
-### Setup
+### Quick Setup (Recommended)
 
 1. **Clone or download this repository**
    ```bash
@@ -45,48 +45,20 @@ Automatically download and apply poster sets from ThePosterDB and MediUX to your
    cd plex-poster-set-helper
    ```
 
-2. **Install dependencies**
+2. **Run automated setup**
    
-   **Automated Setup (Recommended):**
-   
-   **Windows:**
    ```bash
-   # Double-click setup.bat or run in PowerShell:
+   # Windows:
    python setup.py
-   ```
    
-   **Linux/Mac:**
-   ```bash
-   # Make the script executable and run:
-   chmod +x setup.sh
-   ./setup.sh
-   
-   # Or run directly:
+   # Linux/Mac:
    python3 setup.py
    ```
    
-   **Manual Setup:**
-   ```bash
-   # Install Python packages
-   pip install -r requirements.txt
-   
-   # Install Playwright browser (REQUIRED for scraping)
-   python -m playwright install chromium
-   ```
-   
-   **For Linux (Ubuntu/Debian/Unraid) - Additional Steps:**
-   ```bash
-   # Install system dependencies for GUI support
-   sudo apt update
-   sudo apt install python3-tk python3-pip
-   
-   # Install Playwright system dependencies
-   sudo python3 -m playwright install-deps chromium
-   ```
-   
-   **For Unraid Docker Users:**
-   - Use CLI mode: `python main.py cli`
-   - Or set up a Docker container with GUI support (see Troubleshooting section)
+   This will automatically:
+   - Install all Python dependencies
+   - Install Playwright browser (Chromium)
+   - Set up system dependencies for GUI support (Linux/Mac)
 
 3. **Configure your Plex connection**
    
@@ -136,6 +108,48 @@ Automatically download and apply poster sets from ThePosterDB and MediUX to your
    > **Multiple Libraries:** You can specify multiple libraries as arrays to apply posters across all of them simultaneously.
    
    > **Multiple Bulk Files:** The `bulk_files` array supports multiple text files for organizing different import lists (e.g., movies, TV shows, seasonal updates).
+
+---
+
+### Manual Setup (Advanced)
+
+If you prefer to install dependencies manually or need more control:
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/tonywied17/plex-poster-set-helper.git
+   cd plex-poster-set-helper
+   ```
+
+2. **Install Python dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Install Playwright browser**
+   ```bash
+   python -m playwright install chromium
+   ```
+
+4. **Linux-specific: Install system dependencies**
+   ```bash
+   # Ubuntu/Debian/Unraid:
+   sudo apt update
+   sudo apt install python3-tk python3-pip
+   
+   # Install Playwright system dependencies:
+   sudo python3 -m playwright install-deps chromium
+   ```
+
+5. **macOS-specific: Install tkinter**
+   ```bash
+   # Using Homebrew:
+   brew install python-tk
+   ```
+
+6. **Configure your Plex connection** (same as Quick Setup step 3)
+
+> **Note for Unraid Docker Users:** Use CLI mode (`python main.py cli`) or set up a Docker container with GUI support (see Troubleshooting section).
 
 ---
 
