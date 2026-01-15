@@ -425,8 +425,7 @@ class PlexPosterGUI:
         
         if not self.scraper_factory:
             self.scraper_factory = ScraperFactory(
-                self.config.mediux_filters,
-                self.config
+                config=self.config
             )
     
     def _run_url_scrape_thread(self):
