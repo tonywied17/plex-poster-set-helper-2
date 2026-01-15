@@ -71,11 +71,6 @@ class PlexPosterGUI:
         self.manage_labels_tab = None
         self.settings_tab = None
         
-        # Expose tab widget references for backwards compatibility
-        self.poster_scrape_rows = []
-        self.bulk_import_rows = []
-        self.title_mappings_rows = []
-        
         # Expose settings tab variables for backwards compatibility
         self.base_url_entry = None
         self.token_entry = None
@@ -204,11 +199,6 @@ class PlexPosterGUI:
         
         # Set default tab
         tabview.set("Poster Scrape")
-        
-        # Expose tab widget references for backwards compatibility
-        self.poster_scrape_rows = self.poster_scrape_tab.rows
-        self.bulk_import_rows = self.bulk_import_tab.rows
-        self.title_mappings_rows = self.title_mappings_tab.rows
         
         # Expose settings variables
         self.base_url_entry = self.settings_tab.base_url_entry
@@ -412,15 +402,33 @@ class PlexPosterGUI:
         # Update logger with new log file
         self.logger.configure(log_file=self.config.log_file)
         
+        # Reinitialize Plex service with new credentials
+        self.plex_service = PlexService(self.config)
+        tv_libs, movie_libs = self.plex_service.setup(gui_mode=True)
+        
+        # Reinitialize upload service with updated Plex service
+        if self.plex_service:
+            self.upload_service = PosterUploadService(self.plex_service)
+        
+        # Reinitialize scraper factory with updated config
+        self.scraper_factory = ScraperFactory(config=self.config)
+        
         self._update_status("Configuration saved successfully!", color="#E5A00D")
+        
+        # Refresh the Reset Posters tab if Plex setup was successful
+        if tv_libs or movie_libs:
+            self.app.after(100, lambda: self.label_handler.refresh_labeled_items())
     
     def _setup_services(self):
         """Initialize Plex and upload services."""
         if not self.plex_service:
             self.plex_service = PlexService(self.config)
             self.plex_service.setup(gui_mode=True)
+        elif not self.plex_service.tv_libraries and not self.plex_service.movie_libraries:
+            # Plex service exists but libraries aren't loaded - try setting up again
+            self.plex_service.setup(gui_mode=True)
         
-        if not self.upload_service:
+        if not self.upload_service and self.plex_service:
             self.upload_service = PosterUploadService(self.plex_service)
         
         if not self.scraper_factory:
@@ -536,13 +544,38 @@ class PlexPosterGUI:
             for row in row_list:
                 if row.get('entry') and row['entry'].get().strip() == url:
                     if status == 'processing':
-                        row['frame'].configure(fg_color="#1C3A4D")
+                        # Yellow border for processing
+                        row['entry'].configure(border_width=2, border_color="#E5A00D")
                     elif status == 'completed':
-                        row['frame'].configure(fg_color="#1C3D1C")
+                        # Green border for completed
+                        row['entry'].configure(border_width=2, border_color="#4CAF50")
                     elif status == 'error':
-                        row['frame'].configure(fg_color="#4D1C1C")
+                        # Red border for error
+                        row['entry'].configure(border_width=2, border_color="#FF6B6B")
                     else:
-                        row['frame'].configure(fg_color="transparent")
+                        # Reset to default
+                        row['entry'].configure(border_width=1, border_color="#484848")
                     break
         
         self.app.after(0, update)
+    
+    @property
+    def poster_scrape_rows(self):
+        """Get current poster scrape rows dynamically."""
+        if self.poster_scrape_tab:
+            return self.poster_scrape_tab.rows
+        return []
+    
+    @property
+    def bulk_import_rows(self):
+        """Get current bulk import rows dynamically."""
+        if self.bulk_import_tab:
+            return self.bulk_import_tab.rows
+        return []
+    
+    @property
+    def title_mappings_rows(self):
+        """Get current title mappings rows dynamically."""
+        if self.title_mappings_tab:
+            return self.title_mappings_tab.rows
+        return []
