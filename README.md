@@ -5,6 +5,44 @@ Automatically download and apply poster sets from ThePosterDB and MediUX to your
 
 > **Cross-Platform Support:** Fully compatible with Windows, Linux (Ubuntu, Debian, Unraid), and macOS. See [Linux-specific instructions](#linux-specific-issues-ubuntudebianunraid) for Ubuntu/Unraid users.
 
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+  - [Prerequisites](#prerequisites)
+  - [Quick Setup (Recommended)](#quick-setup-recommended)
+  - [Manual Setup (Advanced)](#manual-setup-advanced)
+- [Usage](#usage)
+  - [Interactive CLI Mode](#interactive-cli-mode)
+  - [Command-Line Arguments](#command-line-arguments)
+  - [GUI Mode](#gui-mode)
+- [Supported URLs](#supported-urls)
+  - [ThePosterDB](#theposterdb)
+  - [MediUX](#mediux)
+- [Advanced Features](#advanced-features)
+  - [Concurrent Processing](#concurrent-processing)
+  - [Bulk Import](#bulk-import)
+  - [MediUX Filters](#mediux-filters)
+  - [Title Matching](#title-matching)
+  - [Multiple Libraries](#multiple-libraries)
+- [Architecture](#architecture)
+- [Building the Executable](#building-the-executable)
+- [Troubleshooting](#troubleshooting)
+  - [Posters Not Applying to Plex](#posters-not-applying-to-plex)
+  - [Connection Errors](#connection-errors)
+  - [Operations Not Stopping](#operations-not-stopping)
+  - [GUI Performance Issues](#gui-performance-issues)
+  - [Media Not Found in Library](#media-not-found-in-library)
+  - [Linux-Specific Issues](#linux-specific-issues-ubuntudebianunraid)
+- [Requirements](#requirements)
+- [Contributing](#contributing)
+- [License](#license)
+- [Credits](#credits)
+
+---
+
 ## Features
 
 - **Multiple Source Support**
@@ -413,11 +451,6 @@ Want to understand how the application works under the hood? Check out the compr
 ![Component Architecture](https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/refs/heads/main/.github/diagrams/component_diagram.png)
 
 The component diagram illustrates the layered architecture and how different modules interact with each other.
-
-### User Journey Diagram
-![User Journey Flow](https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/refs/heads/main/.github/diagrams/user_journey_diagram.png)
-
-The user journey diagram shows the complete data flow from user input through scraping, processing, and uploading to your Plex server.
 
 ### Full Architecture Documentation
 

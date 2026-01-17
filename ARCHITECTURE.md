@@ -1,8 +1,8 @@
-# 🏗️ Plex Poster Set Helper - Architecture Documentation
+# Plex Poster Set Helper - Architecture Documentation
 
 > **A comprehensive visual guide to the application's layered architecture**
 
-## 📋 Table of Contents
+## Table of Contents
 - [System Overview](#-system-overview)
 - [Architecture Layers](#-architecture-layers)
 - [Data Flow](#-data-flow)
@@ -11,7 +11,7 @@
 
 ---
 
-## 🎯 System Overview
+## System Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -25,7 +25,7 @@
 
 ---
 
-## 🏛️ Architecture Layers
+## Architecture Layers
 
 ### Layer 0: Entry Point
 ```
@@ -286,7 +286,7 @@
 
 ---
 
-## 🔄 Data Flow
+## Data Flow
 
 ### Complete User Journey: Scraping and Uploading Posters
 
@@ -409,7 +409,7 @@
 
 ---
 
-## 🔗 Component Interaction
+## Component Interaction
 
 ### Dependency Graph
 
@@ -510,7 +510,7 @@ UI Layer ──calls──> Service Layer ──manages──> External APIs
 
 ---
 
-## 💻 Technology Stack
+## Technology Stack
 
 ### Core Technologies
 
@@ -551,7 +551,7 @@ UI Layer ──calls──> Service Layer ──manages──> External APIs
 
 ---
 
-## 🎨 Design Patterns Summary
+## Design Patterns Summary
 
 | Pattern | Location | Purpose |
 |---------|----------|---------|
@@ -567,7 +567,7 @@ UI Layer ──calls──> Service Layer ──manages──> External APIs
 
 ---
 
-## 📊 Key Features by Layer
+## Key Features by Layer
 
 ### Layer Responsibilities Matrix
 
@@ -607,7 +607,7 @@ UI Layer ──calls──> Service Layer ──manages──> External APIs
 
 ---
 
-## 🔐 Configuration Flow
+## Configuration Flow
 
 ```
 config.json (File System)
@@ -648,7 +648,7 @@ config.json (File System)
 
 ---
 
-## 🚀 Execution Modes
+## Execution Modes
 
 ### 1. GUI Mode
 ```
@@ -707,7 +707,7 @@ $ python main.py https://theposterdb.com/set/12345
 
 ---
 
-## 📈 Performance Characteristics
+## Performance Characteristics
 
 ### Concurrency Model
 
@@ -739,7 +739,7 @@ $ python main.py https://theposterdb.com/set/12345
 
 ---
 
-## 🛡️ Error Handling Strategy
+## Error Handling Strategy
 
 ```
 ┌──────────────────────────────────────────────────────┐
@@ -774,7 +774,7 @@ $ python main.py https://theposterdb.com/set/12345
 
 ---
 
-## 🎯 Future Architecture Considerations
+## Future Architecture Considerations
 
 ### Potential Enhancements
 
@@ -800,7 +800,7 @@ $ python main.py https://theposterdb.com/set/12345
 
 ---
 
-## 📝 File Structure Mapping
+## File Structure Mapping
 
 ```
 plex-poster-set-helper/
@@ -853,7 +853,7 @@ plex-poster-set-helper/
 
 ---
 
-## 🔍 Quick Reference: Component Communication
+## Quick Reference: Component Communication
 
 | From Component | To Component | Communication Method | Data Passed |
 |----------------|--------------|---------------------|-------------|
@@ -871,7 +871,7 @@ plex-poster-set-helper/
 
 ---
 
-## 🎓 Architecture Principles
+## Architecture Principles
 
 ### SOLID Principles Applied
 
@@ -890,7 +890,7 @@ plex-poster-set-helper/
 
 ---
 
-## 📚 Legend
+## Legend
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -920,4 +920,4 @@ plex-poster-set-helper/
 
 ---
 
-> 💡 **Tip**: This architecture is designed for maintainability and extensibility. When adding new features, identify the appropriate layer and follow existing patterns for consistency.
+> **Tip**: This architecture is designed for maintainability and extensibility. When adding new features, identify the appropriate layer and follow existing patterns for consistency.
