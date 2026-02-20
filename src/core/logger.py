@@ -98,7 +98,17 @@ class AppLogger:
         )
         
         try:
+            # Decide file mode. Respect explicit append, but avoid
+            # accidentally truncating an existing non-empty log when
+            # reconfiguring at runtime (e.g. when saving settings).
             mode = 'a' if append else 'w'
+            if not append:
+                try:
+                    if os.path.exists(AppLogger._log_file_path) and os.path.getsize(AppLogger._log_file_path) > 0:
+                        mode = 'a'
+                except Exception:
+                    mode = 'a'
+
             file_handler = logging.FileHandler(
                 AppLogger._log_file_path,
                 mode=mode,

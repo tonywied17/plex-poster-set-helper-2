@@ -283,7 +283,7 @@ class LogViewer:
 
             def emit(self, record):
                 try:
-                    time_str = self.formatter.formatTime(record, datefmt='%H:%M:%S') if hasattr(self, 'formatter') else ''
+                    time_str = self.formatter.formatTime(record, datefmt='%Y-%m-%d %H:%M:%S') if hasattr(self, 'formatter') else ''
                     level = record.levelname
                     msg = record.getMessage()
                     try:
@@ -309,7 +309,7 @@ class LogViewer:
 
         handler = GuiLogHandler(cb)
         handler.setLevel(logging.DEBUG)
-        fmt = logging.Formatter('%(asctime)s | %(levelname)-7s | %(name)s | %(message)s', datefmt='%H:%M:%S')
+        fmt = logging.Formatter('%(asctime)s | %(levelname)-7s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
         handler.setFormatter(fmt)
         return handler
 

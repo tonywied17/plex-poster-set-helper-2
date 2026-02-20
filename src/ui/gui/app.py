@@ -207,7 +207,8 @@ class PlexPosterGUI:
 
             def emit(self, record):
                 try:
-                    created = time.strftime('%H:%M:%S', time.localtime(record.created))
+                    from datetime import datetime as _dt
+                    created = _dt.fromtimestamp(record.created).strftime('%Y-%m-%d %H:%M:%S')
                     level = record.levelname
                     logger_name = record.name
                     message = record.getMessage()
@@ -217,7 +218,7 @@ class PlexPosterGUI:
 
         handler = GuiLogHandler(append_callback)
         handler.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s | %(levelname)-7s | %(name)s | %(message)s', datefmt='%H:%M:%S')
+        formatter = logging.Formatter('%(asctime)s | %(levelname)-7s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
         handler.setFormatter(formatter)
         return handler
 
