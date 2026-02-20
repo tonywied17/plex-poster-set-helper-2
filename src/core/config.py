@@ -2,6 +2,7 @@
 
 import json
 import os
+import sys
 from typing import Dict, List, Any
 from dataclasses import dataclass, asdict
 
@@ -54,10 +55,15 @@ class ConfigManager:
         Args:
             config_path: Path to the configuration file.
         """
-        # Ensure config_path is absolute for cross-platform compatibility
+        # Resolve config_path relative to the executable/script directory
+        # Use the same default location for both frozen executables and scripts
         if not os.path.isabs(config_path):
-            from ..utils.helpers import get_exe_dir
-            self.config_path = os.path.join(get_exe_dir(), config_path)
+            try:
+                from ..utils.helpers import get_exe_dir
+                self.config_path = os.path.join(get_exe_dir(), config_path)
+            except Exception:
+                # Fallback to current working directory if helper isn't available
+                self.config_path = os.path.abspath(config_path)
         else:
             self.config_path = config_path
         self._config: Config = None

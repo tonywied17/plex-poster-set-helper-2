@@ -1,14 +1,5 @@
-"""GUI log viewer (refactored for clarity).
-
-Features:
-- In-app Treeview showing log records (time, level, logger, message).
-- Persistent in-memory buffer so logs survive close/open of the viewer.
-- Duplicate-collapse: rapid identical messages are merged with a repeat count.
-- Session/banner detection and special styling.
-- SCRAPE and SUCCESS tags with custom colors.
-- Redirects stdout/stderr to the app logger while open but prevents recursion
-  by temporarily rebinding console StreamHandlers to the real stdout/stderr.
-"""
+"""GUI log viewer: display application logs in a Treeview and redirect
+stdout/stderr into the app logger while the viewer is open."""
 
 import logging
 import os
@@ -208,7 +199,15 @@ class LogViewer:
 
     def _preload_debug_log(self, path=None, max_lines=1000):
         if path is None:
-            path = os.path.join(os.getcwd(), 'debug.log')
+            # Prefer the logger's actual file path (set during AppLogger.setup).
+            path = getattr(getattr(self.app, 'logger', None), 'log_file_path', None)
+            if not path:
+                # Fall back to configured log filename (relative to cwd)
+                try:
+                    cfg_name = getattr(getattr(self.app, 'config', None), 'log_file', 'debug.log')
+                except Exception:
+                    cfg_name = 'debug.log'
+                path = os.path.join(os.getcwd(), cfg_name)
         if not os.path.exists(path):
             return
         try:
@@ -452,20 +451,135 @@ class LogViewer:
     # --- stream redirection helpers ---------------------------------
     def _redirect_streams(self):
         class StreamToLogger:
-            def __init__(self, logger_obj, level=logging.INFO):
+            def __init__(self, logger_obj, level=logging.INFO, orig_stdout=None, orig_stderr=None):
                 self.logger_obj = logger_obj
                 self.level = level
+                import threading
+                self._local = threading.local()
+                self._orig_stdout = orig_stdout
+                self._orig_stderr = orig_stderr
+
+            def _repair_handlers(self):
+                # Prefer the original streams captured before redirection
+                out_stream = None
+                try:
+                    out_stream = self._orig_stdout or self._orig_stderr
+                except Exception:
+                    out_stream = None
+
+                if out_stream is None:
+                    try:
+                        out_stream = getattr(sys, '__stdout__', None) or getattr(sys, '__stderr__', None)
+                    except Exception:
+                        out_stream = None
+
+                if out_stream is None:
+                    try:
+                        out_stream = sys.stderr
+                    except Exception:
+                        try:
+                            out_stream = open(os.devnull, 'w')
+                        except Exception:
+                            out_stream = None
+
+                try:
+                    for h in getattr(self.logger_obj, 'handlers', []):
+                        try:
+                            if isinstance(h, logging.StreamHandler) and getattr(h, 'stream', None) is None:
+                                                if out_stream is not None and not isinstance(out_stream, StreamToLogger):
+                                                    h.stream = out_stream
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
 
             def write(self, buf):
+                # Prevent re-entrant logging (writing to stderr/stdout -> logging -> write -> ...)
+                if getattr(self._local, 'in_write', False):
+                    return
                 try:
-                    clean = re.sub(r'^(?:[A-Z]+:\s+)+', '', buf)
-                except Exception:
-                    clean = buf
-                for line in clean.rstrip().splitlines():
-                    if not line:
-                        continue
+                    self._local.in_write = True
                     try:
-                        self.logger_obj.log(self.level, line)
+                        clean = re.sub(r'^(?:[A-Z]+:\s+)+', '', buf)
+                    except Exception:
+                        clean = buf
+                    for line in clean.rstrip().splitlines():
+                        if not line:
+                            continue
+                        try:
+                            if line.count('|') >= 3 and re.search(r'^\d{4}-\d{2}-\d{2}', line):
+                                continue
+                        except Exception:
+                            pass
+                        try:
+                            rec = logging.LogRecord(
+                                name=getattr(self.logger_obj, 'name', 'stdout'),
+                                level=self.level,
+                                pathname=__file__,
+                                lineno=0,
+                                msg=line,
+                                args=None,
+                                exc_info=None,
+                            )
+
+                            try:
+                                if re.search(r'saved configuration|configuration saved|saved configuration:', line, re.I):
+                                    pass
+                                else:
+                                    bad_patterns = (
+                                        r'^\s*--- Logging error ---',
+                                        r'^\s*Traceback \(most recent call last\):',
+                                        r'^\s*Call stack:',
+                                        r'^\s*Message:',
+                                        r'^\s*Arguments:',
+                                        r'^\s*File\s+"',
+                                        r"AttributeError: 'NoneType' object has no attribute 'write'",
+                                    )
+                                    skip = False
+                                    try:
+                                        for p in bad_patterns:
+                                            if re.search(p, line):
+                                                skip = True
+                                                break
+                                    except Exception:
+                                        skip = False
+
+                                    if skip:
+                                        continue
+                            except Exception:
+                                pass
+
+                            try:
+                                if self._orig_stdout and not isinstance(self._orig_stdout, StreamToLogger):
+                                    try:
+                                        self._orig_stdout.write(line + os.linesep)
+                                        try:
+                                            self._orig_stdout.flush()
+                                        except Exception:
+                                            pass
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                pass
+
+                            try:
+                                if self._orig_stderr and not isinstance(self._orig_stderr, StreamToLogger):
+                                    try:
+                                        self._orig_stderr.write(line + os.linesep)
+                                        try:
+                                            self._orig_stderr.flush()
+                                        except Exception:
+                                            pass
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                pass
+
+                        except Exception:
+                            pass
+                finally:
+                    try:
+                        self._local.in_write = False
                     except Exception:
                         pass
 
@@ -493,8 +607,8 @@ class LogViewer:
             except Exception:
                 pass
 
-            sys.stdout = StreamToLogger(self.logger_obj, logging.INFO)
-            sys.stderr = StreamToLogger(self.logger_obj, logging.ERROR)
+            sys.stdout = StreamToLogger(self.logger_obj, logging.INFO, orig_stdout=self._orig_stdout, orig_stderr=self._orig_stderr)
+            sys.stderr = StreamToLogger(self.logger_obj, logging.ERROR, orig_stdout=self._orig_stdout, orig_stderr=self._orig_stderr)
         except Exception:
             pass
 

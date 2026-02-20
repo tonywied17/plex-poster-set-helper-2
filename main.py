@@ -57,12 +57,26 @@ def prompt_playwright_install():
 
 def cleanup():
     """Cleanup function called on exit."""
-    print("Exiting application. Cleanup complete.")
+    out = getattr(sys, '__stdout__', None) or getattr(sys, 'stdout', None) or getattr(sys, '__stderr__', None)
+    if out:
+        try:
+            out.write("Exiting application. Cleanup complete.\n")
+            try:
+                out.flush()
+            except Exception:
+                pass
+            return
+        except Exception:
+            pass
+
+    try:
+        print("Exiting application. Cleanup complete.")
+    except Exception:
+        pass
 
 
 def main():
     """Main application entry point."""
-    # Register cleanup function
     atexit.register(cleanup)
     
     # Check for Playwright browsers (skip for built executables)

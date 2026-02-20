@@ -106,7 +106,6 @@ class PlexPosterGUI:
         self.log_window = None
         self._gui_log_handler = None
         self.log_text_widget = None
-        # Mapping of Treeview item id -> full original message (for modal/save)
         self._log_full_messages = {}
     
     def run(self):
@@ -244,7 +243,6 @@ class PlexPosterGUI:
                     pass
             if not self.log_text_widget:
                 return
-            # log_text_widget is a Treeview now
             tree: ttk.Treeview = self.log_text_widget
             time, level, logger_name, message = ('', '', '', '')
             if isinstance(text, tuple) or isinstance(text, list):
@@ -252,47 +250,36 @@ class PlexPosterGUI:
             else:
                 message = str(text)
 
-            # keep original full message for modal/save
             original_message = message
 
-            # Clean message and normalize fields (for display)
             time, level, logger_name, message = self._normalize_log_parts(time, level, logger_name, message)
 
-            # Prevent multi-line rows by replacing newline characters with an inline marker
             try:
                 message = str(message).replace('\r', ' ').replace('\n', ' ⤶ ')
-                # collapse whitespace
                 message = re.sub(r'\s+', ' ', message)
             except Exception:
                 pass
-
-            # Insert new row
-            # Decide tag based on level or session
+            
             tag = level.upper() if level else 'INFO'
             if message and ('NEW SESSION STARTED' in message.upper() or message.strip().startswith('===')):
                 tag = 'SESSION'
 
-            # Success detection -> use SUCCESS tag (green)
             lower_msg = (message or '').lower()
             if any(k in lower_msg for k in ("signed in with plex", "token populated", "received auth token", "saving configuration", "configuration saved")):
                 tag = 'SUCCESS'
 
             iid = tree.insert('', tk.END, values=(time, level, logger_name, message), tags=(tag,))
             try:
-                # store the original (unmodified) message for modal and saving
                 self._log_full_messages[iid] = original_message
             except Exception:
                 pass
-            # Auto-scroll to end
             children = tree.get_children()
             if children:
                 tree.see(children[-1])
 
-            # Trim if too many rows
             max_rows = 20000
             cur = len(children)
             if cur > max_rows:
-                # delete oldest chunk
                 for iid in children[:cur - max_rows]:
                     try:
                         tree.delete(iid)
@@ -307,7 +294,6 @@ class PlexPosterGUI:
     def _save_log_to_file(self, text_widget):
         """Save contents of the log text widget to a file chosen by the user."""
         try:
-            # Delegate to LogViewer if available
             if getattr(self, 'log_viewer', None):
                 try:
                     self.log_viewer.save_to_file()
@@ -318,19 +304,16 @@ class PlexPosterGUI:
             path = fd.asksaveasfilename(defaultextension='.log', filetypes=[('Log files', '*.log'), ('All files', '*.*')])
             if not path:
                 return
-            # Support either Treeview or Text widget
             if isinstance(text_widget, ttk.Treeview):
                 lines = []
                 for iid in text_widget.get_children():
                     vals = text_widget.item(iid, 'values')
-                    # prefer full original message if available
                     full_msg = self._log_full_messages.get(iid, None)
                     cols = []
                     if vals and len(vals) >= 3:
                         cols = [str(vals[0]), str(vals[1]), str(vals[2])]
                     else:
                         cols = [str(v) for v in (vals or [])]
-                    # append full message last
                     cols.append(full_msg if full_msg is not None else (vals[3] if vals and len(vals) > 3 else ''))
                     lines.append(' | '.join(cols))
                 with open(path, 'w', encoding='utf-8') as f:
@@ -375,7 +358,6 @@ class PlexPosterGUI:
                 except Exception:
                     pass
             else:
-                # Legacy Text widget clearing
                 if self.log_text_widget:
                     try:
                         self.log_text_widget.configure(state=tk.NORMAL)
@@ -393,20 +375,13 @@ class PlexPosterGUI:
         excess separators, and ensures level and logger are set.
         """
         try:
-            # Ensure strings
             level = (level or '').strip()
             logger_name = (logger_name or '').strip()
             message = (message or '').strip()
-
-            # Remove repeated uppercase prefixed tokens like 'INFO: INFO: ' etc.
             message = re.sub(r'^(?:\s*(?:INFO|DEBUG|ERROR|WARNING|CRITICAL)\s*:\s*)+', '', message, flags=re.IGNORECASE)
-
-            # If message contains leading '<level>:<num>|' or 'info:123|' remove it
             message = re.sub(r'^\s*(?:debug|info|warning|error|critical)\s*:?\s*\d*\s*\|\s*', '', message, flags=re.IGNORECASE)
-            # Also remove patterns like 'info:148|' or 'info|' without number
             message = re.sub(r'^\s*\w+?:\d+\|\s*', '', message)
 
-            # Collapse repeated level prefixes anywhere in the message, e.g. 'INFO: INFO: INFO:' -> 'INFO: '
             def _collapse_prefixes(s: str) -> str:
                 try:
                     pattern = re.compile(r'((?:INFO|DEBUG|ERROR|WARNING|CRITICAL)\s*:\s*){2,}', re.IGNORECASE)
@@ -425,7 +400,6 @@ class PlexPosterGUI:
 
             # Normalize level to uppercase common values
             if not level and message:
-                # try to infer level from message prefix like 'DEBUG:'
                 m = re.match(r'^(DEBUG|INFO|ERROR|WARNING|CRITICAL)[:\s]', message, flags=re.IGNORECASE)
                 if m:
                     level = m.group(1)
@@ -435,17 +409,13 @@ class PlexPosterGUI:
 
             # Special-case session banners
             if 'NEW SESSION STARTED' in message.upper() or re.match(r'^[=\-\s]{5,}$', message):
-                # use a clean session message
                 message = message.strip()
                 logger_name = logger_name or 'Session'
                 level = 'INFO'
 
-            # Tag successful operations as SUCCESS for green highlighting
             lower_msg = message.lower()
             if any(k in lower_msg for k in ("signed in with plex", "token populated", "received auth token", "configuration saved")):
                 level = 'INFO'
-                # mark success via a special tag when inserting
-                # We'll return level; insertion uses tag detection to set 'SUCCESS'
 
             return time_val, level, logger_name, message
         except Exception:
@@ -467,13 +437,10 @@ class PlexPosterGUI:
             vals = widget.item(iid, 'values')
             if not vals or len(vals) < 4:
                 return
-            # Tree columns are now: time, level, message, location
             time_val, level = vals[0], vals[1]
             message_cell = vals[2]
             location_cell = vals[3] if len(vals) > 3 else ''
-            # prefer original full message if we stored it
             full = self._log_full_messages.get(iid, message_cell)
-            # show time | level | location in the header
             self._show_full_log_message(time_val, level, location_cell, full)
         except Exception:
             pass
@@ -543,7 +510,6 @@ class PlexPosterGUI:
                 except Exception:
                     pass
         finally:
-            # Restore stdout/stderr if we redirected them when opening the viewer
             try:
                 if hasattr(self, '_orig_stdout') and self._orig_stdout:
                     sys.stdout = self._orig_stdout
@@ -714,11 +680,9 @@ class PlexPosterGUI:
             self.page_wait_min_var.set(self.config.scraper_page_wait_min)
         if self.page_wait_max_var:
             self.page_wait_max_var.set(self.config.scraper_page_wait_max)
-        
-        # Update preset button highlighting
+
         self.settings_tab.update_preset_buttons()
-        
-        # Load log file path and append preference
+
         if self.settings_tab.log_file_entry:
             self.settings_tab.log_file_entry.delete(0, ctk.END)
             self.settings_tab.log_file_entry.insert(0, self.config.log_file or "debug.log")
@@ -727,14 +691,11 @@ class PlexPosterGUI:
                 self.settings_tab.log_append_var.set(bool(getattr(self.config, 'log_append', False)))
             except Exception:
                 self.settings_tab.log_append_var.set(False)
-        
-        # Load bulk import file
+
         self.bulk_import_tab.load_file()
-        
-        # Load title mappings
+
         self.title_mappings_tab.load_mappings()
-        
-        # Initialize poster scrape with one empty row if needed
+
         if len(self.poster_scrape_tab.rows) == 0:
             self.poster_scrape_tab.add_url_row()
     
@@ -808,34 +769,55 @@ class PlexPosterGUI:
             self._update_status(f"Error saving configuration: {e}", color="red")
             return
         
-        # Update logger with new log file and append preference
-        try:
-            self.logger.configure(log_file=self.config.log_file, append=bool(getattr(self.config, 'log_append', False)))
-        except Exception:
+        def _post_save_worker():
+            # Reconfigure logger (may touch files/streams)
             try:
-                self.logger.configure(log_file=self.config.log_file)
+                try:
+                    self.logger.configure(log_file=self.config.log_file, append=bool(getattr(self.config, 'log_append', False)))
+                except Exception:
+                    try:
+                        self.logger.configure(log_file=self.config.log_file)
+                    except Exception:
+                        pass
             except Exception:
                 pass
-        
-        # Reinitialize Plex service with new credentials
-        self.plex_service = PlexService(self.config)
-        tv_libs, movie_libs = self.plex_service.setup(gui_mode=True)
-        
-        # Reinitialize upload service with updated Plex service
-        if self.plex_service:
-            self.upload_service = PosterUploadService(self.plex_service)
-        
-        # Reinitialize scraper factory with updated config
-        self.scraper_factory = ScraperFactory(config=self.config)
-        try:
-            self.logger.info(f"Saved configuration: base_url={self.config.base_url}, token_set={'yes' if self.config.token else 'no'}")
-            self._update_status("Configuration saved successfully!", color="#E5A00D")
-        except Exception:
-            self._update_status("Configuration saved successfully!", color="#E5A00D")
-        
-        # Refresh the Reset Posters tab if Plex setup was successful
-        if tv_libs or movie_libs:
-            self.app.after(100, lambda: self.label_handler.refresh_labeled_items())
+
+            # Reinitialize Plex service with new credentials (network I/O)
+            tv_libs = []
+            movie_libs = []
+            try:
+                self.plex_service = PlexService(self.config)
+                tv_libs, movie_libs = self.plex_service.setup(gui_mode=True) or (None, None)
+            except Exception:
+                tv_libs, movie_libs = (None, None)
+
+            # Reinitialize upload service with updated Plex service
+            try:
+                if self.plex_service:
+                    self.upload_service = PosterUploadService(self.plex_service)
+            except Exception:
+                pass
+
+            # Reinitialize scraper factory with updated config
+            try:
+                self.scraper_factory = ScraperFactory(config=self.config)
+            except Exception:
+                pass
+
+            # Notify UI of success (run on main thread)
+            try:
+                self.app.after(0, lambda: self._update_status("Configuration saved successfully!", color="#E5A00D"))
+            except Exception:
+                pass
+
+            # Refresh the Reset Posters tab if Plex setup was successful
+            try:
+                if tv_libs or movie_libs:
+                    self.app.after(100, lambda: self.label_handler.refresh_labeled_items())
+            except Exception:
+                pass
+
+        threading.Thread(target=_post_save_worker, daemon=True).start()
     
     def _setup_services(self):
         """Initialize Plex and upload services."""

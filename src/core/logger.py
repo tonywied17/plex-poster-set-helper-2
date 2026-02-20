@@ -1,29 +1,4 @@
-"""Centralized logging configuration for Plex Poster Set Helper.
-
-This module provides a singleton logger that writes detailed debug information to a file
-while displaying user-friendly messages in the console.
-
-Usage:
-    from src.core.logger import get_logger
-    
-    logger = get_logger()
-    logger.info("User-facing information message")
-    logger.debug("Detailed debug information (file only)")
-    logger.warning("Warning message")
-    logger.error("Error message")
-    logger.exception("Error with full traceback")
-
-Configuration:
-    The log file path can be configured in config.json:
-    {
-        "log_file": "debug.log"  // Relative to executable or absolute path
-    }
-    
-    The logger automatically:
-    - Writes DEBUG and above to the log file with timestamps and context
-    - Displays INFO and above in the console for user visibility
-    - Creates a new session marker each time the app starts
-"""
+"""Application logger: file + console handlers with a singleton wrapper."""
 
 import logging
 import os
@@ -39,6 +14,7 @@ class AppLogger:
     _instance: Optional['AppLogger'] = None
     _logger: Optional[logging.Logger] = None
     _log_file_path: Optional[str] = None
+    _last_session_emitted_at: Optional[datetime] = None
     
     def __new__(cls):
         """Singleton pattern to ensure only one logger instance."""
@@ -62,11 +38,16 @@ class AppLogger:
         AppLogger._logger = logging.getLogger("PlexPosterHelper")
         AppLogger._logger.setLevel(log_level)
         
-        # Prevent duplicate file/console handlers while preserving custom handlers
+        # Remove previous file/stream handlers so streams are not reused
         if AppLogger._logger.handlers:
             preserved = []
             for h in AppLogger._logger.handlers:
-                if not isinstance(h, (logging.FileHandler, logging.StreamHandler)):
+                if isinstance(h, (logging.FileHandler, logging.StreamHandler)):
+                    try:
+                        h.close()
+                    except Exception:
+                        pass
+                else:
                     preserved.append(h)
             AppLogger._logger.handlers = preserved
         
@@ -98,32 +79,69 @@ class AppLogger:
         )
         
         try:
-            # Decide file mode. Respect explicit append, but avoid
-            # accidentally truncating an existing non-empty log when
-            # reconfiguring at runtime (e.g. when saving settings).
             mode = 'a' if append else 'w'
-            if not append:
-                try:
-                    if os.path.exists(AppLogger._log_file_path) and os.path.getsize(AppLogger._log_file_path) > 0:
-                        mode = 'a'
-                except Exception:
-                    mode = 'a'
-
-            file_handler = logging.FileHandler(
-                AppLogger._log_file_path,
-                mode=mode,
-                encoding='utf-8'
-            )
+            file_handler = logging.FileHandler(AppLogger._log_file_path, mode=mode, encoding='utf-8')
             file_handler.setLevel(logging.DEBUG)
             file_handler.setFormatter(detailed_formatter)
             AppLogger._logger.addHandler(file_handler)
-            AppLogger._logger.info("="*80)
-            AppLogger._logger.info(f"NEW SESSION STARTED - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            AppLogger._logger.info("="*80)
+
+            # Choose a safe stream: prefer the interpreter's original stdout/stderr
+            safe_stream = getattr(sys, '__stdout__', None) or getattr(sys, '__stderr__', None) or sys.stderr
+            if safe_stream is None:
+                try:
+                    safe_stream = sys.stdout
+                except Exception:
+                    try:
+                        safe_stream = open(os.devnull, 'w')
+                    except Exception:
+                        safe_stream = None
+
+            # Repair any existing StreamHandler that has no stream or points to an in-process redirector
+            try:
+                for h in list(AppLogger._logger.handlers):
+                    try:
+                        if isinstance(h, logging.StreamHandler):
+                            cur = getattr(h, 'stream', None)
+                            if cur is None:
+                                if safe_stream is not None:
+                                    h.stream = safe_stream
+                            else:
+                                # Detect wrappers (heuristic) and avoid using them as targets
+                                if hasattr(cur, 'logger_obj') and hasattr(cur, '_local'):
+                                    if safe_stream is not None:
+                                        h.stream = safe_stream
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+            try:
+                now = datetime.now()
+                if AppLogger._last_session_emitted_at is None or (now - AppLogger._last_session_emitted_at).total_seconds() > 1.0:
+                    AppLogger._logger.info("="*80)
+                    AppLogger._logger.info(f"NEW SESSION STARTED - {now.strftime('%Y-%m-%d %H:%M:%S')}")
+                    AppLogger._logger.info("="*80)
+                    AppLogger._last_session_emitted_at = now
+            except Exception:
+                pass
         except Exception as e:
             print(f"Warning: Could not create log file at {AppLogger._log_file_path}: {e}")
-        
-        console_handler = logging.StreamHandler(getattr(sys, '__stdout__', sys.stdout))
+
+        # Prefer the interpreter's original stdout/stderr if available
+        out_stream = getattr(sys, '__stdout__', None) or getattr(sys, '__stderr__', None) or sys.stderr
+
+        # Repair existing stream handlers that lack a stream
+        try:
+            for existing in list(AppLogger._logger.handlers):
+                try:
+                    if isinstance(existing, logging.StreamHandler) and getattr(existing, 'stream', None) is None:
+                        existing.stream = out_stream
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        console_handler = logging.StreamHandler(out_stream)
         console_handler.setLevel(logging.INFO)
         console_handler.setFormatter(console_formatter)
         AppLogger._logger.addHandler(console_handler)
