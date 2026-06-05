@@ -18,21 +18,24 @@ function Section({
   icon,
   title,
   description,
+  action,
   children,
 }: {
   icon: React.ReactNode
   title: string
   description?: string
+  action?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
     <div className={styles.section}>
       <div className={styles.sectionHead}>
         <span className={styles.sectionIcon}>{icon}</span>
-        <div>
+        <div style={{ flex: 1 }}>
           <h2 className={styles.sectionTitle}>{title}</h2>
           {description && <p className={styles.sectionDesc}>{description}</p>}
         </div>
+        {action && <div className={styles.sectionAction}>{action}</div>}
       </div>
       <div className={styles.sectionBody}>{children}</div>
     </div>
@@ -69,7 +72,8 @@ export default function SettingsPage() {
   const [testMsg, setTestMsg]   = useState<{ ok: boolean; msg: string } | null>(null)
 
   // libraries
-  const [libraries, setLibraries] = useState<Library[]>([])
+  const [libraries, setLibraries]       = useState<Library[]>([])
+  const [refreshingLibs, setRefreshLibs] = useState(false)
 
   const isDirty = Object.keys(draft).length > 0
 
@@ -90,8 +94,13 @@ export default function SettingsPage() {
   }, [])
 
   const loadLibraries = useCallback(async () => {
-    const libs = await window.api.plex.getLibraries() as Library[]
-    setLibraries(libs)
+    setRefreshLibs(true)
+    try {
+      const libs = await window.api.plex.getLibraries() as Library[]
+      setLibraries(libs)
+    } finally {
+      setRefreshLibs(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -308,11 +317,25 @@ export default function SettingsPage() {
 
         {/* ── Libraries ──────────────────────────────────────────────────── */}
         {(libraries.length > 0 || connected) && (
-          <Section icon={<SlidersHorizontal size={15} />} title="Libraries" description="Choose which Plex libraries to include when matching titles for poster uploads.">
+          <Section
+            icon={<SlidersHorizontal size={15} />}
+            title="Libraries"
+            description="Choose which Plex libraries to include when matching titles for poster uploads."
+            action={
+              <button
+                className={styles.refreshBtn}
+                onClick={loadLibraries}
+                disabled={refreshingLibs}
+                title="Refresh libraries from server"
+              >
+                <RefreshCw size={12} className={refreshingLibs ? styles.spin : ''} />
+              </button>
+            }
+          >
             {libraries.length === 0 ? (
               <div className={styles.libsEmpty}>
                 <ServerCrash size={14} />
-                <span>No libraries loaded — connect to your server first.</span>
+                <span>No libraries loaded — ensure your server URL is connected above.</span>
               </div>
             ) : (
               <div className={styles.libsGrid}>

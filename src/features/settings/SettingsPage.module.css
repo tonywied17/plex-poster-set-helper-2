@@ -84,6 +84,47 @@
   gap: var(--space-4);
 }
 
+.sectionAction {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  margin-left: var(--space-2);
+}
+
+.refreshBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: transparent;
+  color: var(--color-text-disabled);
+  cursor: pointer;
+  transition: color var(--duration-fast), background var(--duration-fast), border-color var(--duration-fast);
+}
+
+.refreshBtn:hover:not(:disabled) {
+  color: var(--color-accent-primary);
+  background: rgba(237, 232, 223, 0.06);
+  border-color: rgba(237, 232, 223, 0.14);
+}
+
+.refreshBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 0.7s linear infinite;
+}
+
 /* ── Field row ───────────────────────────────────────────────────────────── */
 
 .fieldRow {
