@@ -5,33 +5,34 @@
   justify-content: center;
   text-align: center;
   padding: var(--space-12) var(--space-8);
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .icon {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-lg);
-  background: rgba(229, 160, 13, 0.08);
-  border: 1px solid rgba(229, 160, 13, 0.12);
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-accent-primary);
-  margin-bottom: var(--space-2);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-3);
 }
 
 .title {
-  font-size: var(--text-base);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-secondary);
+  letter-spacing: -0.005em;
 }
 
 .description {
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
-  max-width: 320px;
-  line-height: 1.6;
+  max-width: 280px;
+  line-height: 1.65;
 }
 
-.action { margin-top: var(--space-2); }
+.action { margin-top: var(--space-3); }

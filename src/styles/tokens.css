@@ -5,13 +5,16 @@
   --color-bg-elevated:    #1a1e28;
   --color-bg-overlay:     rgba(33, 38, 51, 0.85);
 
-  /* Accent palette — Plex amber/gold */
-  --color-accent-primary:   #e5a00d;
-  --color-accent-secondary: #f0b429;
-  --color-accent-dim:       #c4880a;
-  --color-accent-highlight: #ff8c00;
+  /* Brand color — Plex gold; decorative only (logo, source badges) */
+  --color-brand:            #e5a00d;
+
+  /* Accent palette — warm off-white; luminance-based interactive states */
+  --color-accent-primary:   #ede8df;
+  --color-accent-secondary: #f5f0e8;
+  --color-accent-dim:       #b8b0a4;
+  --color-accent-highlight: #faf7f2;
   --color-accent-success:   #34d399;
-  --color-accent-warning:   #fbbf24;
+  --color-accent-warning:   #f59e0b;
   --color-accent-error:     #f87171;
   --color-accent-info:      #60a5fa;
 
@@ -28,14 +31,14 @@
   /* Borders */
   --color-border:         rgba(255, 255, 255, 0.06);
   --color-border-subtle:  rgba(255, 255, 255, 0.04);
-  --color-border-accent:  rgba(229, 160, 13, 0.4);
+  --color-border-accent:  rgba(237, 232, 223, 0.18);
 
   /* Shadows */
   --shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-md:  0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
   --shadow-lg:  0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06);
   --shadow-xl:  0 16px 48px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.07);
-  --shadow-glow-accent:   0 0 20px rgba(229, 160, 13, 0.3);
+  --shadow-glow-accent:   0 0 24px rgba(237, 232, 223, 0.12);
   --shadow-glow-success:  0 0 20px rgba(52, 211, 153, 0.25);
   --shadow-glow-error:    0 0 20px rgba(248, 113, 113, 0.25);
 

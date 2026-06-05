@@ -63,3 +63,20 @@ input, textarea, [data-selectable] {
 .font-mono {
   font-family: var(--font-mono);
 }
+
+/* ── Page-level typography helpers (used by all feature pages) ─────────── */
+
+.page-title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-accent-primary);
+  letter-spacing: 0.005em;
+  margin: 0 0 3px;
+}
+
+.page-subtitle {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  line-height: 1.55;
+  margin: 0;
+}

@@ -61,7 +61,8 @@ export interface ScrapeReq {
 
 export interface PosterInfo {
   title: string
-  url: string
+  url: string            // full-res / download URL
+  thumbUrl?: string      // thumbnail for UI display (may differ from url on PosterDB)
   source: 'mediux' | 'posterdb'
   year?: number
   season?: number | 'Cover' | 'Backdrop'
@@ -143,6 +144,7 @@ export type IpcChannels = {
   'bulk:writeFile': { req: BulkWriteReq; res: void }
   'bulk:newFile': { req: string; res: void }
   'bulk:deleteFile': { req: string; res: void }
+  'bulk:renameFile': { req: { oldName: string; newName: string }; res: void }
   'auth:plexSignIn': { req: void; res: string }
   'auth:plexStatus': { req: void; res: PlexAuthStatus }
   'auth:disconnect': { req: void; res: void }
@@ -150,6 +152,7 @@ export type IpcChannels = {
   'app:checkUpdate': { req: void; res: UpdateInfo }
   'app:installUpdate': { req: void; res: void }
   'app:openLogFolder': { req: void; res: void }
+  'log:getHistory': { req: void; res: LogEntry[] }
   'log:stream': { event: LogEntry }
   'scrape:progress': { event: ScrapeProgress }
   'auth:statusChange': { event: PlexAuthStatus }

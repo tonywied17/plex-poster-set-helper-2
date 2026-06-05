@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Images, List, ArrowLeftRight, RotateCcw, Settings, ScrollText, Pin
+  Images, List, ArrowLeftRight, RotateCcw, Settings, ScrollText, Pin, PinOff, CalendarClock
 } from 'lucide-react'
 import type { NavTab } from '../../app/App'
 import styles from './Sidebar.module.css'
@@ -13,10 +13,11 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'scrape',   label: 'Poster Scrape',   icon: <Images size={18} /> },
-  { id: 'bulk',     label: 'Bulk Import',      icon: <List size={18} /> },
-  { id: 'mappings', label: 'Title Mappings',   icon: <ArrowLeftRight size={18} /> },
-  { id: 'reset',    label: 'Reset Posters',    icon: <RotateCcw size={18} /> },
+  { id: 'scrape',    label: 'Poster Scrape',  icon: <Images size={18} /> },
+  { id: 'bulk',      label: 'Bulk Import',    icon: <List size={18} /> },
+  { id: 'scheduler', label: 'Scheduler',      icon: <CalendarClock size={18} /> },
+  { id: 'mappings',  label: 'Title Mappings', icon: <ArrowLeftRight size={18} /> },
+  { id: 'reset',     label: 'Reset Posters',  icon: <RotateCcw size={18} /> },
 ]
 
 interface Props {
@@ -38,6 +39,24 @@ export default function Sidebar({ activeTab, onNavigate, onToggleLogs }: Props) 
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {/* Pin toggle — floats in top-right, only visible when expanded */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.button
+            key="pin"
+            className={`${styles.pinBtn} ${pinned ? styles.pinActive : ''}`}
+            onClick={() => setPinned(v => !v)}
+            title={pinned ? 'Unpin sidebar' : 'Pin sidebar'}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.12 }}
+          >
+            {pinned ? <PinOff size={13} /> : <Pin size={13} />}
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       <nav className={styles.nav}>
         {NAV_ITEMS.map(item => (
           <button
@@ -85,16 +104,6 @@ export default function Sidebar({ activeTab, onNavigate, onToggleLogs }: Props) 
           <span className={styles.icon}><Settings size={18} /></span>
           <motion.span className={styles.label} animate={{ opacity: expanded ? 1 : 0, width: expanded ? 'auto' : 0 }} transition={{ duration: 0.15 }}>
             Settings
-          </motion.span>
-        </button>
-        <button
-          className={`${styles.navItem} ${pinned ? styles.pinned : ''}`}
-          onClick={() => setPinned(v => !v)}
-          title={pinned ? 'Unpin sidebar' : 'Pin sidebar'}
-        >
-          <span className={styles.icon}><Pin size={16} /></span>
-          <motion.span className={styles.label} animate={{ opacity: expanded ? 1 : 0, width: expanded ? 'auto' : 0 }} transition={{ duration: 0.15 }}>
-            {pinned ? 'Unpin' : 'Pin'}
           </motion.span>
         </button>
       </div>

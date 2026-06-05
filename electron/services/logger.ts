@@ -10,6 +10,8 @@ const CUSTOM_LEVELS = {
 
 let logger: winston.Logger
 let mainWindowRef: BrowserWindow | null = null
+const buffer: LogEntry[] = []
+const MAX_BUFFER = 600
 
 export const Logger = {
   init(win: BrowserWindow | null) {
@@ -47,7 +49,13 @@ export const Logger = {
   log(level: LogEntry['level'], module: string, message: string, meta?: Record<string, unknown>) {
     const entry: LogEntry = { ts: new Date().toISOString(), level, module, message, meta }
     ;(logger as unknown as Record<string, (msg: string, meta?: object) => void>)[level]?.(message, { module, ...meta })
+    buffer.push(entry)
+    if (buffer.length > MAX_BUFFER) buffer.shift()
     mainWindowRef?.webContents.send('log:stream', entry)
+  },
+
+  getHistory(): LogEntry[] {
+    return [...buffer]
   },
 
   error: (module: string, msg: string, meta?: Record<string, unknown>) => Logger.log('error', module, msg, meta),

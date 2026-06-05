@@ -14,6 +14,8 @@ const api = {
     connect: (baseUrl: string, token: string) =>
       ipcRenderer.invoke('plex:connect', { baseUrl, token }),
     getLibraries: () => ipcRenderer.invoke('plex:getLibraries'),
+    findItem: (title: string, year?: number, libraries?: string[]) =>
+      ipcRenderer.invoke('plex:findItem', { title, year, libraries: libraries ?? [] }),
     uploadPoster: (itemKey: string, imageUrl: string, source: 'mediux' | 'posterdb') =>
       ipcRenderer.invoke('plex:uploadPoster', { itemKey, imageUrl, source }),
     getLabeledItems: (label: string) =>
@@ -49,6 +51,7 @@ const api = {
       ipcRenderer.invoke('bulk:writeFile', { filename, lines }),
     newFile: (filename: string) => ipcRenderer.invoke('bulk:newFile', filename),
     deleteFile: (filename: string) => ipcRenderer.invoke('bulk:deleteFile', filename),
+    renameFile: (oldName: string, newName: string) => ipcRenderer.invoke('bulk:renameFile', oldName, newName),
   },
 
   // Plex auth
@@ -82,6 +85,7 @@ const api = {
 
   // Log streaming
   log: {
+    getHistory: (): Promise<LogEntry[]> => ipcRenderer.invoke('log:getHistory'),
     onEntry: (cb: (entry: LogEntry) => void) => {
       const handler = (_: unknown, data: LogEntry) => cb(data)
       ipcRenderer.on('log:stream', handler)

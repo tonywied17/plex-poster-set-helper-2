@@ -54,10 +54,35 @@
 }
 
 .navItem.active {
-  color: var(--color-accent-secondary);
+  color: var(--color-accent-primary);
+  background: rgba(237, 232, 223, 0.05);
 }
 
-.navItem.pinned {
+/* ─── Pin button ─── */
+.pinBtn {
+  position: absolute;
+  top: 9px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  transition: color var(--duration-fast), background var(--duration-fast);
+  z-index: 2;
+}
+
+.pinBtn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-text-secondary);
+}
+
+.pinBtn.pinActive {
   color: var(--color-accent-primary);
 }
 

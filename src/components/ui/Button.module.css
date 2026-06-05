@@ -2,20 +2,47 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
+  gap: 6px;
   border: none;
   border-radius: var(--radius-sm);
   font-family: var(--font-sans);
   font-weight: var(--font-medium);
   cursor: pointer;
   white-space: nowrap;
-  transition:
-    background var(--duration-fast) var(--ease-in-out),
-    color var(--duration-fast) var(--ease-in-out),
-    box-shadow var(--duration-fast) var(--ease-in-out),
-    opacity var(--duration-fast);
   position: relative;
   outline: none;
+  overflow: hidden;
+  letter-spacing: 0.01em;
+  transition:
+    background var(--duration-fast) var(--ease-in-out),
+    border-color var(--duration-fast) var(--ease-in-out),
+    color var(--duration-fast) var(--ease-in-out),
+    box-shadow var(--duration-base) var(--ease-in-out),
+    opacity var(--duration-fast);
+}
+
+/* Shimmer layer — sweeps on hover for primary */
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    108deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent 70%
+  );
+  background-size: 250% 100%;
+  background-position: -100% 0;
+  pointer-events: none;
+  transition: background-position 0.55s var(--ease-out-expo), opacity 0.2s;
+  opacity: 0;
+}
+
+.btn:hover:not(:disabled)::after {
+  background-position: 100% 0;
+  opacity: 1;
 }
 
 .btn:focus-visible {
@@ -23,41 +50,55 @@
 }
 
 .btn:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
   pointer-events: none;
 }
 
-/* Sizes */
+/* ── Sizes ────────────────────────────────────────────────────────────────── */
+
 .sm {
   font-size: var(--text-xs);
-  padding: var(--space-1) var(--space-3);
+  padding: 0 var(--space-3);
   height: 28px;
 }
 
 .md {
   font-size: var(--text-sm);
-  padding: var(--space-2) var(--space-4);
-  height: 36px;
+  padding: 0 var(--space-4);
+  height: 34px;
 }
 
 .lg {
   font-size: var(--text-base);
-  padding: var(--space-3) var(--space-6);
-  height: 44px;
+  padding: 0 var(--space-6);
+  height: 42px;
 }
 
-/* Variants */
+/* ── Variants ─────────────────────────────────────────────────────────────── */
+
+/* Primary — glassy outlined accent */
 .primary {
-  background: var(--color-accent-primary);
-  color: #0d0f14;
+  background: rgba(237, 232, 223, 0.07);
+  color: var(--color-accent-primary);
+  border: 1px solid rgba(237, 232, 223, 0.16);
 }
 
 .primary:hover:not(:disabled) {
-  background: var(--color-accent-secondary);
-  box-shadow: var(--shadow-glow-accent);
+  background: rgba(237, 232, 223, 0.12);
+  border-color: rgba(237, 232, 223, 0.28);
+  color: var(--color-accent-highlight);
+  box-shadow:
+    0 0 18px rgba(237, 232, 223, 0.07),
+    inset 0 1px 0 rgba(237, 232, 223, 0.06);
 }
 
+.primary:active:not(:disabled) {
+  background: rgba(237, 232, 223, 0.09);
+  border-color: rgba(237, 232, 223, 0.2);
+}
+
+/* Secondary — elevated surface with border */
 .secondary {
   background: var(--color-bg-elevated);
   color: var(--color-text-primary);
@@ -67,31 +108,45 @@
 .secondary:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.07);
   border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
+/* Ghost — transparent, secondary text */
 .ghost {
   background: transparent;
   color: var(--color-text-secondary);
+  border: 1px solid transparent;
 }
 
 .ghost:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.07);
   color: var(--color-text-primary);
 }
 
+/* Destructive — subtle red tint */
 .destructive {
-  background: rgba(248, 113, 113, 0.12);
+  background: rgba(248, 113, 113, 0.08);
   color: var(--color-accent-error);
-  border: 1px solid rgba(248, 113, 113, 0.2);
+  border: 1px solid rgba(248, 113, 113, 0.18);
 }
 
 .destructive:hover:not(:disabled) {
-  background: rgba(248, 113, 113, 0.2);
-  box-shadow: 0 0 16px rgba(248, 113, 113, 0.15);
+  background: rgba(248, 113, 113, 0.14);
+  border-color: rgba(248, 113, 113, 0.3);
+  box-shadow: 0 0 16px rgba(248, 113, 113, 0.12);
 }
+
+/* ── Icon slot ────────────────────────────────────────────────────────────── */
 
 .icon {
   display: flex;
   align-items: center;
   flex-shrink: 0;
+  opacity: 0.85;
+  transition: opacity var(--duration-fast);
+}
+
+.btn:hover:not(:disabled) .icon {
+  opacity: 1;
 }

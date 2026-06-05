@@ -7,20 +7,22 @@ import ParticleField from '../components/shell/ParticleField'
 import LogDrawer from '../features/logs/LogDrawer'
 import ScrapePage from '../features/scrape/ScrapePage'
 import BulkPage from '../features/bulk/BulkPage'
+import SchedulerPage from '../features/scheduler/SchedulerPage'
 import MappingsPage from '../features/mappings/MappingsPage'
 import ResetPage from '../features/reset/ResetPage'
 import SettingsPage from '../features/settings/SettingsPage'
 
-export type NavTab = 'scrape' | 'bulk' | 'mappings' | 'reset' | 'settings'
+export type NavTab = 'scrape' | 'bulk' | 'scheduler' | 'mappings' | 'reset' | 'settings'
 
-const NAV_ORDER: NavTab[] = ['scrape', 'bulk', 'mappings', 'reset', 'settings']
+const NAV_ORDER: NavTab[] = ['scrape', 'bulk', 'scheduler', 'mappings', 'reset', 'settings']
 
 const PAGE_MAP: Record<NavTab, React.ReactNode> = {
-  scrape: <ScrapePage />,
-  bulk: <BulkPage />,
-  mappings: <MappingsPage />,
-  reset: <ResetPage />,
-  settings: <SettingsPage />,
+  scrape:    <ScrapePage />,
+  bulk:      <BulkPage />,
+  scheduler: <SchedulerPage />,
+  mappings:  <MappingsPage />,
+  reset:     <ResetPage />,
+  settings:  <SettingsPage />,
 }
 
 export default function App() {

@@ -3,11 +3,13 @@ import { autoUpdater } from 'electron-updater'
 import path from 'path'
 import { ConfigService } from './services/config'
 import { Logger } from './services/logger'
+import { PlexService } from './services/plexService'
 import { registerPlexHandlers } from './ipc/plexHandlers'
 import { registerScrapeHandlers } from './ipc/scrapeHandlers'
 import { registerBulkHandlers } from './ipc/bulkHandlers'
 import { registerAuthHandlers } from './ipc/authHandlers'
 import { registerAppHandlers } from './ipc/appHandlers'
+import { registerLogHandlers } from './ipc/logHandlers'
 
 const isDev = !app.isPackaged
 
@@ -41,6 +43,16 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show()
+  })
+
+  // Auto-reconnect from saved credentials once the renderer is interactive
+  mainWindow.webContents.once('did-finish-load', () => {
+    PlexService.tryRestoreFromConfig().then(connected => {
+      if (connected) {
+        mainWindow?.webContents.send('auth:statusChange', { status: 'authorized' })
+        Logger.info('App', 'Auto-reconnected to Plex from saved config')
+      }
+    }).catch(() => {})
   })
 
   mainWindow.on('closed', () => {
@@ -86,10 +98,11 @@ function setupAutoUpdater() {
 
 function registerIpcHandlers() {
   registerPlexHandlers(ipcMain)
-  registerScrapeHandlers(ipcMain)
+  registerScrapeHandlers(ipcMain, mainWindow!)
   registerBulkHandlers(ipcMain)
   registerAuthHandlers(ipcMain, mainWindow!)
   registerAppHandlers(ipcMain)
+  registerLogHandlers(ipcMain)
 }
 
 app.whenReady().then(async () => {

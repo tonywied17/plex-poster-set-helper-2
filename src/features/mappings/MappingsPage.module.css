@@ -1,0 +1,155 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-shrink: 0;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* ── Info banner ─────────────────────────────────────────────────────────── */
+
+.infoBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3);
+  background: rgba(96, 165, 250, 0.06);
+  border: 1px solid rgba(96, 165, 250, 0.12);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  line-height: 1.55;
+  flex-shrink: 0;
+}
+
+.infoBanner svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--color-accent-info);
+}
+
+.infoBanner strong {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-medium);
+}
+
+/* ── Table ───────────────────────────────────────────────────────────────── */
+
+.tableWrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.07) transparent;
+}
+
+.tableHeader {
+  display: grid;
+  grid-template-columns: 1fr 28px 1fr 32px;
+  gap: var(--space-2);
+  padding: 0 var(--space-2) var(--space-2);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-medium);
+  color: var(--color-text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+  background: var(--color-bg-base);
+  z-index: 1;
+}
+
+.tableBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-4);
+}
+
+.tableRow {
+  display: grid;
+  grid-template-columns: 1fr 28px 1fr 32px;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.cellInput {
+  width: 100%;
+  height: 34px;
+  padding: 0 var(--space-3);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  outline: none;
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+
+.cellInput::placeholder {
+  color: var(--color-text-disabled);
+}
+
+.cellInput:focus {
+  border-color: rgba(237, 232, 223, 0.22);
+  box-shadow: 0 0 0 3px rgba(237, 232, 223, 0.05);
+}
+
+.arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-disabled);
+  flex-shrink: 0;
+}
+
+.deleteBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--color-text-disabled);
+  transition: color var(--duration-fast), background var(--duration-fast);
+  opacity: 0;
+}
+
+.tableRow:hover .deleteBtn {
+  opacity: 1;
+}
+
+.deleteBtn:hover {
+  color: var(--color-accent-error);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+/* ── Footer note ─────────────────────────────────────────────────────────── */
+
+.unsavedNote {
+  font-size: var(--text-xs);
+  color: var(--color-accent-warning);
+  flex-shrink: 0;
+}
