@@ -1,0 +1,75 @@
+{
+  "name": "plex-poster-set-helper",
+  "version": "2.0.0",
+  "description": "Download and apply custom poster artwork from ThePosterDB and MediUX to your Plex Media Server",
+  "author": "tonywied17",
+  "license": "MIT",
+  "main": "electron/dist/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"npm run dev:renderer\" \"npm run dev:electron\"",
+    "dev:renderer": "vite",
+    "dev:electron": "wait-on http://localhost:5173 && tsc -p tsconfig.electron.json && electron .",
+    "build": "npm run build:renderer && npm run build:electron",
+    "build:renderer": "vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "lint": "eslint src electron --ext .ts,.tsx",
+    "lint:fix": "eslint src electron --ext .ts,.tsx --fix",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "build": {
+    "extends": "./electron-builder.yml"
+  },
+  "keywords": [
+    "plex",
+    "poster",
+    "mediux",
+    "posterdb",
+    "electron"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tonywied17/plex-poster-set-helper.git"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.101.0",
+    "cheerio": "^1.2.0",
+    "concurrently": "^10.0.3",
+    "electron": "^42.3.3",
+    "electron-builder": "^26.8.1",
+    "electron-store": "^11.0.2",
+    "electron-updater": "^6.8.3",
+    "framer-motion": "^12.40.0",
+    "fuse.js": "^7.4.1",
+    "lucide-react": "^1.17.0",
+    "p-limit": "^7.3.0",
+    "playwright": "^1.60.0",
+    "plex-oauth": "^2.2.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "wait-on": "^9.0.10",
+    "winston": "^3.19.0",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "@types/node": "^25.9.1",
+    "@types/react": "^19.2.16",
+    "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/eslint-plugin": "^8.60.1",
+    "@typescript-eslint/parser": "^8.60.1",
+    "@vitejs/plugin-react": "^6.0.2",
+    "@vitest/coverage-v8": "^4.1.8",
+    "eslint": "^10.4.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "prettier": "^3.8.3",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.8"
+  }
+}

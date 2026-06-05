@@ -1,7 +1,41 @@
-!config.json
-__pycache__
-tempCodeRunnerFile.py
+# dependencies
+node_modules/
+
+# Python artifacts (from archive branch leftovers)
+__pycache__/
+*.pyc
+*.pyo
 build/
-!dist/*.zip
-debug.log
+
+# build outputs
+electron/dist/
+src/dist/
+dist-electron/
+
+# env / secrets
+.env
+.env.local
+.env.*.local
+
+# logs
+*.log
+/logs/
+
+# editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db
+
+# private docs
 .docs/
+
+# electron-builder cache
+.cache/

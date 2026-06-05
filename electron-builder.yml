@@ -1,0 +1,48 @@
+appId: com.tonywied17.plex-poster-set-helper
+productName: Plex Poster Set Helper
+copyright: Copyright © 2025 tonywied17
+
+directories:
+  output: dist-electron
+  buildResources: resources
+
+files:
+  - electron/dist/**
+  - src/dist/**
+  - node_modules/**
+  - package.json
+
+extraMetadata:
+  main: electron/dist/main.js
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: resources/icon.ico
+  publisherName: tonywied17
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Plex Poster Set Helper
+  uninstallDisplayName: Plex Poster Set Helper
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+  icon: resources/icon.png
+  category: Utility
+  maintainer: tonywied17
+
+publish:
+  provider: github
+  owner: tonywied17
+  repo: plex-poster-set-helper
+  releaseType: release
+  publishAutoUpdate: true

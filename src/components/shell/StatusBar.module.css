@@ -1,0 +1,49 @@
+.bar {
+  height: var(--statusbar-height);
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-4);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+
+.left, .right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.dotOn {
+  background: var(--color-accent-success);
+  box-shadow: 0 0 6px rgba(52, 211, 153, 0.6);
+}
+
+.dotOff {
+  background: var(--color-accent-error);
+}
+
+.dotUnknown {
+  background: var(--color-text-muted);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.text {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
