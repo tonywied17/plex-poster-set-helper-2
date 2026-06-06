@@ -8,8 +8,13 @@ on:
 
 jobs:
   ci:
-    name: Lint, Typecheck & Build
+    name: Typecheck & Build
     runs-on: ubuntu-latest
+
+    # The Electron binary isn't needed to typecheck/build, and its postinstall is
+    # unreliable under Node 22 — skip the download for a fast, deterministic CI.
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1
 
     steps:
       - uses: actions/checkout@v4
@@ -19,8 +24,12 @@ jobs:
           node-version: 22
           cache: npm
 
+      # `npm install` (not `npm ci`): the committed lockfile is generated on
+      # Windows and omits a few Linux-only transitive optional deps (@emnapi/*),
+      # which makes the stricter `npm ci` fail on the Linux runner. `npm install`
+      # resolves them cleanly. (The Docker build does the same for this reason.)
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Typecheck renderer
         run: npx tsc --noEmit
