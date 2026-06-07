@@ -20,10 +20,9 @@ asarUnpack:
 extraMetadata:
   main: electron/dist/main.js
 
-# Icons: drop branded files at resources/icon.ico (Windows) and
-# resources/icon.png (Linux, 512x512+) and electron-builder picks them up
-# automatically. Until then the default Electron icon is used.
+# App icon (orange play mark) — generated from resources/icon.svg.
 win:
+  icon: resources/icon.ico
   target:
     - target: nsis
       arch: [x64]
@@ -37,6 +36,7 @@ nsis:
   uninstallDisplayName: Plex Poster Set Helper
 
 linux:
+  icon: resources/icon.png
   target:
     - target: AppImage
       arch: [x64]
