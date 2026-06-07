@@ -16,6 +16,12 @@
   <img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-last-commit-plex.svg" alt="last commit" />
 </p>
 
+<p align="center">
+  <a href="https://github.com/tonywied17/plex-poster-set-helper/releases/latest"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-release-plex.svg" alt="latest release" /></a>&nbsp;
+  <a href="https://github.com/tonywied17/plex-poster-set-helper/releases"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-downloads-plex.svg" alt="downloads" /></a>&nbsp;
+  <a href="https://github.com/tonywied17/plex-poster-set-helper/releases/latest"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-download-plex.svg" alt="download latest" /></a>
+</p>
+
 ---
 
 ## What it does
@@ -23,12 +29,12 @@
 Plex Poster Set Helper 2 finds high‑quality poster artwork for the movies and shows already in your Plex library and applies it with a click - posters, season posters, episode title cards, and backdrops, all routed to the right place automatically.
 
 <p align="center">
-  <img width="48%" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-library.svg" alt="Library Browser" />
-  <img width="48%" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-creators.svg" alt="Creators" />
-  <img width="48%" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-manual.svg" alt="Manual Import" />
-  <img width="48%" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-scheduler.svg" alt="Scheduler" />
-  <img width="48%" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-reset.svg" alt="Reset Posters" />
-  <img width="48%" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-signin.svg" alt="One-click Plex sign-in" />
+  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-library.svg" alt="Library Browser" />
+  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-creators.svg" alt="Creators" />
+  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-manual.svg" alt="Manual Import" />
+  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-scheduler.svg" alt="Scheduler" />
+  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-reset.svg" alt="Reset Posters" />
+  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-signin.svg" alt="One-click Plex sign-in" />
 </p>
 
 > Runs as a desktop app on **Windows** and **Linux**, or in **Docker** (including unraid) for always‑on servers.
@@ -104,7 +110,7 @@ The **Scheduler** lets you re‑apply a set on a repeating schedule, which is gr
 
 | Source | What you can use |
 |---|---|
-| **[MediUX](https://mediux.pro)** | Set links (`/sets/123`), **boxsets** (`/boxsets/123` — a whole collection at once), and creator pages (`/user/name`). Full‑quality artwork, including season posters, title cards, and backdrops. |
+| **[MediUX](https://mediux.pro)** | Set links (`/sets/123`), **boxsets** (`/boxsets/123` - a whole collection at once), and creator pages (`/user/name`). Full‑quality artwork, including season posters, title cards, and backdrops. |
 | **[ThePosterDB](https://theposterdb.com)** | Set links (`/set/123`), single posters (`/poster/123`), and user uploads (`/user/name`). |
 
 Posters are matched to your library by **TMDB ID** (read from each Plex item), so the right art lands on the right title. Everything you apply is tracked locally, so the **Reset** page always knows what's current, what was applied before, and where it came from.
