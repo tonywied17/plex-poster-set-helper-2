@@ -256,6 +256,13 @@ export interface UserSetsReq {
   page?: number            // cumulative page (N = first N×12 sets); default 1
 }
 
+// Deep search: find a creator's sets for library titles matching a query — works
+// across the creator's ENTIRE catalog (not just the browse-capped first pages).
+export interface CreatorSearchReq {
+  username: string
+  query: string
+}
+
 export interface UserSetsRes {
   username: string
   sets: MediuxUserSet[]
@@ -319,4 +326,5 @@ export type IpcChannels = {
   'library:items':           { req: SectionItemsReq; res: SectionItemsRes }
   'library:sets':            { req: BrowseSetsReq; res: BrowseSetsRes }
   'library:userSets':        { req: UserSetsReq; res: UserSetsRes }
+  'library:creatorSearch':   { req: CreatorSearchReq; res: UserSetsRes }
 }

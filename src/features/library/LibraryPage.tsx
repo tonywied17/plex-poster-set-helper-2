@@ -747,8 +747,6 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
   const [sets, setSets]       = useState<MediuxUserSet[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [page, setPage]       = useState(1)
-  const [hasMore, setHasMore] = useState(false)
   const [error, setError]     = useState<string | null>(null)
   const [applyMap, setApplyMap] = useState<Record<string, ApplyState>>({})
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -756,6 +754,10 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
   const [tab, setTab]         = useState<'sets' | 'boxsets' | 'posters' | 'backdrops'>('sets')
   const [query, setQuery]     = useState('')
   const [fileLightbox, setFileLightbox] = useState<number | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
+  const [capped, setCapped]   = useState(false)
+  const [searchResults, setSearchResults] = useState<MediuxUserSet[]>([])
+  const [searching, setSearching] = useState(false)
 
   // Which sets are already covered by a saved schedule (individually, or by a
   // whole-creator "/user/{name}/sets" sync job).
@@ -764,25 +766,35 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
 
   const allTypes = useMemo(() => new Set<FileType>(ALL_TYPES), [])
 
-  const load = useCallback(() => {
-    setLoading(true); setError(null); setSelected(new Set()); setPage(1)
-    window.api.library.userSets({ username, page: 1 }).then((res: UserSetsRes) => {
-      if (res.error) setError(res.error)
-      setSets(res.sets)
-      setHasMore(res.hasMore)
-    }).catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
-      .finally(() => setLoading(false))
-  }, [username])
+  const refresh = useCallback(() => setReloadKey(k => k + 1), [])
 
-  // Cumulative pagination: fetch the next page (a superset) and replace the list.
-  const loadMore = useCallback(() => {
-    if (loadingMore || !hasMore) return
-    const next = page + 1
-    setLoadingMore(true)
-    window.api.library.userSets({ username, page: next }).then((res: UserSetsRes) => {
-      if (!res.error) { setSets(res.sets); setHasMore(res.hasMore); setPage(next) }
-    }).finally(() => setLoadingMore(false))
-  }, [username, page, hasMore, loadingMore])
+  // Auto-load the creator's sets in the background. MediUX server-renders a
+  // cumulative page (N = first N×12) but caps the creator's own sets after a
+  // couple of pages, so we keep fetching higher pages until a page adds nothing
+  // new (the cap), then stop. Cancels cleanly when switching creators.
+  useEffect(() => {
+    let cancelled = false
+    const MAX_PAGES = 12   // safety bound on the cumulative re-fetch
+    setLoading(true); setLoadingMore(false); setError(null)
+    setSelected(new Set()); setSets([]); setCapped(false)
+    ;(async () => {
+      let prev = -1
+      for (let n = 1; n <= MAX_PAGES && !cancelled; n++) {
+        let res: UserSetsRes
+        try { res = await window.api.library.userSets({ username, page: n }) }
+        catch (e) { if (!cancelled) { setError(e instanceof Error ? e.message : String(e)); setLoading(false) } return }
+        if (cancelled) return
+        if (res.error) { setError(res.error); setLoading(false); setLoadingMore(false); return }
+        setSets(res.sets); setLoading(false)
+        if (res.sets.length <= prev) break      // no growth → MediUX cap reached
+        prev = res.sets.length
+        if (!res.hasMore) break                 // server says no full page → done
+        setLoadingMore(true)
+      }
+      if (!cancelled) { setLoadingMore(false); setCapped(true) }
+    })()
+    return () => { cancelled = true }
+  }, [username, reloadKey])
 
   const loadSchedule = useCallback(() => {
     window.api.scheduler.list().then((jobs) => {
@@ -802,7 +814,22 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
     })
   }, [username])
 
-  useEffect(() => { load(); loadSchedule() }, [load, loadSchedule])
+  useEffect(() => { loadSchedule() }, [loadSchedule])
+
+  // Deep search across the creator's WHOLE catalog (beyond the browse cap): match
+  // the query to the user's library, then fetch this creator's sets for those titles.
+  useEffect(() => {
+    const term = query.trim()
+    if (term.length < 2) { setSearchResults([]); setSearching(false); return }
+    let cancelled = false
+    setSearching(true)
+    const t = setTimeout(() => {
+      window.api.library.creatorSearch({ username, query: term })
+        .then(res => { if (!cancelled) setSearchResults(res.sets) })
+        .finally(() => { if (!cancelled) setSearching(false) })
+    }, 450)
+    return () => { cancelled = true; clearTimeout(t) }
+  }, [query, username])
 
   // In-library matches first, then the rest (keeps newest order within each).
   const q = query.trim().toLowerCase()
@@ -810,10 +837,18 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
   const isBoxset = (s: MediuxUserSet) => /collection|boxset/i.test(s.setName) || /collection/i.test(s.title)
   const matchQuery = (s: MediuxUserSet) => !q || s.title.toLowerCase().includes(q) || s.setName.toLowerCase().includes(q)
 
+  // Merge deep-search results (creator's sets for matching library titles) with the
+  // browsed sets, deduped — so search finds art beyond MediUX's browse cap.
+  const allSets = useMemo(() => {
+    if (!searchResults.length) return sets
+    const seen = new Set(sets.map(s => s.id))
+    return [...searchResults.filter(s => !seen.has(s.id)), ...sets]
+  }, [sets, searchResults])
+
   // Tab data, all filtered by the title search and sorted matches-first.
-  const setsFiltered = useMemo(() => sets.filter(s => !isBoxset(s) && matchQuery(s)).sort(matchFirst), [sets, q])
-  const boxsetsFiltered = useMemo(() => sets.filter(s => isBoxset(s) && matchQuery(s)).sort(matchFirst), [sets, q])
-  const flatFiles = useMemo(() => sets.flatMap(s => s.posters.map(poster => ({ set: s, poster }))), [sets])
+  const setsFiltered = useMemo(() => allSets.filter(s => !isBoxset(s) && matchQuery(s)).sort(matchFirst), [allSets, q])
+  const boxsetsFiltered = useMemo(() => allSets.filter(s => isBoxset(s) && matchQuery(s)).sort(matchFirst), [allSets, q])
+  const flatFiles = useMemo(() => allSets.flatMap(s => s.posters.map(poster => ({ set: s, poster }))), [allSets])
   const posterItems = useMemo(
     () => flatFiles.filter(f => posterFileType(f.poster) === 'poster' && matchQuery(f.set)).sort((a, b) => matchFirst(a.set, b.set)),
     [flatFiles, q],
@@ -947,7 +982,9 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
         <div className={styles.creatorBarInfo}>
           <span className={styles.creatorBarName}>{username}</span>
           {!loading && !error && (
-            <span className={styles.creatorBarMeta}>{sets.length} sets loaded · {matchCount} in your library{hasMore ? ' · more available' : ''}</span>
+            <span className={styles.creatorBarMeta}>
+              {loadingMore ? `Loading… ${sets.length} sets` : `${sets.length} sets · ${matchCount} in your library`}
+            </span>
           )}
         </div>
         <div className={styles.creatorBarActions}>
@@ -956,7 +993,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
           ) : (
             <Button variant="primary" size="sm" icon={<UserPlus size={12} />} onClick={onFollow}>Follow</Button>
           )}
-          <Button variant="ghost" size="sm" icon={<RefreshCw size={12} />} onClick={load} disabled={loading}>Refresh</Button>
+          <Button variant="ghost" size="sm" icon={<RefreshCw size={12} />} onClick={refresh} disabled={loading}>Refresh</Button>
           {following && (
             <Button
               variant="primary"
@@ -986,10 +1023,10 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
             ))}
           </div>
           <div className={styles.creatorSearch}>
-            <Search size={13} className={styles.creatorSearchIcon} />
+            {searching ? <Loader2 size={13} className={`${styles.creatorSearchIcon} ${styles.spin}`} /> : <Search size={13} className={styles.creatorSearchIcon} />}
             <input
               className={styles.creatorSearchInput}
-              placeholder="Filter loaded by title…"
+              placeholder="Search all their art by title…"
               value={query}
               onChange={e => setQuery(e.target.value)}
               spellCheck={false}
@@ -1041,7 +1078,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
           const list = tab === 'sets' ? setsFiltered : boxsetsFiltered
           return list.length
             ? list.map(renderSetCard)
-            : <div className={styles.panelNotice}><ImageIcon size={20} /><p>{query ? 'No matches for your filter.' : `No ${tab} loaded yet.`}</p></div>
+            : <div className={styles.panelNotice}><ImageIcon size={20} /><p>{query ? (searching ? 'Searching their full catalog…' : 'No matches found — try a different title.') : `No ${tab} loaded yet.`}</p></div>
         })()}
 
         {/* Posters / Backdrops tabs → individual files */}
@@ -1071,16 +1108,17 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
                 )
               })}
             </div>
-          ) : <div className={styles.panelNotice}><ImageIcon size={20} /><p>{query ? 'No matches for your filter.' : `No ${tab} loaded yet.`}</p></div>
+          ) : <div className={styles.panelNotice}><ImageIcon size={20} /><p>{query ? (searching ? 'Searching their full catalog…' : 'No matches found — try a different title.') : `No ${tab} loaded yet.`}</p></div>
         )}
 
-        {/* Load more (cumulative — fetches the next page of the creator's sets) */}
-        {!loading && !error && hasMore && (
-          <button className={styles.loadMoreBtn} onClick={loadMore} disabled={loadingMore}>
-            {loadingMore
-              ? <><Spinner size="xs" color="current" /> Loading more…</>
-              : <><ChevronDown size={14} /> Load more — {sets.length} sets loaded</>}
-          </button>
+        {/* Background loading indicator / cap note */}
+        {!loading && !error && loadingMore && (
+          <div className={styles.loadMoreNote}><Spinner size="xs" /> Loading more sets…</div>
+        )}
+        {!loading && !error && capped && sets.length > 0 && (
+          <div className={styles.loadMoreNote}>
+            Showing the newest {sets.length} sets — MediUX limits how many load per creator.
+          </div>
         )}
       </div>
 

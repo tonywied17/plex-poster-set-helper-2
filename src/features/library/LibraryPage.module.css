@@ -1095,3 +1095,17 @@
 }
 .loadMoreBtn:hover:not(:disabled) { color: var(--color-accent); border-color: var(--color-accent-border); background: var(--color-accent-soft); }
 .loadMoreBtn:disabled { opacity: 0.6; cursor: default; }
+
+.loadMoreNote {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* Skip rendering off-screen tiles/cards - keeps big creator catalogs smooth. */
+.fileTile { content-visibility: auto; contain-intrinsic-size: auto 220px; }

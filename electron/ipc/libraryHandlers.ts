@@ -2,7 +2,7 @@ import type { IpcMain } from 'electron'
 import { PlexService } from '../services/plexService'
 import { ScraperFactory } from '../scrapers/scraperFactory'
 import { Logger } from '../services/logger'
-import type { SectionItemsReq, BrowseSetsReq, BrowseSetsRes, UserSetsReq, UserSetsRes } from './types'
+import type { SectionItemsReq, BrowseSetsReq, BrowseSetsRes, UserSetsReq, UserSetsRes, CreatorSearchReq, MediuxUserSet } from './types'
 
 export function registerLibraryHandlers(ipcMain: IpcMain) {
   ipcMain.handle('library:sections', () => PlexService.getSections())
@@ -46,6 +46,48 @@ export function registerLibraryHandlers(ipcMain: IpcMain) {
     } catch (err) {
       Logger.error('Library', `browseMediuxUser failed: ${err instanceof Error ? err.message : err}`)
       return { username: req.username, sets: [], page, hasMore: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  // Deep search: MediUX only browse-serves a creator's newest ~24 sets, so to find
+  // their art for OLDER titles we search the user's library for the query, then
+  // fetch each matched title's sets and keep the ones uploaded by this creator.
+  ipcMain.handle('library:creatorSearch', async (_e, req: CreatorSearchReq): Promise<UserSetsRes> => {
+    const username = req.username
+    const q = req.query.trim()
+    if (q.length < 2) return { username, sets: [], page: 1, hasMore: false }
+    try {
+      const target = username.toLowerCase()
+      const sections = await PlexService.getSections()
+
+      // Gather library items matching the query (a few per section).
+      const items = []
+      for (const sec of sections) {
+        const res = await PlexService.getSectionItems({ sectionKey: sec.key, offset: 0, limit: 6, search: q })
+        items.push(...res.items)
+        if (items.length >= 12) break
+      }
+
+      // For each match, pull the title's sets and keep this creator's.
+      const out: MediuxUserSet[] = []
+      const seen = new Set<string>()
+      for (const item of items.slice(0, 10)) {
+        const tmdbId = await PlexService.resolveTmdbId({
+          key: item.key, title: item.title, type: item.type,
+          tmdbId: item.tmdbId, tvdbId: item.tvdbId, imdbId: item.imdbId,
+        })
+        if (!tmdbId) continue
+        const sets = await ScraperFactory.browseMediux(tmdbId, item.type)
+        for (const s of sets) {
+          if (s.uploader.toLowerCase() !== target || seen.has(s.id)) continue
+          seen.add(s.id)
+          out.push({ ...s, title: item.title, year: item.year, matchedKey: item.key, matchedType: item.type })
+        }
+      }
+      return { username, sets: out, page: 1, hasMore: false }
+    } catch (err) {
+      Logger.error('Library', `creatorSearch failed: ${err instanceof Error ? err.message : err}`)
+      return { username, sets: [], page: 1, hasMore: false, error: err instanceof Error ? err.message : String(err) }
     }
   })
 }

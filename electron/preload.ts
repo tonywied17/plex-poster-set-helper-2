@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, BrowserStatus, SectionItemsReq, BrowseSetsReq, UserSetsReq } from './ipc/types'
+import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, BrowserStatus, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq } from './ipc/types'
 // (response types are inferred via the invoke return type)
 
 const api = {
@@ -38,6 +38,7 @@ const api = {
     items: (req: SectionItemsReq) => ipcRenderer.invoke('library:items', req),
     sets: (req: BrowseSetsReq) => ipcRenderer.invoke('library:sets', req),
     userSets: (req: UserSetsReq) => ipcRenderer.invoke('library:userSets', req),
+    creatorSearch: (req: CreatorSearchReq) => ipcRenderer.invoke('library:creatorSearch', req),
   },
 
   // Scraping
