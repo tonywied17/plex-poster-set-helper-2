@@ -758,6 +758,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
   const [capped, setCapped]   = useState(false)
   const [searchResults, setSearchResults] = useState<MediuxUserSet[]>([])
   const [searching, setSearching] = useState(false)
+  const searchRef = useRef<HTMLInputElement>(null)
 
   // Which sets are already covered by a saved schedule (individually, or by a
   // whole-creator "/user/{name}/sets" sync job).
@@ -1025,6 +1026,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
           <div className={styles.creatorSearch}>
             {searching ? <Loader2 size={13} className={`${styles.creatorSearchIcon} ${styles.spin}`} /> : <Search size={13} className={styles.creatorSearchIcon} />}
             <input
+              ref={searchRef}
               className={styles.creatorSearchInput}
               placeholder="Search all their art by title…"
               value={query}
@@ -1117,7 +1119,8 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
         )}
         {!loading && !error && capped && sets.length > 0 && (
           <div className={styles.loadMoreNote}>
-            Showing the newest {sets.length} sets — MediUX limits how many load per creator.
+            Showing this creator's newest {sets.length} sets (MediUX's browse limit), with your library matches first.
+            Don't see one of your titles? <button className={styles.noteSearchLink} onClick={() => searchRef.current?.focus()}>Search</button> their full catalog by title above.
           </div>
         )}
       </div>
