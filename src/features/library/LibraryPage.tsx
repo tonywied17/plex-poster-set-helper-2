@@ -828,7 +828,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
       window.api.library.creatorSearch({ username, query: term })
         .then(res => { if (!cancelled) setSearchResults(res.sets) })
         .finally(() => { if (!cancelled) setSearching(false) })
-    }, 450)
+    }, 550)
     return () => { cancelled = true; clearTimeout(t) }
   }, [query, username])
 
@@ -1069,14 +1069,18 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
       </AnimatePresence>
 
       <div className={styles.creatorSetsList}>
-        {loading && <div className={styles.panelLoading}><Spinner size="sm" /> <span>Loading {username}'s sets…</span></div>}
+        {/* Gate the list until the background auto-load settles, so it appears once
+            (already sorted) instead of visibly re-sorting as each page arrives. */}
+        {(loading || loadingMore) && (
+          <div className={styles.panelLoading}><Spinner size="sm" /> <span>Loading {username}'s art… {sets.length > 0 ? `${sets.length} sets` : ''}</span></div>
+        )}
         {error && <div className={styles.panelNotice}><AlertCircle size={20} /><p>{error}</p></div>}
-        {!loading && !error && sets.length === 0 && (
+        {!loading && !loadingMore && !error && sets.length === 0 && (
           <div className={styles.panelNotice}><ImageIcon size={20} /><p>No sets found for this creator.</p></div>
         )}
 
         {/* Sets / Boxsets tabs → SetCards */}
-        {!loading && !error && sets.length > 0 && (tab === 'sets' || tab === 'boxsets') && (() => {
+        {!loading && !loadingMore && !error && sets.length > 0 && (tab === 'sets' || tab === 'boxsets') && (() => {
           const list = tab === 'sets' ? setsFiltered : boxsetsFiltered
           return list.length
             ? list.map(renderSetCard)
@@ -1084,7 +1088,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
         })()}
 
         {/* Posters / Backdrops tabs → individual files */}
-        {!loading && !error && (tab === 'posters' || tab === 'backdrops') && (
+        {!loading && !loadingMore && !error && (tab === 'posters' || tab === 'backdrops') && (
           fileItems.length ? (
             <div className={`${styles.fileGrid} ${tab === 'backdrops' ? styles.fileGridWide : ''}`}>
               {fileItems.map(({ set, poster }, i) => {
@@ -1113,11 +1117,8 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
           ) : <div className={styles.panelNotice}><ImageIcon size={20} /><p>{query ? (searching ? 'Searching their full catalog…' : 'No matches found — try a different title.') : `No ${tab} loaded yet.`}</p></div>
         )}
 
-        {/* Background loading indicator / cap note */}
-        {!loading && !error && loadingMore && (
-          <div className={styles.loadMoreNote}><Spinner size="xs" /> Loading more sets…</div>
-        )}
-        {!loading && !error && capped && sets.length > 0 && (
+        {/* Cap note (shown once the catalog has settled) */}
+        {!loading && !loadingMore && !error && capped && sets.length > 0 && (
           <div className={styles.loadMoreNote}>
             Showing this creator's newest {sets.length} sets (MediUX's browse limit), with your library matches first.
             Don't see one of your titles? <button className={styles.noteSearchLink} onClick={() => searchRef.current?.focus()}>Search</button> their full catalog by title above.
