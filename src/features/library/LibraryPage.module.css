@@ -139,12 +139,39 @@
   background: rgba(255, 255, 255, 0.06);
 }
 
+.controlsRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .searchBox {
   position: relative;
   display: flex;
   align-items: center;
   min-width: 240px;
 }
+
+/* Icon-only refresh — matches the section-tab surface, accent on hover */
+.refreshBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--duration-fast);
+}
+.refreshBtn:hover:not(:disabled) {
+  color: var(--color-accent, #e5a00d);
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-soft);
+}
+.refreshBtn:disabled { opacity: 0.6; cursor: default; }
 
 .searchIcon {
   position: absolute;

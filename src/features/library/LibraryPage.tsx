@@ -85,6 +85,7 @@ function MyLibraryView({ subs }: { subs: string[] }) {
   const [globalLoading, setGlobalLoading] = useState(false)
 
   const [selected, setSelected] = useState<LibraryItem | null>(null)
+  const [reloadNonce, setReloadNonce] = useState(0)   // manual-refresh trigger
 
   const offsetRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -127,7 +128,7 @@ function MyLibraryView({ subs }: { subs: string[] }) {
     offsetRef.current = 0
     const t = setTimeout(() => loadItems(activeKey, '', false), 0)
     return () => clearTimeout(t)
-  }, [activeKey, isGlobalSearch, loadItems])
+  }, [activeKey, isGlobalSearch, loadItems, reloadNonce])
 
   // -- Cross-library search: fire all sections in parallel with debounce ------
   useEffect(() => {
@@ -149,7 +150,7 @@ function MyLibraryView({ subs }: { subs: string[] }) {
       })
     }, 300)
     return () => { cancelled = true; clearTimeout(t) }
-  }, [search, isGlobalSearch, sections])
+  }, [search, isGlobalSearch, sections, reloadNonce])
 
   // -- Infinite scroll (single-tab mode only) ---------------------------------
   function onScroll() {
@@ -161,6 +162,14 @@ function MyLibraryView({ subs }: { subs: string[] }) {
   }
 
   const totalGlobalHits = globalResults.reduce((n, g) => n + g.items.length, 0)
+
+  // Manual refresh: re-check sections (catches libraries added/removed in Plex)
+  // and reload whatever is on screen (active tab, or the cross-library search).
+  const refreshing = loading || globalLoading
+  function handleRefresh() {
+    loadSections()
+    setReloadNonce(n => n + 1)
+  }
 
   return (
     <>
@@ -187,18 +196,29 @@ function MyLibraryView({ subs }: { subs: string[] }) {
           ))}
         </div>
 
-        <div className={styles.searchBox}>
-          <Search size={14} className={styles.searchIcon} />
-          <input
-            className={`${styles.searchInput} ${isGlobalSearch ? styles.searchInputActive : ''}`}
-            placeholder={isGlobalSearch ? 'Searching all libraries…' : 'Search…'}
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            spellCheck={false}
-          />
-          {search && (
-            <button className={styles.searchClear} onClick={() => setSearch('')}><X size={13} /></button>
-          )}
+        <div className={styles.controlsRight}>
+          <div className={styles.searchBox}>
+            <Search size={14} className={styles.searchIcon} />
+            <input
+              className={`${styles.searchInput} ${isGlobalSearch ? styles.searchInputActive : ''}`}
+              placeholder={isGlobalSearch ? 'Searching all libraries…' : 'Search…'}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              spellCheck={false}
+            />
+            {search && (
+              <button className={styles.searchClear} onClick={() => setSearch('')}><X size={13} /></button>
+            )}
+          </div>
+          <button
+            className={styles.refreshBtn}
+            onClick={handleRefresh}
+            disabled={refreshing}
+            title="Refresh from Plex"
+            aria-label="Refresh library from Plex"
+          >
+            <RefreshCw size={15} className={refreshing ? styles.spin : ''} />
+          </button>
         </div>
       </div>
 
