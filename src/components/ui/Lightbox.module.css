@@ -20,13 +20,46 @@
   gap: var(--space-3);
 }
 
+/* Wrapper sizes itself to a poster shape before the image loads.
+   Width is clamped so height never exceeds 82vh on any viewport. */
+.imageWrap {
+  position: relative;
+  width: min(min(82vw, 540px), calc(82vh * 2 / 3));
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
+  flex-shrink: 0;
+}
+
+.shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-elevated) 0%,
+    rgba(255, 255, 255, 0.045) 40%,
+    var(--color-bg-elevated) 80%
+  );
+  background-size: 200% 100%;
+  animation: shimmerMove 1.5s ease-in-out infinite;
+  transition: opacity 0.25s ease;
+  border-radius: var(--radius-md);
+}
+
+@keyframes shimmerMove {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 .image {
-  max-width: min(82vw, 1100px);
-  max-height: 82vh;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   border-radius: var(--radius-md);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
-  background: var(--color-bg-elevated);
+  transition: opacity 0.25s ease;
 }
 
 .caption {
