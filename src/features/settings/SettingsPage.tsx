@@ -644,7 +644,7 @@ export default function SettingsPage() {
             ] as const).map(({ type, name, desc }) => {
               const on = merged.mediuxFilters.includes(type)
               return (
-                <label key={type} className={`${styles.filterOption} ${on ? styles.filterOptionOn : ''}`}>
+                <label key={type} className={styles.filterOption}>
                   <Checkbox
                     checked={on}
                     onChange={checked => {

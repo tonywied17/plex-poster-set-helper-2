@@ -298,6 +298,12 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
   useEffect(() => { loadAppliedIndex().then(setAppliedIdx) }, [])
 
   useEffect(() => {
+    window.api.config.get().then(c => {
+      if (c.mediuxFilters?.length) setTypes(new Set(c.mediuxFilters as FileType[]))
+    })
+  }, [])
+
+  useEffect(() => {
     let cancelled = false
     setLoading(true); setError(null); setSets([])
     window.api.library.sets({
@@ -908,7 +914,12 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
   const [scheduledSetIds, setScheduledSetIds] = useState<Set<string>>(new Set())
   const [creatorScheduled, setCreatorScheduled] = useState(false)
 
-  const allTypes = useMemo(() => new Set<FileType>(ALL_TYPES), [])
+  const [allTypes, setAllTypes] = useState<Set<FileType>>(new Set(ALL_TYPES))
+  useEffect(() => {
+    window.api.config.get().then(c => {
+      if (c.mediuxFilters?.length) setAllTypes(new Set(c.mediuxFilters as FileType[]))
+    })
+  }, [])
 
   const refresh = useCallback(() => setReloadKey(k => k + 1), [])
 
