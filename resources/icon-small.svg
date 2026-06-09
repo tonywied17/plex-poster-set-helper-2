@@ -1,0 +1,29 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Plex Poster Set Helper - simplified tile for tiny rasters (16/20/24/32 px).
+    Same poster-set mark as icon.svg but with heavier shapes, lighter back
+    cards and no shadows so it stays legible at taskbar sizes.
+  -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#272d3d"/>
+      <stop offset="1" stop-color="#0c0e15"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f9c449"/>
+      <stop offset="0.5" stop-color="#e5a00d"/>
+      <stop offset="1" stop-color="#bd860f"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="14" fill="url(#tile)"/>
+
+  <!-- back posters: light slivers so the "set" reads even at 16px.
+       Geometry lands on whole pixels at 16px (64/4 grid). -->
+  <rect x="16" y="8" width="32" height="48" rx="6" fill="#8d97ae" transform="rotate(-17 32 50)"/>
+  <rect x="16" y="8" width="32" height="48" rx="6" fill="#5d6680" transform="rotate(14 32 50)"/>
+
+  <!-- hero poster -->
+  <rect x="16" y="8" width="32" height="48" rx="6" fill="url(#amber)"/>
+  <path d="M 26.5 24.5 L 39.5 32 L 26.5 39.5 Z" fill="#161a24" stroke="#161a24" stroke-width="6" stroke-linejoin="round"/>
+</svg>

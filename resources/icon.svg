@@ -1,11 +1,65 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Plex Poster Set Helper - master app icon (1024).
+    A fanned "poster set": two muted posters behind, the amber hero poster
+    with the play mark in front. Rasterized by scripts/generate-icons.mjs;
+    sizes <= 32px use icon-small.svg instead.
+  -->
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#f4b835"/>
-      <stop offset="0.55" stop-color="#e5a00d"/>
-      <stop offset="1" stop-color="#bd820a"/>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#272d3d"/>
+      <stop offset="0.52" stop-color="#151926"/>
+      <stop offset="1" stop-color="#0b0d14"/>
     </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.56" r="0.58">
+      <stop offset="0" stop-color="#e5a00d" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#e5a00d" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f9c449"/>
+      <stop offset="0.5" stop-color="#e5a00d"/>
+      <stop offset="1" stop-color="#b27c07"/>
+    </linearGradient>
+    <linearGradient id="cardL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4d566c"/>
+      <stop offset="1" stop-color="#333a4c"/>
+    </linearGradient>
+    <linearGradient id="cardR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3d4459"/>
+      <stop offset="1" stop-color="#272d3d"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.17"/>
+      <stop offset="0.38" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="ds" x="-60%" y="-60%" width="220%" height="220%">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
   </defs>
-  <circle cx="512" cy="512" r="470" fill="url(#g)"/>
-  <path d="M412 300 L700 512 L412 724 Z" fill="#1a1a1a"/>
+
+  <!-- tile -->
+  <rect width="1024" height="1024" rx="232" fill="url(#tile)"/>
+  <rect width="1024" height="1024" rx="232" fill="url(#glow)"/>
+  <rect x="7" y="7" width="1010" height="1010" rx="227" stroke="#ffffff" stroke-opacity="0.07" stroke-width="6"/>
+
+  <!-- left poster of the set -->
+  <g transform="translate(512,840) rotate(-17) translate(0,-310)" filter="url(#ds)">
+    <rect x="-205" y="-300" width="410" height="600" rx="46" fill="url(#cardL)"/>
+    <rect x="-205" y="-300" width="410" height="600" rx="46" fill="url(#sheen)"/>
+    <rect x="-202" y="-297" width="404" height="594" rx="43" stroke="#ffffff" stroke-opacity="0.10" stroke-width="5"/>
+  </g>
+
+  <!-- right poster of the set -->
+  <g transform="translate(512,840) rotate(14.5) translate(0,-310)" filter="url(#ds)">
+    <rect x="-205" y="-300" width="410" height="600" rx="46" fill="url(#cardR)"/>
+    <rect x="-205" y="-300" width="410" height="600" rx="46" fill="url(#sheen)"/>
+    <rect x="-202" y="-297" width="404" height="594" rx="43" stroke="#ffffff" stroke-opacity="0.10" stroke-width="5"/>
+  </g>
+
+  <!-- hero poster -->
+  <g transform="translate(512,530)" filter="url(#ds)">
+    <rect x="-205" y="-300" width="410" height="600" rx="46" fill="url(#amber)"/>
+    <rect x="-205" y="-300" width="410" height="600" rx="46" fill="url(#sheen)"/>
+    <path d="M -52 -106 L 118 0 L -52 106 Z" fill="#161a24" stroke="#161a24" stroke-width="44" stroke-linejoin="round"/>
+  </g>
 </svg>

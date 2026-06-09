@@ -1,16 +1,20 @@
 import styles from './TitleBar.module.css'
 
+// Poster-set mark - matches the app/tray icon (resources/tray.svg)
 function PlexIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path
-        d="M16 2C8.268 2 2 8.268 2 16s6.268 14 14 14 14-6.268 14-14S23.732 2 16 2z"
-        fill="#e5a00d"
-      />
-      <path
-        d="M13.5 9l9 7-9 7V9z"
-        fill="#1a1a1a"
-      />
+    <svg width="18" height="18" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <linearGradient id="ppsh-amber" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#f9c449" />
+          <stop offset="0.5" stopColor="#e5a00d" />
+          <stop offset="1" stopColor="#bd860f" />
+        </linearGradient>
+      </defs>
+      <rect x="12" y="4" width="40" height="56" rx="7" fill="#c3cadb" transform="rotate(-16 32 54)" />
+      <rect x="12" y="4" width="40" height="56" rx="7" fill="#79829b" transform="rotate(13 32 54)" />
+      <rect x="12" y="4" width="40" height="56" rx="7" fill="url(#ppsh-amber)" />
+      <path d="M 26.4 24.6 L 40 32 L 26.4 39.4 Z" fill="#11141c" stroke="#11141c" strokeWidth="6" strokeLinejoin="round" />
     </svg>
   )
 }

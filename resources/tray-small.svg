@@ -1,0 +1,21 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Plex Poster Set Helper - tray glyph for tiny rasters (16/20/24 px).
+    One back card instead of two and a bigger play mark, so the icon stays
+    crisp at native tray size. Geometry sits on whole pixels at 16px.
+  -->
+  <defs>
+    <linearGradient id="amber" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f9c449"/>
+      <stop offset="0.5" stop-color="#e5a00d"/>
+      <stop offset="1" stop-color="#bd860f"/>
+    </linearGradient>
+  </defs>
+
+  <!-- single back poster sliver -->
+  <rect x="12" y="4" width="44" height="56" rx="8" fill="#b6bed2" transform="rotate(-15 32 54)"/>
+
+  <!-- hero poster -->
+  <rect x="12" y="4" width="44" height="56" rx="8" fill="url(#amber)"/>
+  <path d="M 25 23 L 43 32 L 25 41 Z" fill="#11141c" stroke="#11141c" stroke-width="7" stroke-linejoin="round"/>
+</svg>

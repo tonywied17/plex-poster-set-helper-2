@@ -1,0 +1,23 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Plex Poster Set Helper - tray glyph (transparent background).
+    Bigger shapes than icon-small.svg since there is no tile padding; the
+    light back card keeps the "set" readable on dark taskbars while the
+    amber hero poster carries the mark on any background.
+  -->
+  <defs>
+    <linearGradient id="amber" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f9c449"/>
+      <stop offset="0.5" stop-color="#e5a00d"/>
+      <stop offset="1" stop-color="#bd860f"/>
+    </linearGradient>
+  </defs>
+
+  <!-- back posters -->
+  <rect x="12" y="4" width="40" height="56" rx="7" fill="#c3cadb" transform="rotate(-16 32 54)"/>
+  <rect x="12" y="4" width="40" height="56" rx="7" fill="#79829b" transform="rotate(13 32 54)"/>
+
+  <!-- hero poster -->
+  <rect x="12" y="4" width="40" height="56" rx="7" fill="url(#amber)" stroke="#000000" stroke-opacity="0.35" stroke-width="1.5"/>
+  <path d="M 26.4 24.6 L 40 32 L 26.4 39.4 Z" fill="#11141c" stroke="#11141c" stroke-width="6" stroke-linejoin="round"/>
+</svg>
