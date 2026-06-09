@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo, createContext, useContext } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Search, X, Upload, Check, AlertCircle, Loader2, User, Image as ImageIcon, ChevronDown, ChevronUp, Plus, UserPlus, Trash2, CalendarClock, CheckCircle2, RefreshCw, Star, Library, Download, LayoutGrid, Users } from 'lucide-react'
+import { Search, X, Upload, Check, AlertCircle, Loader2, User, Image as ImageIcon, ChevronDown, ChevronUp, Plus, UserPlus, Trash2, CalendarClock, CheckCircle2, RefreshCw, Star, Library, Download, LayoutGrid, Users, Film, Tv } from 'lucide-react'
 import type { ScheduledJob } from '../../../electron/ipc/types'
 import Button from '../../components/ui/Button'
 import Select from '../../components/ui/Select'
@@ -162,8 +162,10 @@ function MyLibraryView({ subs }: { subs: string[] }) {
               className={`${styles.sectionTab} ${!isGlobalSearch && activeKey === s.key ? styles.sectionTabActive : ''}`}
               onClick={() => { setSearch(''); setActiveKey(s.key); setSelected(null) }}
             >
+              {s.type === 'movie'
+                ? <Film size={13} className={styles.sectionTabIcon} />
+                : <Tv size={13} className={styles.sectionTabIcon} />}
               {s.title}
-              <span className={styles.sectionType}>{s.type === 'movie' ? 'Movies' : 'TV'}</span>
             </button>
           ))}
         </div>
@@ -286,35 +288,39 @@ export default function LibraryPage() {
         <div className={styles.header}>
           <div>
             <h1 className="page-title">Library Browser</h1>
-            <p className="page-subtitle">Browse your Plex library and apply MediUX poster sets.</p>
+            <p className="page-subtitle">
+              {mode === 'library'
+                ? 'Browse your Plex library and apply MediUX poster sets.'
+                : 'Follow MediUX creators and apply their newest art to your library.'}
+            </p>
           </div>
-        </div>
 
-        {/* -- Mode tab bar -------------------------------------------------- */}
-        <div className={styles.tabBar}>
-          <button
-            className={`${styles.tabBarBtn} ${mode === 'library' ? styles.tabBarBtnActive : ''}`}
-            onClick={() => setMode('library')}
-          >
-            {mode === 'library' && (
-              <motion.span className={styles.tabBarIndicator} layoutId="libTabIndicator" transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }} />
-            )}
-            <LayoutGrid size={14} />
-            <span>My Library</span>
-          </button>
-          <button
-            className={`${styles.tabBarBtn} ${mode === 'creators' ? styles.tabBarBtnActive : ''}`}
-            onClick={() => setMode('creators')}
-          >
-            {mode === 'creators' && (
-              <motion.span className={styles.tabBarIndicator} layoutId="libTabIndicator" transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }} />
-            )}
-            <Users size={14} />
-            <span>Creators</span>
-            {subs.length > 0 && (
-              <span className={styles.tabBadge}>{subs.length}</span>
-            )}
-          </button>
+          {/* -- Mode switch (header right) -------------------------------- */}
+          <div className={styles.tabBar}>
+            <button
+              className={`${styles.tabBarBtn} ${mode === 'library' ? styles.tabBarBtnActive : ''}`}
+              onClick={() => setMode('library')}
+            >
+              {mode === 'library' && (
+                <motion.span className={styles.tabBarIndicator} layoutId="libTabIndicator" transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }} />
+              )}
+              <LayoutGrid size={14} />
+              <span>My Library</span>
+            </button>
+            <button
+              className={`${styles.tabBarBtn} ${mode === 'creators' ? styles.tabBarBtnActive : ''}`}
+              onClick={() => setMode('creators')}
+            >
+              {mode === 'creators' && (
+                <motion.span className={styles.tabBarIndicator} layoutId="libTabIndicator" transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }} />
+              )}
+              <Users size={14} />
+              <span>Creators</span>
+              {subs.length > 0 && (
+                <span className={styles.tabBadge}>{subs.length}</span>
+              )}
+            </button>
+          </div>
         </div>
 
         {!plexConnected ? (
