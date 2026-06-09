@@ -23,6 +23,7 @@ extraMetadata:
 # App icon (orange play mark) — generated from resources/icon.svg.
 win:
   icon: resources/icon.ico
+  artifactName: "${productName}-Setup-${version}-Windows.${ext}"
   target:
     - target: nsis
       arch: [x64]
@@ -37,6 +38,7 @@ nsis:
 
 linux:
   icon: resources/icon.png
+  artifactName: "${productName}-${version}-Linux.${ext}"
   target:
     - target: AppImage
       arch: [x64]
