@@ -1029,6 +1029,38 @@ function CreatorsView({ initialCreator }: { initialCreator: string | null }) {
   )
 }
 
+// --- Loading skeletons (Creators) ----------------------------------------------
+
+// Placeholder set card so the list keeps its shape while a creator's art loads,
+// instead of a layout-shifting centered spinner.
+function SetCardSkeleton() {
+  return (
+    <div className={styles.setCardSkeleton} aria-hidden="true">
+      <div className={`${styles.skelPreview} ${styles.skeleton}`} />
+      <div className={styles.skelInfo}>
+        <div className={`${styles.skelLine} ${styles.skelTitle} ${styles.skeleton}`} />
+        <div className={`${styles.skelLine} ${styles.skelUploader} ${styles.skeleton}`} />
+        <div className={styles.skelChips}>
+          <span className={`${styles.skelChip} ${styles.skeleton}`} />
+          <span className={`${styles.skelChip} ${styles.skeleton}`} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Placeholder tabs row so the toolbar holds its place until the real tabs load.
+function SkeletonTabs() {
+  return (
+    <div className={styles.creatorTabsRow} aria-hidden="true">
+      <div className={styles.creatorTabs}>
+        {[0, 1, 2, 3].map(i => <span key={i} className={`${styles.skelTab} ${styles.skeleton}`} />)}
+      </div>
+      <span className={`${styles.skelSearch} ${styles.skeleton}`} />
+    </div>
+  )
+}
+
 // --- A creator's recent sets ----------------------------------------------------
 
 function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, onApplied }: {
@@ -1383,20 +1415,22 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
       <div className={styles.creatorBar}>
         <div className={styles.creatorBarInfo}>
           <span className={styles.creatorBarName}>{username}</span>
-          {!loading && !error && (
-            <span className={styles.creatorBarMeta}>
-              {loadingMore ? (
-                `Loading… ${sets.length} sets`
-              ) : (
-                <>
-                  {sets.length} sets · {matchCount} in your library
-                  {refreshing
-                    ? <span className={styles.lastChecked}>· refreshing…</span>
-                    : lastChecked && <span className={styles.lastChecked}>· checked {timeAgo(lastChecked)}</span>}
-                </>
-              )}
-            </span>
-          )}
+          <span className={styles.creatorBarMeta}>
+            {error ? (
+              'Could not load sets'
+            ) : loading ? (
+              'Loading…'
+            ) : loadingMore ? (
+              `Loading… ${sets.length} sets`
+            ) : (
+              <>
+                {sets.length} sets · {matchCount} in your library
+                {refreshing
+                  ? <span className={styles.lastChecked}>· refreshing…</span>
+                  : lastChecked && <span className={styles.lastChecked}>· checked {timeAgo(lastChecked)}</span>}
+              </>
+            )}
+          </span>
         </div>
         <div className={styles.creatorBarActions}>
           {following ? (
@@ -1416,8 +1450,9 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
         </div>
       </div>
 
-      {/* Tabs + title filter */}
-      {!loading && !error && sets.length > 0 && (
+      {/* Tabs + title filter — skeleton on first load, real once sets exist */}
+      {!error && loading && sets.length === 0 && <SkeletonTabs />}
+      {!error && sets.length > 0 && (
         <div className={styles.creatorTabsRow}>
           <div className={styles.creatorTabs}>
             {([['sets', 'Sets', counts.sets], ['posters', 'Posters', counts.posters], ['backdrops', 'Backdrops', counts.backdrops], ['titlecards', 'Title Cards', counts.titlecards]] as const).map(([k, label, n]) => (
@@ -1487,10 +1522,10 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
 
       <div className={styles.creatorSetsList}>
         {/* Gate the list until the background auto-load settles, so it appears once
-            (already sorted) instead of visibly re-sorting as each page arrives. */}
-        {(loading || loadingMore) && (
-          <div className={styles.panelLoading}><Spinner size="sm" /> <span>Loading {username}'s art… {sets.length > 0 ? `${sets.length} sets` : ''}</span></div>
-        )}
+            (already sorted) instead of visibly re-sorting as each page arrives —
+            showing skeleton cards meanwhile so the layout stays put. */}
+        {(loading || loadingMore) && !error &&
+          Array.from({ length: 6 }).map((_, i) => <SetCardSkeleton key={`skel-${i}`} />)}
         {error && <div className={styles.panelNotice}><AlertCircle size={20} /><p>{error}</p></div>}
         {!loading && !loadingMore && !error && sets.length === 0 && (
           <div className={styles.panelNotice}><ImageIcon size={20} /><p>No sets found for this creator.</p></div>

@@ -788,6 +788,50 @@
 
 .imgPending { opacity: 0; }
 
+/* -- Creators loading skeletons ------------------------------------------- */
+
+.setCardSkeleton {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.skelPreview {
+  width: 56px;
+  flex-shrink: 0;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-sm);
+}
+
+.skelInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding-top: 3px;
+}
+
+.skelLine   { height: 11px; border-radius: 4px; }
+.skelTitle  { width: 58%; }
+.skelUploader { width: 38%; height: 9px; }
+
+.skelChips { display: flex; gap: 6px; margin-top: auto; }
+.skelChip  { width: 52px; height: 16px; border-radius: var(--radius-sm); }
+
+.skelTab    { display: inline-block; width: 76px; height: 27px; border-radius: var(--radius-sm); }
+.skelSearch { width: 180px; height: 30px; border-radius: var(--radius-sm); }
+
+/* Contrasting base for the bars; the .skeleton shimmer rides on top. Declared
+   after .skeleton so this background wins over its elevated default. */
+.skelPreview, .skelLine, .skelChip, .skelTab, .skelSearch {
+  background: rgba(255, 255, 255, 0.06);
+}
+
 /* -- SetCard title mode (Creators) ---------------------------------------- */
 
 .setHeadingRow {
