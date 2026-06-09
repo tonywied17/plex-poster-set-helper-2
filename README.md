@@ -9,15 +9,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/tonywied17/plex-poster-set-helper"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-repo-plex.svg" alt="repo" /></a>&nbsp;
-  <a href="docker/README.md"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-docker-plex.svg" alt="docker guide" /></a>&nbsp;
   <a href="https://github.com/tonywied17/plex-poster-set-helper/actions/workflows/ci.yml"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-ci-plex.svg" alt="CI" /></a>&nbsp;
-  <a href="LICENSE"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-license-plex.svg" alt="license" /></a>&nbsp;
-  <img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-last-commit-plex.svg" alt="last commit" />
+  <a href="https://github.com/tonywied17/plex-poster-set-helper/actions/workflows/build.yml"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-build-plex.svg" alt="build" /></a>&nbsp;
+  <a href="https://github.com/tonywied17/plex-poster-set-helper/releases/latest"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-release-plex.svg" alt="latest release" /></a>&nbsp;
+  <a href="LICENSE"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-license-plex.svg" alt="license" /></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/tonywied17/plex-poster-set-helper/releases/latest"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-release-plex.svg" alt="latest release" /></a>&nbsp;
+  <a href="docker/README.md"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-docker-plex.svg" alt="docker guide" /></a>&nbsp;
   <a href="https://github.com/tonywied17/plex-poster-set-helper/releases"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-downloads-plex.svg" alt="downloads" /></a>&nbsp;
   <a href="https://github.com/tonywied17/plex-poster-set-helper/releases/latest"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-download-plex.svg" alt="download latest" /></a>
 </p>
