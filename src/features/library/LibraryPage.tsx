@@ -85,7 +85,8 @@ function MyLibraryView({ subs }: { subs: string[] }) {
   const [globalLoading, setGlobalLoading] = useState(false)
 
   const [selected, setSelected] = useState<LibraryItem | null>(null)
-  const [reloadNonce, setReloadNonce] = useState(0)   // manual-refresh trigger
+  const [reloadNonce, setReloadNonce] = useState(0)        // manual-refresh trigger
+  const [manualRefreshing, setManualRefreshing] = useState(false)
 
   const offsetRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -94,7 +95,7 @@ function MyLibraryView({ subs }: { subs: string[] }) {
 
   // -- Load sections (on mount + whenever the Plex connection becomes ready) ---
   const loadSections = useCallback(() => {
-    window.api.library.sections().then((s: LibrarySection[]) => {
+    return window.api.library.sections().then((s: LibrarySection[]) => {
       setSections(s)
       setActiveKey(prev => prev || s[0]?.key || '')
     })
@@ -165,10 +166,26 @@ function MyLibraryView({ subs }: { subs: string[] }) {
 
   // Manual refresh: re-check sections (catches libraries added/removed in Plex)
   // and reload whatever is on screen (active tab, or the cross-library search).
-  const refreshing = loading || globalLoading
-  function handleRefresh() {
-    loadSections()
-    setReloadNonce(n => n + 1)
+  // Awaits the work and holds the spin for a brief minimum so a fast local Plex
+  // still reads as "did something" rather than flickering sub-frame.
+  const refreshing = manualRefreshing || loading || globalLoading
+  async function handleRefresh() {
+    if (manualRefreshing) return
+    setManualRefreshing(true)
+    const started = Date.now()
+    try {
+      await loadSections()
+      if (!isGlobalSearch && activeKey) {
+        offsetRef.current = 0
+        await loadItems(activeKey, '', false)
+      } else {
+        setReloadNonce(n => n + 1)   // cross-library search is effect-driven
+      }
+    } finally {
+      const elapsed = Date.now() - started
+      if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed))
+      setManualRefreshing(false)
+    }
   }
 
   return (
