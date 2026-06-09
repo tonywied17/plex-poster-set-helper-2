@@ -19,7 +19,7 @@
 
 .tabBar {
   display: inline-flex;
-  align-self: flex-start;
+  align-self: center;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -118,6 +118,15 @@
   color: var(--color-text-primary);
 }
 
+/* Leading type icon on each section tab (Film / Tv) */
+.sectionTabIcon {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  transition: color var(--duration-fast);
+}
+.sectionTabActive .sectionTabIcon { color: var(--color-accent, #e5a00d); }
+
+/* Type chip still used in the cross-library group headers */
 .sectionType {
   font-size: 10px;
   text-transform: uppercase;
