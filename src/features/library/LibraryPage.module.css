@@ -247,6 +247,10 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* Top/side breathing room so a hovered card's lift + border/glow isn't
+     clipped by the scroll container's overflow at the top row. */
+  padding-top: var(--space-2);
+  padding-left: 2px;
   padding-right: var(--space-1);
 }
 
