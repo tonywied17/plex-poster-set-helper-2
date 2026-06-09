@@ -55,7 +55,7 @@ jobs:
     if: github.event_name != 'pull_request' && always()
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.BADGES_DISPATCH_TOKEN }}
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
     steps:
       - name: Dispatch refresh-badges
         if: env.GH_TOKEN != ''
