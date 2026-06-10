@@ -116,6 +116,15 @@ export const PlaywrightService = {
         },
       })
 
+      let settled = false
+      const done = (err?: Error) => {
+        if (settled) return
+        settled = true
+        clearInterval(poll)
+        if (err) reject(err)
+        else resolve()
+      }
+
       const send = (line: string) => {
         if (!line.trim()) return
         _win?.webContents.send('browser:installProgress', line.trim())
@@ -128,13 +137,21 @@ export const PlaywrightService = {
       child.on('exit', (code: number) => {
         if (code === 0) {
           Logger.success('Playwright', 'Chromium installed')
-          resolve()
+          done()
         } else {
-          const err = new Error(`playwright install exited with code ${code}`)
-          Logger.error('Playwright', err.message)
-          reject(err)
+          done(new Error(`playwright install exited with code ${code}`))
         }
       })
+
+      // Fallback: in containers the utility process exit event can silently drop.
+      // Poll the browsers dir every 3 s; if the binary appears, we're done.
+      const browsersPath = this.getBrowsersPath()
+      const poll = setInterval(() => {
+        if (findBrowserExec(browsersPath)) {
+          Logger.success('Playwright', 'Chromium detected on disk (exit event fallback)')
+          done()
+        }
+      }, 3000)
     })
   },
 

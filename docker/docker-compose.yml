@@ -2,9 +2,15 @@
 #
 #   docker compose -f docker/docker-compose.yml up -d gui        # start the GUI
 #   docker compose -f docker/docker-compose.yml up -d --build gui  # rebuild + start
+#
+# Access:
+#   http://  <host>:3939  - plain HTTP (clipboard paste won't work in browser)
+#   https:// <host>:3940  - HTTPS with self-signed cert (enables clipboard paste)
+#
+# For clipboard support use https://host:3940 and accept the cert warning once.
 
 services:
-  # -- Full GUI in your browser (http://<host>:3000) --------------------------
+  # -- Full GUI in your browser -------------------------------------------------
   gui:
     build:
       context: ..
@@ -12,8 +18,8 @@ services:
     image: plex-poster-helper
     container_name: plex-poster-helper
     ports:
-      - "3939:3000"   # web UI (host 3939 → KasmVNC http). Change 3939 if it's taken.
-      - "3940:3001"   # https (optional)
+      - "3939:3000"   # KasmVNC HTTP  - change 3939 if the port is taken
+      - "3940:3001"   # KasmVNC HTTPS - use this for clipboard support
     environment:
       - PUID=1000
       - PGID=1000

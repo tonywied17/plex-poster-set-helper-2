@@ -1,11 +1,11 @@
 # Plex Poster Helper - one-command Docker launcher (Windows / PowerShell).
 #
-#   ./docker/run.ps1                    build (if needed) + start the GUI on :3939
+#   ./docker/run.ps1                    build (if needed) + start the GUI on :3939 (HTTP) / :3940 (HTTPS)
 #   ./docker/run.ps1 headless           start the optional headless scheduler (no window)
 #   ./docker/run.ps1 both               start the GUI and the scheduler together
 #   ./docker/run.ps1 [target] -Build    force a rebuild first
 #   ./docker/run.ps1 [target] -Stop     stop & remove container(s); default: both
-#   ./docker/run.ps1 -Port 8095         use a different host port for the GUI
+#   ./docker/run.ps1 -Port 8095         use a different host port for the GUI HTTP port (HTTPS = Port+1)
 #
 # The GUI and the headless scheduler mount the same named volume (ppsh-config)
 # at /config, so the scheduler automatically reuses the Plex sign-in and the
@@ -16,7 +16,8 @@ param(
   [string]$Target,
   [switch]$Build,
   [switch]$Stop,
-  [int]$Port = 3939
+  [int]$Port = 3939,
+  [int]$HttpsPort = 3940
 )
 
 $ErrorActionPreference = 'Stop'
@@ -60,12 +61,14 @@ function Start-Gui {
   docker rm -f $guiName 2>$null | Out-Null
   docker run -d --name $guiName `
     -p "${Port}:3000" `
+    -p "${HttpsPort}:3001" `
     -e PUID=1000 -e PGID=1000 -e "TZ=$tz" `
     -v "${volume}:/config" `
     --shm-size=1g `
     --restart unless-stopped `
     $guiImage | Out-Null
   Write-Host "✓ GUI running:        http://localhost:$Port" -ForegroundColor Green
+  Write-Host "  Clipboard support:  https://localhost:$HttpsPort  (accept the self-signed cert once)" -ForegroundColor Cyan
 }
 
 function Start-Headless {

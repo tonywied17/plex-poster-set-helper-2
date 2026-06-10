@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Plex Poster Helper - one-command Docker launcher (Linux / macOS / unraid).
 #
-#   ./docker/run.sh                    build (if needed) + start the GUI on :3939
+#   ./docker/run.sh                    build (if needed) + start the GUI on :3939 (HTTP) / :3940 (HTTPS)
 #   ./docker/run.sh headless           start the optional headless scheduler (no window)
 #   ./docker/run.sh both               start the GUI and the scheduler together
 #   ./docker/run.sh --build [target]   force a rebuild first
 #   ./docker/run.sh --stop  [target]   stop & remove container(s); default: both
-#   PORT=8095 ./docker/run.sh          use a different host port for the GUI
+#   PORT=8095 ./docker/run.sh          use a different host port for the GUI HTTP port (HTTPS = PORT+1)
 #
 # The GUI and the headless scheduler mount the same named volume (ppsh-config)
 # at /config, so the scheduler automatically reuses the Plex sign-in and the
@@ -19,6 +19,7 @@ HL_NAME=plex-poster-helper-scheduler
 HL_IMAGE=plex-poster-helper:headless
 VOLUME=ppsh-config
 PORT="${PORT:-3939}"
+HTTPS_PORT="${HTTPS_PORT:-3940}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # Timezone jobs run in: an explicit TZ wins, else read the host (Linux
 # /etc/timezone or the macOS /etc/localtime symlink), else fall back to UTC.
@@ -65,12 +66,14 @@ start_gui() {
   docker rm -f "$GUI_NAME" >/dev/null 2>&1 || true
   docker run -d --name "$GUI_NAME" \
     -p "${PORT}:3000" \
+    -p "${HTTPS_PORT}:3001" \
     -e PUID=1000 -e PGID=1000 -e "TZ=$TZONE" \
     -v "$VOLUME":/config \
     --shm-size=1g \
     --restart unless-stopped \
     "$GUI_IMAGE" >/dev/null
   echo "✓ GUI running:        http://localhost:${PORT}"
+  echo "  Clipboard support:  https://localhost:${HTTPS_PORT}  (accept the self-signed cert once)"
 }
 
 start_headless() {

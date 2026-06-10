@@ -58,13 +58,22 @@ Pick your OS - this builds the app the first time (a few minutes) and starts it:
 > - just stick with one method, since the script and Compose keep their data in
 > [different places](#faq--help).
 
-When it finishes it prints a link. Open it in your browser:
+When it finishes it prints two links. Open either in your browser:
 
-### → http://localhost:3939
+### → http://localhost:3939 &nbsp;·&nbsp; https://localhost:3940
 
 > **Running this on a server, NAS, or unraid box?** You don't sit at that machine. The GUI
-> is a web app, so open it from any device on your network at `http://YOUR-SERVER-IP:3939`.
-> That browser tab *is* the app: sign in, browse, and build schedules from there.
+> is a web app, so open it from any device on your network at `http://YOUR-SERVER-IP:3939`
+> (or `https://YOUR-SERVER-IP:3940`). That browser tab *is* the app: sign in, browse, and
+> build schedules from there.
+>
+> **Want copy & paste between your computer and the app?** Use the **https** link (port
+> 3940). Browsers only allow clipboard access on secure pages, so the http link can't
+> offer it. Two things to know:
+> - Type the `https://` prefix explicitly - a bare `localhost:3940` defaults to http and
+>   shows a "400 Bad Request - plain HTTP request sent to HTTPS port" error.
+> - The certificate is self-signed, so your browser shows a warning the first time. Click
+>   **Advanced → Proceed** once and you're set. No extra setup needed.
 
 ---
 
@@ -91,7 +100,9 @@ right from this GUI container, so there's nothing else to set up.
 2. **Docker → Add Container → Template:** import
    [`docker/unraid-template.xml`](unraid-template.xml).
 3. Map a host path (e.g. `/mnt/user/appdata/plex-poster-helper`) to **/config**.
-4. Leave the web port at **3939** (change it only if that port is taken).
+4. Leave the ports at **3939** (http) and **3940** (https) unless they're taken. The
+   **WebUI** button uses the https port so clipboard copy & paste works - accept the
+   self-signed certificate warning the first time.
 5. Set **TZ** to your timezone.
 6. Start it and click **WebUI**, then do [Step 3](#step-3---sign-in-to-plex) above.
 
@@ -184,6 +195,22 @@ stick with one going forward.
 Windows: `./docker/run.ps1 -Port 8095` → open `http://localhost:8095`.
 Mac/Linux: `PORT=8095 ./docker/run.sh`. Compose/unraid: change the host side of the port
 mapping (`8095:3000`).
+</details>
+
+<details>
+<summary><b>Copy & paste doesn't work / clipboard is blocked.</b></summary>
+
+Open the app over **https** - `https://YOUR-SERVER-IP:3940` (note the `https://` prefix).
+Browsers only allow clipboard access on secure pages, so on the plain http port the
+clipboard is blocked and the permission prompt never appears. Accept the self-signed
+certificate warning once (**Advanced → Proceed**) and clipboard works from then on.
+</details>
+
+<details>
+<summary><b>"400 Bad Request - The plain HTTP request was sent to HTTPS port".</b></summary>
+
+You opened the https port (3940) without the `https://` prefix, so the browser sent
+plain http to it. Type the full URL: `https://YOUR-SERVER-IP:3940`.
 </details>
 
 <details>
