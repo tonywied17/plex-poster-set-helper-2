@@ -13,6 +13,7 @@ interface Props {
   disabled?: boolean
 }
 
+/** Dual-thumb range slider with value readout and ticks. */
 export default function RangeSlider({
   min, max, step = 0.1, minVal, maxVal, onChange, unit = '', ticks = 6, disabled = false,
 }: Props) {
@@ -43,14 +44,14 @@ export default function RangeSlider({
   return (
     <div className={[styles.wrapper, disabled ? styles.disabled : ''].filter(Boolean).join(' ')}>
 
-      {/* -- Value readout -- */}
+      {/* Value readout */}
       <div className={styles.readout}>
         <span className={styles.val}>{fmt(minVal)}</span>
         <span className={styles.dash}>-</span>
         <span className={styles.val}>{fmt(maxVal)}</span>
       </div>
 
-      {/* -- Track -- */}
+      {/* Track */}
       <div className={styles.trackWrap}>
         {/* Visual track + fill + thumbs */}
         <div className={styles.track} aria-hidden>
@@ -85,7 +86,7 @@ export default function RangeSlider({
         />
       </div>
 
-      {/* -- Ticks -- */}
+      {/* Ticks */}
       {tickValues.length > 1 && (
         <div className={styles.ticks}>
           {tickValues.map((v, i) => (

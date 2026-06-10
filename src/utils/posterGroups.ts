@@ -3,7 +3,12 @@ import type { PosterInfo } from '../../electron/ipc/types'
 export type FileType = 'poster' | 'backdrop' | 'title_card'
 export const ALL_TYPES: FileType[] = ['poster', 'backdrop', 'title_card']
 
-// Classify a poster by what it targets in Plex.
+/**
+ * Classifies a poster by what it targets in Plex.
+ *
+ * @param p - The poster to classify.
+ * @returns backdrop for background art, title_card for episode art, else poster.
+ */
 export function posterFileType(p: PosterInfo): FileType {
   if (p.season === 'Backdrop') return 'backdrop'
   if (p.episode != null) return 'title_card'
@@ -16,7 +21,13 @@ export interface PosterGroup<T extends PosterInfo = PosterInfo> {
   posters: T[]
 }
 
-// Group posters into clean, non-mixed sections (Main / Season N / Title Cards / Backdrop).
+/**
+ * Groups posters into clean, non-mixed sections (Main / Season N / Title Cards
+ * / Backdrop).
+ *
+ * @param posters - Posters from one set.
+ * @returns Ordered groups, each holding posters of a single kind.
+ */
 export function groupPosters<T extends PosterInfo>(posters: T[]): PosterGroup<T>[] {
   const showPosters: T[] = []
   const seasonPosters = new Map<number, T[]>()

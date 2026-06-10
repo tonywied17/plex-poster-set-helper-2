@@ -10,6 +10,7 @@ interface CheckboxProps {
   disabled?: boolean
 }
 
+/** Styled checkbox with optional label and indeterminate state. */
 export default function Checkbox({ checked, onChange, indeterminate, label, disabled }: CheckboxProps) {
   const id = useId()
 

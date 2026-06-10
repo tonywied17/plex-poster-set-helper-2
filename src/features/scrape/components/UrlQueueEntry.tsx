@@ -14,7 +14,6 @@ import { useScrapeStore } from '../useScrapeStore'
 import type { QueueEntry, PosterResult } from '../useScrapeStore'
 import styles from './UrlQueueEntry.module.css'
 
-// --- Props --------------------------------------------------------------------
 
 interface Props {
   entry: QueueEntry
@@ -22,14 +21,25 @@ interface Props {
   patchPoster: (entryId: string, posterUrl: string, patch: Partial<PosterResult>) => void
 }
 
-// --- Helpers ------------------------------------------------------------------
 
+/**
+ * Detects the scraping source site from a URL.
+ *
+ * @param url - URL to inspect.
+ * @returns posterdb, mediux, or null when unrecognised.
+ */
 function sourceFromUrl(url: string): 'posterdb' | 'mediux' | null {
   if (/theposterdb\.com/i.test(url)) return 'posterdb'
   if (/mediux\.pro/i.test(url)) return 'mediux'
   return null
 }
 
+/**
+ * Compacts a URL for display.
+ *
+ * @param url - Full URL.
+ * @returns Host and path without protocol or www.
+ */
 function shortUrl(url: string): string {
   try {
     const u = new URL(url)
@@ -39,6 +49,12 @@ function shortUrl(url: string): string {
   }
 }
 
+/**
+ * Display label for a poster.
+ *
+ * @param p - The poster.
+ * @returns Title plus season/episode markers.
+ */
 function posterLabel(p: PosterResult): string {
   if (p.season === 'Backdrop') return `${p.title} - Backdrop`
   if (p.season === 'Cover')    return `${p.title} - Cover`
@@ -47,8 +63,16 @@ function posterLabel(p: PosterResult): string {
   return p.title + (p.year ? ` (${p.year})` : '')
 }
 
-// --- Upload a single poster via Plex IPC --------------------------------------
 
+/**
+ * Matches a poster to its Plex target (item or collection) and uploads it via
+ * IPC, patching the poster's upload status as it goes.
+ *
+ * @param entryId - Owning queue entry.
+ * @param poster - Poster to upload.
+ * @param patchPoster - Store mutator for per-poster status updates.
+ * @param setId - MediUX set id recorded into the applied history.
+ */
 async function uploadPoster(
   entryId: string,
   poster: PosterResult,
@@ -122,8 +146,8 @@ async function uploadPoster(
   }
 }
 
-// --- Poster thumbnail ---------------------------------------------------------
 
+/** Poster thumbnail with upload status overlay, applied badges, and lightbox zoom. */
 function PosterThumb({
   poster,
   entryId,
@@ -245,8 +269,8 @@ function PosterThumb({
   )
 }
 
-// --- Main entry card ----------------------------------------------------------
 
+/** One scrape-queue row: URL, status, actions, and the expandable poster grid. */
 export default function UrlQueueEntry({ entry, isRunning, patchPoster }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [lightbox, setLightbox] = useState<number | null>(null)
@@ -322,7 +346,7 @@ export default function UrlQueueEntry({ entry, isRunning, patchPoster }: Props) 
       transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
       layout
     >
-      {/* -- Row ------------------------------------------------------------ */}
+      {/* Row */}
       <div className={styles.row}>
 
         {/* drag handle */}
@@ -418,7 +442,7 @@ export default function UrlQueueEntry({ entry, isRunning, patchPoster }: Props) 
         </div>
       </div>
 
-      {/* -- Poster grid (expanded) ------------------------------------------ */}
+      {/* Poster grid (expanded) */}
       <AnimatePresence initial={false}>
         {expanded && entry.posters.length > 0 && (
           <motion.div

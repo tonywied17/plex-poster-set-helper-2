@@ -6,14 +6,20 @@ import { ConfigService } from '../services/config'
 const REPO = 'tonywied17/plex-poster-set-helper'
 const REPO_URL = `https://github.com/${REPO}`
 
-// Running inside our Docker images (they set PLEX_HELPER_PROD=1 but aren't packaged).
+/** Running inside our Docker images (they set PLEX_HELPER_PROD=1 but aren't packaged). */
 const IS_CONTAINER = !app.isPackaged && (
   process.env.PLEX_HELPER_DOCKER === '1' ||
   process.env.PLEX_HELPER_HEADLESS === '1' ||
   process.env.PLEX_HELPER_PROD === '1'
 )
 
-// Compare two semver-ish strings; returns true if `latest` is newer than `current`.
+/**
+ * Compares two semver-ish version strings.
+ *
+ * @param latest - Version reported by the release source.
+ * @param current - Version currently running.
+ * @returns true if `latest` is newer than `current`.
+ */
 function isNewer(latest: string, current: string): boolean {
   const norm = (v: string) => v.replace(/^v/, '').split(/[.-]/).map(n => parseInt(n, 10) || 0)
   const a = norm(latest), b = norm(current)
@@ -24,7 +30,12 @@ function isNewer(latest: string, current: string): boolean {
   return false
 }
 
-// Check GitHub Releases directly (used for Docker / unpackaged where electron-updater can't run).
+/**
+ * Checks GitHub Releases directly (used for Docker / unpackaged where
+ * electron-updater can't run).
+ *
+ * @returns The latest release's version, notes, and URL, or null on failure.
+ */
 async function checkGithubRelease(): Promise<{ version?: string; notes?: string; url?: string } | null> {
   try {
     const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
@@ -38,6 +49,12 @@ async function checkGithubRelease(): Promise<{ version?: string; notes?: string;
   }
 }
 
+/**
+ * Registers app-level IPC handlers: version/env info, updates, external links,
+ * and config access.
+ *
+ * @param _ipcMain - Unused; handlers attach to the imported ipcMain instance.
+ */
 export function registerAppHandlers(_ipcMain: IpcMain) {
   ipcMain.handle('app:getVersion', () => app.getVersion())
 
@@ -51,12 +68,11 @@ export function registerAppHandlers(_ipcMain: IpcMain) {
   ipcMain.handle('app:openExternal', (_e, url: string) => { void shell.openExternal(url) })
 
   ipcMain.handle('app:checkUpdate', async () => {
-    // Packaged desktop → electron-updater drives the in-app download/install flow.
     if (app.isPackaged) {
       try {
         const result = await autoUpdater.checkForUpdates()
         const info = result?.updateInfo
-        // `updateInfo` is ALWAYS the latest release — only an update if it's newer.
+        // updateInfo is always the latest release - only an update if it's newer
         const available = !!info?.version && isNewer(info.version, app.getVersion())
         const notes = typeof info?.releaseNotes === 'string' ? info.releaseNotes : undefined
         return { available, version: info?.version, releaseNotes: notes, mode: 'desktop' as const }
@@ -64,7 +80,6 @@ export function registerAppHandlers(_ipcMain: IpcMain) {
         return { available: false, mode: 'desktop' as const }
       }
     }
-    // Docker/container → can't self-update; report newer releases so the user can pull.
     if (IS_CONTAINER) {
       const rel = await checkGithubRelease()
       if (rel?.version && isNewer(rel.version, app.getVersion())) {
@@ -72,7 +87,6 @@ export function registerAppHandlers(_ipcMain: IpcMain) {
       }
       return { available: false, mode: 'docker' as const }
     }
-    // Plain dev run → nothing to update.
     return { available: false }
   })
 
@@ -81,8 +95,7 @@ export function registerAppHandlers(_ipcMain: IpcMain) {
   })
 
   ipcMain.handle('app:quitAndInstall', () => {
-    // isSilent=true: no installer UI (NSIS /S flag on Windows; AppImage replaces in-place on Linux)
-    // isForceRunAfter=true: relaunch the app after install completes
+    // isSilent: skip installer UI; isForceRunAfter: relaunch after install
     autoUpdater.quitAndInstall(true, true)
   })
 

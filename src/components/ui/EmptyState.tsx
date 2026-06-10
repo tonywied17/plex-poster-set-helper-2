@@ -7,6 +7,7 @@ interface EmptyStateProps {
   action?: React.ReactNode
 }
 
+/** Centered empty-state placeholder with icon, title, and optional action. */
 export default function EmptyState({ icon, title, description, action }: EmptyStateProps) {
   return (
     <div className={styles.wrapper} role="status">

@@ -9,6 +9,7 @@ interface SpinnerProps {
 
 const SIZE_PX: Record<SpinnerSize, number> = { xs: 12, sm: 16, md: 20, lg: 28 }
 
+/** Loading spinner. */
 export default function Spinner({ size = 'md', color = 'accent' }: SpinnerProps) {
   const px = SIZE_PX[size]
   return (

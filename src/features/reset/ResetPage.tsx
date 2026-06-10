@@ -15,13 +15,23 @@ import { useAppContext } from '../../app/AppContext'
 import type { AppliedRecord } from '../../../electron/ipc/types'
 import styles from './ResetPage.module.css'
 
-// Bump the width/height params on a thumb URL so the lightbox shows it larger.
+/**
+ * Bumps the width/height params on a thumb URL so the lightbox shows it larger.
+ *
+ * @param url - Transcode thumb URL.
+ * @returns The same URL at 700x1050, or undefined when absent.
+ */
 function enlarge(url?: string): string | undefined {
   if (!url) return undefined
   return url.replace(/width=\d+/i, 'width=700').replace(/height=\d+/i, 'height=1050')
 }
 
-// "3 days ago" style relative time.
+/**
+ * "3 days ago" style relative time.
+ *
+ * @param iso - ISO timestamp.
+ * @returns A short label, or an empty string when absent.
+ */
 function timeAgo(iso?: string): string {
   if (!iso) return ''
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
@@ -33,19 +43,19 @@ function timeAgo(iso?: string): string {
   return `${Math.floor(mo / 12)}y ago`
 }
 
-// --- Types --------------------------------------------------------------------
 
 type SourceFilter = 'all' | 'mediux' | 'posterdb'
 type TypeFilter   = 'all' | 'movie' | 'show'
 type ItemStatus   = 'idle' | 'resetting' | 'done' | 'error'
 
 interface TrackedItem extends AppliedRecord {
-  key: string            // itemKey alias for existing markup
+  /** itemKey alias for existing markup. */
+  key: string
   resetStatus: ItemStatus
 }
 
-// --- Stats strip --------------------------------------------------------------
 
+/** Summary chips of applied-poster counts by source and type. */
 function StatStrip({ stats, total }: { stats: Record<string, number>; total: number }) {
   return (
     <div className={styles.statsStrip}>
@@ -78,8 +88,8 @@ function StatStrip({ stats, total }: { stats: Record<string, number>; total: num
   )
 }
 
-// --- Component ----------------------------------------------------------------
 
+/** Reset Posters page: lists locally tracked applied art and restores Plex originals. */
 export default function ResetPage() {
   const { plexConnected } = useAppContext()
   const [items, setItems]           = useState<TrackedItem[]>([])
@@ -92,7 +102,6 @@ export default function ResetPage() {
   const [resettingAll, setResettingAll] = useState(false)
   const [lightbox, setLightbox] = useState<number | null>(null)
 
-  // -- Load -------------------------------------------------------------------
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -119,14 +128,13 @@ export default function ResetPage() {
 
   useEffect(() => { load() }, [load])
 
-  // Remove an item from the local applied history.
+  /** Removes an item from the local applied history. */
   async function forgetItem(key: string) {
     const cfg = await window.api.config.get()
     const next = (cfg.appliedPosters ?? []).filter(r => r.itemKey !== key)
     await window.api.config.set({ appliedPosters: next })
   }
 
-  // -- Reset single -----------------------------------------------------------
 
   async function resetOne(key: string) {
     setItems(prev => prev.map(i => i.key === key ? { ...i, resetStatus: 'resetting' } : i))
@@ -139,7 +147,6 @@ export default function ResetPage() {
     }
   }
 
-  // -- Reset all --------------------------------------------------------------
 
   async function resetAll() {
     setConfirmAll(false)
@@ -151,7 +158,6 @@ export default function ResetPage() {
     setResettingAll(false)
   }
 
-  // -- Filtered list ----------------------------------------------------------
 
   const filtered = items.filter(i => {
     if (sourceFilter !== 'all' && i.source !== sourceFilter) return false
@@ -168,14 +174,13 @@ export default function ResetPage() {
     caption: `${i.source === 'mediux' ? 'MediUX' : 'ThePosterDB'} · ${i.libraryTitle ?? ''}`.trim(),
   }))
 
-  // --- Render ----------------------------------------------------------------
 
   return (
     <div className={styles.page}>
 
       {!plexConnected && <PlexConnectBanner />}
 
-      {/* -- Header ----------------------------------------------------------- */}
+      {/* Header */}
       <div className={styles.header}>
         <div>
           <h1 className="page-title">Reset Posters</h1>
@@ -207,12 +212,12 @@ export default function ResetPage() {
         </div>
       </div>
 
-      {/* -- Stats strip ------------------------------------------------------ */}
+      {/* Stats strip */}
       {!loading && items.length > 0 && (
         <StatStrip stats={stats} total={stats.total ?? items.length} />
       )}
 
-      {/* -- Filters ---------------------------------------------------------- */}
+      {/* Filters */}
       {items.length > 0 && (
         <div className={styles.filters}>
           <input
@@ -249,7 +254,7 @@ export default function ResetPage() {
         </div>
       )}
 
-      {/* -- Item list -------------------------------------------------------- */}
+      {/* Item list */}
       <div className={styles.list}>
         {loading ? (
           <div className={styles.loadingCenter}>
@@ -344,7 +349,7 @@ export default function ResetPage() {
         )}
       </div>
 
-      {/* -- Confirm all modal ------------------------------------------------- */}
+      {/* Confirm all modal */}
       <Modal
         open={confirmAll}
         onClose={() => setConfirmAll(false)}

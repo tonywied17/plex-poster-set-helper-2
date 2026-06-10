@@ -12,19 +12,35 @@ import Spinner from '../../components/ui/Spinner'
 import type { ScheduledJob, SchedulerEngineStatus, AppEnv } from '../../../electron/ipc/types'
 import styles from './SchedulerPage.module.css'
 
-// --- Cron helpers --------------------------------------------------------------
 
 type Preset = 'daily' | 'weekly' | 'custom'
 const DAYS    = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const HOURS   = Array.from({ length: 24 }, (_, i) => i)
 const MINUTES = [0, 15, 30, 45]
 
+/**
+ * Builds a cron expression from the form's preset fields.
+ *
+ * @param preset - daily, weekly, monthly, or custom.
+ * @param hour - Hour of day (0-23).
+ * @param minute - Minute of hour (0-59).
+ * @param day - Weekday (weekly) or day of month (monthly).
+ * @param custom - Raw expression used when preset is custom.
+ * @returns The cron expression.
+ */
 function buildCron(preset: Preset, hour: number, minute: number, day: number, custom: string): string {
   if (preset === 'custom') return custom
   if (preset === 'weekly') return `${minute} ${hour} * * ${day}`
   return `${minute} ${hour} * * *`
 }
 
+/**
+ * Parses a cron expression back into form fields.
+ *
+ * @param expr - Expression to parse.
+ * @returns The matching preset and time fields; unrecognised shapes come back
+ *   as the custom preset.
+ */
 function parseCron(expr: string): { preset: Preset; hour: number; minute: number; day: number } {
   const parts = expr.trim().split(/\s+/)
   if (parts.length !== 5) return { preset: 'custom', hour: 3, minute: 0, day: 0 }
@@ -37,6 +53,12 @@ function parseCron(expr: string): { preset: Preset; hour: number; minute: number
   return { preset: 'custom', hour, minute, day: 0 }
 }
 
+/**
+ * Human-readable time until the next cron firing.
+ *
+ * @param cronExpr - Expression to evaluate.
+ * @returns A label like "in 2h 15m", or an empty string when invalid.
+ */
 function nextRunLabel(cronExpr: string): string {
   try {
     const parts = cronExpr.trim().split(/\s+/)
@@ -64,6 +86,12 @@ function nextRunLabel(cronExpr: string): string {
   } catch { return '-' }
 }
 
+/**
+ * Describes a cron expression in plain words.
+ *
+ * @param cronExpr - Expression to describe.
+ * @returns A label like "Weekly on Monday at 9:00 AM".
+ */
 function humanSchedule(cronExpr: string): string {
   const p    = parseCron(cronExpr)
   const time = `${String(p.hour).padStart(2, '0')}:${String(p.minute).padStart(2, '0')}`
@@ -72,7 +100,6 @@ function humanSchedule(cronExpr: string): string {
   return cronExpr
 }
 
-// --- Job form ------------------------------------------------------------------
 
 interface JobFormProps {
   initial?: ScheduledJob
@@ -80,6 +107,7 @@ interface JobFormProps {
   onClose: () => void
 }
 
+/** Drawer form for creating or editing a scheduled job. */
 function JobForm({ initial, onSave, onClose }: JobFormProps) {
   const parsed = initial ? parseCron(initial.cronExpr) : { preset: 'daily' as Preset, hour: 3, minute: 0, day: 1 }
 
@@ -275,7 +303,6 @@ function JobForm({ initial, onSave, onClose }: JobFormProps) {
   )
 }
 
-// --- Job card ------------------------------------------------------------------
 
 interface JobCardProps {
   job:      ScheduledJob
@@ -286,6 +313,7 @@ interface JobCardProps {
   onRunNow: () => void
 }
 
+/** Card for one scheduled job with enable toggle, run-now, edit, and delete. */
 function JobCard({ job, running, onEdit, onDelete, onToggle, onRunNow }: JobCardProps) {
   return (
     <div className={`${styles.card} ${!job.enabled ? styles.cardOff : ''}`}>
@@ -349,8 +377,8 @@ function JobCard({ job, running, onEdit, onDelete, onToggle, onRunNow }: JobCard
   )
 }
 
-// --- Page ----------------------------------------------------------------------
 
+/** Scheduler page: manage cron jobs that scrape and apply poster sets automatically. */
 export default function SchedulerPage() {
   const [jobs,       setJobs]       = useState<ScheduledJob[]>([])
   const [editing,    setEditing]    = useState<ScheduledJob | 'new' | null>(null)

@@ -19,6 +19,7 @@ function PlexIcon() {
   )
 }
 
+/** Frameless-window title bar with window controls. */
 export default function TitleBar() {
   return (
     <div className={styles.bar}>

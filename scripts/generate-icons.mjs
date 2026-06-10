@@ -30,7 +30,17 @@ const small = readFileSync(res('icon-small.svg'), 'utf8')
 const tray = readFileSync(res('tray.svg'), 'utf8')
 const traySmall = readFileSync(res('tray-small.svg'), 'utf8')
 
-function renderPng(svg, size) {
+/**
+ * Renders an SVG string to a PNG buffer of the given size. The SVG is scaled
+ * to fit the size, preserving aspect ratio. The viewBox of the SVG is used as
+ * the reference for scaling.
+ *
+ * @param svg - The SVG string to render.
+ * @param size - The desired size of the output PNG.
+ * @returns A buffer containing the PNG data.
+ */
+function renderPng(svg, size)
+{
   const r = new Resvg(svg, {
     fitTo: { mode: 'width', value: size },
     font: { loadSystemFonts: false },
@@ -38,9 +48,15 @@ function renderPng(svg, size) {
   return r.render().asPng()
 }
 
-// ICO container: ICONDIR header + ICONDIRENTRY per image + PNG payloads.
-// PNG-compressed entries are supported from Vista onward.
-function packIco(entries) {
+/**
+ * Packs PNGs into an ICO container: ICONDIR header + ICONDIRENTRY per image +
+ * PNG payloads. PNG-compressed entries are supported from Vista onward.
+ *
+ * @param entries - An array of objects containing the size and PNG buffer.
+ * @returns A buffer containing the ICO data.
+ */
+function packIco(entries)
+{
   const header = Buffer.alloc(6)
   header.writeUInt16LE(0, 0) // reserved
   header.writeUInt16LE(1, 2) // type: icon
@@ -49,7 +65,8 @@ function packIco(entries) {
   let offset = 6 + 16 * entries.length
   const dirs = []
   const blobs = []
-  for (const { size, png } of entries) {
+  for (const { size, png } of entries)
+  {
     const dir = Buffer.alloc(16)
     dir.writeUInt8(size >= 256 ? 0 : size, 0) // width (0 = 256)
     dir.writeUInt8(size >= 256 ? 0 : size, 1) // height
@@ -83,7 +100,8 @@ const trayEntries = [16, 20, 24, 32, 40, 48, 64].map(size => ({
   png: renderPng(size <= 24 ? traySmall : tray, size),
 }))
 writeFileSync(res('icons', 'tray.ico'), packIco(trayEntries))
-for (const size of [16, 24, 32, 48, 64]) {
+for (const size of [16, 24, 32, 48, 64])
+{
   writeFileSync(res('icons', `tray-${size}.png`), renderPng(size <= 24 ? traySmall : tray, size))
 }
 

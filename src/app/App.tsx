@@ -29,6 +29,7 @@ const PAGE_MAP: Record<NavTab, React.ReactNode> = {
   settings:  <SettingsPage />,
 }
 
+/** Root component: gates on first-run browser setup, then renders the app shell. */
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('library')
   const [prevTab, setPrevTab] = useState<NavTab>('library')

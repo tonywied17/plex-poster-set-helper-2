@@ -16,6 +16,7 @@ interface ModalProps {
   closeOnBackdrop?: boolean
 }
 
+/** Centered modal dialog with backdrop dismiss. */
 export default function Modal({
   open,
   onClose,

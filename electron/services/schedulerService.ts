@@ -8,19 +8,19 @@ import { PlexService } from './plexService'
 import { ScraperFactory } from '../scrapers/scraperFactory'
 import type { ScheduledJob, SchedulerEngineStatus } from '../ipc/types'
 
-// --- Engine coordination ---------------------------------------------------------
-// The GUI and the headless container can share one config volume. To keep a job
-// from running twice, the headless process acts as the "engine": it writes a
-// heartbeat file next to the config, and any GUI instance that sees a fresh
-// heartbeat stands down from cron firing (manual Run-now still works locally).
-// On desktop installs the file never exists, so behaviour is unchanged.
+/*
+ * Engine coordination: the GUI and the headless container can share one config
+ * volume. To keep a job from running twice, the headless process acts as the
+ * "engine": it writes a heartbeat file next to the config, and any GUI instance
+ * that sees a fresh heartbeat stands down from cron firing (manual Run-now
+ * still works locally). On desktop installs the file never exists, so
+ * behaviour is unchanged.
+ */
 
 const ENGINE_FILE     = 'scheduler-engine.json'
 const ENGINE_WRITE_MS = 30_000
 const ENGINE_FRESH_MS = 90_000
 const WATCH_MS        = 30_000
-
-// --- Internal state -----------------------------------------------------------
 
 const tasks = new Map<string, ScheduledTask>()
 let _win: BrowserWindow | null = null
@@ -39,15 +39,26 @@ function enginePath(): string {
   return path.join(app.getPath('userData'), ENGINE_FILE)
 }
 
-// Only the parts that affect cron registration - status fields (lastRun etc.)
-// change on every run and must not trigger a reschedule.
+/**
+ * Builds a signature from only the parts that affect cron registration -
+ * status fields (lastRun etc.) change on every run and must not trigger a
+ * reschedule.
+ *
+ * @param jobs - The full job list.
+ * @returns A stable string over the enabled jobs' ids and cron expressions.
+ */
 function cronSignature(jobs: ScheduledJob[]): string {
   return jobs.filter(j => j.enabled).map(j => `${j.id}@${j.cronExpr}`).sort().join('|')
 }
 
-// --- Service ------------------------------------------------------------------
-
+/** Runs scheduled scrape-and-apply jobs via node-cron, coordinating with a headless engine when present. */
 export const SchedulerService = {
+  /**
+   * Loads saved jobs, registers their cron tasks, and starts the cross-process
+   * config watcher.
+   *
+   * @param win - Window that receives scheduler:onChange events, or null when headless.
+   */
   init(win: BrowserWindow | null) {
     _win = win
     const jobs = ConfigService.get().scheduledJobs ?? []
@@ -57,10 +68,21 @@ export const SchedulerService = {
     Logger.info('Scheduler', `Loaded ${jobs.length} job(s)`)
   },
 
+  /**
+   * Returns the saved jobs from config.
+   *
+   * @returns The job list, possibly empty.
+   */
   list(): ScheduledJob[] {
     return ConfigService.get().scheduledJobs ?? []
   },
 
+  /**
+   * Creates or updates a job, then reschedules all cron tasks.
+   *
+   * @param job - Job to upsert, matched by id.
+   * @returns The saved job.
+   */
   save(job: ScheduledJob): ScheduledJob {
     const jobs = this.list()
     const idx = jobs.findIndex(j => j.id === job.id)
@@ -73,6 +95,11 @@ export const SchedulerService = {
     return job
   },
 
+  /**
+   * Deletes a job and reschedules the remainder.
+   *
+   * @param id - Id of the job to remove.
+   */
   delete(id: string): void {
     const jobs = this.list().filter(j => j.id !== id)
     ConfigService.set({ scheduledJobs: jobs })
@@ -80,25 +107,42 @@ export const SchedulerService = {
     emit(jobs)
   },
 
+  /**
+   * Executes a job immediately, regardless of its schedule.
+   *
+   * @param id - Id of the job to run; throws when unknown.
+   */
   async runNow(id: string): Promise<void> {
     const job = this.list().find(j => j.id === id)
     if (!job) throw new Error(`Job "${id}" not found`)
     await this._execute(job)
   },
 
+  /**
+   * Toggles launching the app at OS login.
+   *
+   * @param enable - Whether to open at login.
+   */
   setAutoStart(enable: boolean): void {
     const { app } = require('electron') as typeof import('electron')
     app.setLoginItemSettings({ openAtLogin: enable })
     Logger.info('Scheduler', `Auto-start ${enable ? 'enabled' : 'disabled'}`)
   },
 
+  /**
+   * Returns whether the app launches at OS login.
+   *
+   * @returns The current login-item setting.
+   */
   getAutoStart(): boolean {
     const { app } = require('electron') as typeof import('electron')
     return app.getLoginItemSettings().openAtLogin
   },
 
-  // Headless containers call this once at boot: it claims the engine role so
-  // GUI instances sharing the same config volume stop firing jobs themselves.
+  /**
+   * Claims the engine role. Headless containers call this once at boot so GUI
+   * instances sharing the same config volume stop firing jobs themselves.
+   */
   startEngineHeartbeat(): void {
     _isEngine = true
     const write = () => {
@@ -121,6 +165,12 @@ export const SchedulerService = {
     Logger.info('Scheduler', 'Running as the 24/7 engine - GUI instances on this config will defer to it')
   },
 
+  /**
+   * Reports whether an external engine owns this config's jobs.
+   *
+   * @returns external: true with the heartbeat timestamp when a fresh
+   *   heartbeat file exists and this process isn't the engine.
+   */
   engineStatus(): SchedulerEngineStatus {
     if (_isEngine) return { external: false }
     try {
@@ -133,11 +183,11 @@ export const SchedulerService = {
     return { external: false }
   },
 
-  // -- Private ------------------------------------------------------------------
-
-  // Poll the config for changes made by the other process (GUI edits picked up
-  // by the engine, engine run-statuses reflected in the GUI). conf re-reads the
-  // file on every access, so this sees cross-process writes.
+  /**
+   * Polls the config for changes made by the other process (GUI edits picked
+   * up by the engine, engine run-statuses reflected in the GUI). conf re-reads
+   * the file on every access, so this sees cross-process writes.
+   */
   _startConfigWatcher(): void {
     if (_watchTimer) return
     _watchTimer = setInterval(() => {
@@ -153,6 +203,11 @@ export const SchedulerService = {
     }, WATCH_MS)
   },
 
+  /**
+   * Stops all cron tasks and re-registers the enabled jobs.
+   *
+   * @param jobs - The full job list to schedule from.
+   */
   _rescheduleAll(jobs: ScheduledJob[]): void {
     for (const t of tasks.values()) t.stop()
     tasks.clear()
@@ -162,6 +217,11 @@ export const SchedulerService = {
     _activeSignature = cronSignature(jobs)
   },
 
+  /**
+   * Registers a single job's cron task.
+   *
+   * @param job - Job whose cronExpr is validated and scheduled.
+   */
   _schedule(job: ScheduledJob): void {
     if (!cron.validate(job.cronExpr)) {
       Logger.warn('Scheduler', `Invalid cron for "${job.name}": ${job.cronExpr}`)
@@ -182,6 +242,12 @@ export const SchedulerService = {
     Logger.info('Scheduler', `Scheduled "${job.name}" [${job.cronExpr}]`)
   },
 
+  /**
+   * Patches a job's status fields in config and notifies the renderer.
+   *
+   * @param id - Id of the job to update.
+   * @param patch - Fields to merge into the stored job.
+   */
   _updateStatus(id: string, patch: Partial<ScheduledJob>): void {
     const jobs = this.list()
     const idx = jobs.findIndex(j => j.id === id)
@@ -191,6 +257,12 @@ export const SchedulerService = {
     emit(jobs)
   },
 
+  /**
+   * Scrapes each of the job's URLs and applies the resulting posters to
+   * matching library items, recording results into the applied history.
+   *
+   * @param job - Job to execute.
+   */
   async _execute(job: ScheduledJob): Promise<void> {
     Logger.session('Scheduler', `Running job "${job.name}"`)
     this._updateStatus(job.id, { lastRun: new Date().toISOString(), lastStatus: 'running' })

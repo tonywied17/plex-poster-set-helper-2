@@ -6,6 +6,7 @@ import styles from './ManualPage.module.css'
 
 type Mode = 'scrape' | 'bulk'
 
+/** Manual page placeholder. */
 export default function ManualPage() {
   const [mode, setMode] = useState<Mode>('scrape')
 

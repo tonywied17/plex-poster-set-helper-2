@@ -10,6 +10,7 @@ interface SwitchProps {
   disabled?: boolean
 }
 
+/** Toggle switch with optional label and description. */
 export default function Switch({ checked, onChange, label, description, disabled }: SwitchProps) {
   const id = useId()
 

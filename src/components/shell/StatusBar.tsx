@@ -3,6 +3,7 @@ import { useAppContext } from '../../app/AppContext'
 import { useUpdater } from '../../features/updater/UpdaterContext'
 import styles from './StatusBar.module.css'
 
+/** Bottom status bar. */
 export default function StatusBar() {
   const { plexConnected, navigate } = useAppContext()
   const { status, info, progress, version, reopen, restart } = useUpdater()

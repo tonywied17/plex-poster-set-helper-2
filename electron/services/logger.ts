@@ -13,7 +13,14 @@ let mainWindowRef: BrowserWindow | null = null
 const buffer: LogEntry[] = []
 const MAX_BUFFER = 600
 
+/** Winston-backed logger that streams entries to the renderer and keeps a bounded in-memory history. */
 export const Logger = {
+  /**
+   * Initialises winston transports (rotating file + console) and wires the
+   * renderer stream.
+   *
+   * @param win - Window that receives log:stream events, or null when headless.
+   */
   init(win: BrowserWindow | null) {
     mainWindowRef = win
     const logDir = app.getPath('logs')
@@ -46,6 +53,14 @@ export const Logger = {
     })
   },
 
+  /**
+   * Logs an entry, buffers it, and pushes it to the renderer.
+   *
+   * @param level - Severity / category of the entry.
+   * @param module - Originating subsystem shown in the log line.
+   * @param message - Human-readable message.
+   * @param meta - Optional structured context written to the file transport.
+   */
   log(level: LogEntry['level'], module: string, message: string, meta?: Record<string, unknown>) {
     const entry: LogEntry = { ts: new Date().toISOString(), level, module, message, meta }
     ;(logger as unknown as Record<string, (msg: string, meta?: object) => void>)[level]?.(message, { module, ...meta })
@@ -54,6 +69,11 @@ export const Logger = {
     mainWindowRef?.webContents.send('log:stream', entry)
   },
 
+  /**
+   * Returns the buffered log history.
+   *
+   * @returns A snapshot copy of the recent entries.
+   */
   getHistory(): LogEntry[] {
     return [...buffer]
   },

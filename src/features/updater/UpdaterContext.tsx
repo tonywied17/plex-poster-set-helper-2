@@ -24,8 +24,10 @@ const UpdaterContext = createContext<UpdaterValue>({
   check: async () => ({ available: false }), download: () => {}, restart: () => {}, dismiss: () => {}, reopen: () => {},
 })
 
+/** Accesses the shared updater state and actions. */
 export const useUpdater = () => useContext(UpdaterContext)
 
+/** Provides update status, download progress, and check/install actions to the app. */
 export function UpdaterProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus]           = useState<UpdateStatus>('idle')
   const [info, setInfo]               = useState<UpdateInfo | null>(null)

@@ -1,16 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, SchedulerEngineStatus, BrowserStatus, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq } from './ipc/types'
-// (response types are inferred via the invoke return type)
 
+/** Typed IPC bridge exposed to the renderer as window.api. */
 const api = {
-  // Window controls
   window: {
     minimize: () => ipcRenderer.send('window:minimize'),
     maximize: () => ipcRenderer.send('window:maximize'),
     close: () => ipcRenderer.send('window:close'),
   },
 
-  // Plex
   plex: {
     connect: (baseUrl: string, token: string) =>
       ipcRenderer.invoke('plex:connect', { baseUrl, token }),
@@ -36,7 +34,6 @@ const api = {
       ipcRenderer.invoke('plex:getLibraryCount', key, type),
   },
 
-  // Library browser (AURA-style)
   library: {
     sections: () => ipcRenderer.invoke('library:sections'),
     items: (req: SectionItemsReq) => ipcRenderer.invoke('library:items', req),
@@ -45,24 +42,22 @@ const api = {
     creatorSearch: (req: CreatorSearchReq) => ipcRenderer.invoke('library:creatorSearch', req),
   },
 
-  // Scraping
   scrape: {
     url: (url: string) => ipcRenderer.invoke('scrape:url', { url }),
     cancel: () => ipcRenderer.invoke('scrape:cancel'),
-    onProgress: (cb: (progress: ScrapeProgress) => void) => {
+    onProgress: (cb: (progress: ScrapeProgress) => void) =>
+    {
       const handler = (_: unknown, data: ScrapeProgress) => cb(data)
       ipcRenderer.on('scrape:progress', handler)
       return () => ipcRenderer.removeListener('scrape:progress', handler)
     },
   },
 
-  // Config
   config: {
     get: (): Promise<AppConfig> => ipcRenderer.invoke('config:get'),
     set: (partial: Partial<AppConfig>) => ipcRenderer.invoke('config:set', partial),
   },
 
-  // Bulk files
   bulk: {
     listFiles: (): Promise<string[]> => ipcRenderer.invoke('bulk:listFiles'),
     readFile: (filename: string): Promise<string[]> =>
@@ -74,19 +69,18 @@ const api = {
     renameFile: (oldName: string, newName: string) => ipcRenderer.invoke('bulk:renameFile', oldName, newName),
   },
 
-  // Plex auth
   auth: {
     signIn: (): Promise<string> => ipcRenderer.invoke('auth:plexSignIn'),
     getStatus: (): Promise<PlexAuthStatus> => ipcRenderer.invoke('auth:plexStatus'),
     disconnect: () => ipcRenderer.invoke('auth:disconnect'),
-    onStatusChange: (cb: (status: PlexAuthStatus) => void) => {
+    onStatusChange: (cb: (status: PlexAuthStatus) => void) =>
+    {
       const handler = (_: unknown, data: PlexAuthStatus) => cb(data)
       ipcRenderer.on('auth:statusChange', handler)
       return () => ipcRenderer.removeListener('auth:statusChange', handler)
     },
   },
 
-  // App / updater
   app: {
     getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
     getEnv: (): Promise<AppEnv> => ipcRenderer.invoke('app:getEnv'),
@@ -95,53 +89,56 @@ const api = {
     quitAndInstall: () => ipcRenderer.invoke('app:quitAndInstall'),
     openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
     openLogFolder: () => ipcRenderer.invoke('app:openLogFolder'),
-    onUpdateAvailable: (cb: (info: UpdateInfo) => void) => {
+    onUpdateAvailable: (cb: (info: UpdateInfo) => void) =>
+    {
       const handler = (_: unknown, data: UpdateInfo) => cb(data)
       ipcRenderer.on('app:updateAvailable', handler)
       return () => ipcRenderer.removeListener('app:updateAvailable', handler)
     },
-    onDownloadProgress: (cb: (p: UpdateProgress) => void) => {
+    onDownloadProgress: (cb: (p: UpdateProgress) => void) =>
+    {
       const handler = (_: unknown, data: UpdateProgress) => cb(data)
       ipcRenderer.on('app:downloadProgress', handler)
       return () => ipcRenderer.removeListener('app:downloadProgress', handler)
     },
-    onUpdateReady: (cb: () => void) => {
+    onUpdateReady: (cb: () => void) =>
+    {
       ipcRenderer.on('app:updateReady', cb)
       return () => ipcRenderer.removeListener('app:updateReady', cb)
     },
   },
 
-  // Scheduler
   scheduler: {
-    list: (): Promise<ScheduledJob[]>             => ipcRenderer.invoke('scheduler:list'),
+    list: (): Promise<ScheduledJob[]> => ipcRenderer.invoke('scheduler:list'),
     save: (job: ScheduledJob): Promise<ScheduledJob> => ipcRenderer.invoke('scheduler:save', job),
-    delete: (id: string): Promise<void>          => ipcRenderer.invoke('scheduler:delete', id),
-    runNow: (id: string): Promise<void>          => ipcRenderer.invoke('scheduler:runNow', id),
-    setAutoStart: (v: boolean): Promise<void>    => ipcRenderer.invoke('scheduler:setAutoStart', v),
-    getAutoStart: (): Promise<boolean>           => ipcRenderer.invoke('scheduler:getAutoStart'),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('scheduler:delete', id),
+    runNow: (id: string): Promise<void> => ipcRenderer.invoke('scheduler:runNow', id),
+    setAutoStart: (v: boolean): Promise<void> => ipcRenderer.invoke('scheduler:setAutoStart', v),
+    getAutoStart: (): Promise<boolean> => ipcRenderer.invoke('scheduler:getAutoStart'),
     engineStatus: (): Promise<SchedulerEngineStatus> => ipcRenderer.invoke('scheduler:engineStatus'),
-    onChange: (cb: (jobs: ScheduledJob[]) => void) => {
+    onChange: (cb: (jobs: ScheduledJob[]) => void) =>
+    {
       const handler = (_: unknown, data: ScheduledJob[]) => cb(data)
       ipcRenderer.on('scheduler:onChange', handler)
       return () => ipcRenderer.removeListener('scheduler:onChange', handler)
     },
   },
 
-  // Browser / Playwright
   browser: {
-    getStatus: (): Promise<BrowserStatus>  => ipcRenderer.invoke('browser:status'),
-    install:   (): Promise<void>           => ipcRenderer.invoke('browser:install'),
-    onInstallProgress: (cb: (line: string) => void) => {
+    getStatus: (): Promise<BrowserStatus> => ipcRenderer.invoke('browser:status'),
+    install: (): Promise<void> => ipcRenderer.invoke('browser:install'),
+    onInstallProgress: (cb: (line: string) => void) =>
+    {
       const handler = (_: unknown, line: string) => cb(line)
       ipcRenderer.on('browser:installProgress', handler)
       return () => ipcRenderer.removeListener('browser:installProgress', handler)
     },
   },
 
-  // Log streaming
   log: {
     getHistory: (): Promise<LogEntry[]> => ipcRenderer.invoke('log:getHistory'),
-    onEntry: (cb: (entry: LogEntry) => void) => {
+    onEntry: (cb: (entry: LogEntry) => void) =>
+    {
       const handler = (_: unknown, data: LogEntry) => cb(data)
       ipcRenderer.on('log:stream', handler)
       return () => ipcRenderer.removeListener('log:stream', handler)

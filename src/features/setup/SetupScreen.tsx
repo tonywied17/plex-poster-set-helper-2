@@ -10,18 +10,29 @@ interface Props {
 
 type Phase = 'checking' | 'installing' | 'done' | 'error'
 
-// Extract "| 72% of 123.4 MiB" → 72
+/**
+ * Extracts the percentage from a progress line like "| 72% of 123.4 MiB".
+ *
+ * @param line - One line of installer output.
+ * @returns The percent value, or null when the line has none.
+ */
 function parsePercent(line: string): number | null {
   const m = line.match(/\|\s*(\d+)%/)
   return m ? parseInt(m[1]) : null
 }
 
-// Extract "Downloading Chromium 132..." → "Chromium 132..."
+/**
+ * Extracts the phase label from a line like "Downloading Chromium 132...".
+ *
+ * @param line - One line of installer output.
+ * @returns The label (e.g. "Chromium 132..."), or null.
+ */
 function parsePhaseLabel(line: string): string | null {
   const m = line.match(/^Downloading\s+(.+?)\s+from\s+/i)
   return m ? m[1] : null
 }
 
+/** First-run screen that auto-installs Chromium and shows install progress. */
 export default function SetupScreen({ onComplete }: Props) {
   const [phase,      setPhase]      = useState<Phase>('checking')
   const [progress,   setProgress]   = useState(0)
@@ -41,7 +52,7 @@ export default function SetupScreen({ onComplete }: Props) {
     let progressOff: (() => void) | null = null
 
     async function run() {
-      // Subscribe to progress events first
+      // Subscribe before the status check so no early output is missed
       progressOff = window.api.browser.onInstallProgress((line: string) => {
         appendLog(line)
         const pct = parsePercent(line)
@@ -50,14 +61,12 @@ export default function SetupScreen({ onComplete }: Props) {
         if (label) { setPhaseLabel(label); setProgress(0) }
       })
 
-      // Check current status
       const status = await window.api.browser.getStatus()
       if (status.installed) {
         onComplete()
         return
       }
 
-      // Not installed - begin auto-install
       setPhase('installing')
       setPhaseLabel('Starting download…')
 

@@ -4,6 +4,12 @@ import { PlexService } from '../services/plexService'
 import { Logger } from '../services/logger'
 import type { PlexAuthStatus } from './types'
 
+/**
+ * Registers Plex OAuth IPC handlers: sign-in, status polling, and disconnect.
+ *
+ * @param ipcMain - The main-process IPC bus.
+ * @param win - Window that receives auth:statusChange events.
+ */
 export function registerAuthHandlers(ipcMain: IpcMain, win: BrowserWindow) {
   function emit(status: PlexAuthStatus) {
     win.webContents.send('auth:statusChange', status)
@@ -13,7 +19,7 @@ export function registerAuthHandlers(ipcMain: IpcMain, win: BrowserWindow) {
     try {
       const token = await PlexAuthService.signIn(win, emit)
 
-      // Auto-connect to Plex server with the new token (non-blocking, best-effort)
+      // Auto-connect to the Plex server with the new token (non-blocking, best-effort)
       const cfg = (await import('../services/config')).ConfigService.get()
       if (cfg.baseUrl) {
         PlexService.connect({ baseUrl: cfg.baseUrl, token }).catch(err => {

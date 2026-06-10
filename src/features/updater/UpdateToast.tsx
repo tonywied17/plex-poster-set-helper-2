@@ -3,12 +3,19 @@ import { Download, RefreshCw, X, Loader2, Sparkles, Container, BookOpen } from '
 import { useUpdater } from './UpdaterContext'
 import styles from './UpdateToast.module.css'
 
+/**
+ * Formats a byte count as megabytes.
+ *
+ * @param bytes - Raw byte count.
+ * @returns A string like "12.3 MB".
+ */
 function fmtMB(bytes: number): string {
   return (bytes / 1024 / 1024).toFixed(1)
 }
 
 const DOCKER_GUIDE = 'https://github.com/tonywied17/plex-poster-set-helper/blob/main/docker/README.md#updating-to-a-new-version'
 
+/** Corner toast announcing updates with download/restart actions. */
 export default function UpdateToast() {
   const { status, info, progress, mode, dismissed, download, restart, dismiss } = useUpdater()
   const isDocker = mode === 'docker'
@@ -35,7 +42,7 @@ export default function UpdateToast() {
     </motion.div>
   )
 
-  // Docker can't self-update — link to the pull-and-recreate guide instead.
+  // Docker can't self-update; link to the pull-and-recreate guide instead
   if (isDocker) {
     return (
       <AnimatePresence>

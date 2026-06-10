@@ -5,14 +5,16 @@ import { Logger } from './logger'
 import { PlexService } from './plexService'
 import type { PlexAuthStatus } from '../ipc/types'
 
-// --- Constants ----------------------------------------------------------------
-
 const PLEX_TV = 'https://plex.tv'
 const POLL_INTERVAL_MS = 2000
-const POLL_MAX_ATTEMPTS = 150 // 5 minutes
+const POLL_MAX_ATTEMPTS = 150
 
-// --- Helpers ------------------------------------------------------------------
-
+/**
+ * Builds the standard X-Plex-* headers for plex.tv API requests.
+ *
+ * @param clientId - Stable per-install client identifier.
+ * @returns Header map to spread into fetch options.
+ */
 function clientHeaders(clientId: string): Record<string, string> {
   return {
     'X-Plex-Product': 'Plex Poster Set Helper',
@@ -24,8 +26,12 @@ function clientHeaders(clientId: string): Record<string, string> {
   }
 }
 
-// --- Server discovery ---------------------------------------------------------
-
+/**
+ * Tests whether a connection URI points at a plain address.
+ *
+ * @param uri - Connection URI from plex.tv resources.
+ * @returns true when the host is localhost or a literal IPv4 address.
+ */
 function isPlainIp(uri: string): boolean {
   try {
     const host = new URL(uri).hostname
@@ -33,6 +39,14 @@ function isPlainIp(uri: string): boolean {
   } catch { return false }
 }
 
+/**
+ * Discovers the user's primary owned Plex server from plex.tv resources and
+ * picks the best connection URI.
+ *
+ * @param token - Authenticated Plex token.
+ * @param hdrs - X-Plex headers from clientHeaders().
+ * @returns The server's name and URI, or null when none is found.
+ */
 async function discoverPrimaryServer(
   token: string,
   hdrs: Record<string, string>,
@@ -70,8 +84,6 @@ async function discoverPrimaryServer(
   }
 }
 
-// --- Module state -------------------------------------------------------------
-
 let _pollTimer: ReturnType<typeof setInterval> | null = null
 
 function stopPoll() {
@@ -81,10 +93,17 @@ function stopPoll() {
   }
 }
 
-// --- Service ------------------------------------------------------------------
-
+/** Handles the plex.tv PIN auth flow, token storage, and server auto-discovery. */
 export const PlexAuthService = {
-  // -- Sign in via PIN flow -----------------------------------------------------
+  /**
+   * Signs in via the plex.tv PIN flow: requests a strong PIN, opens the auth
+   * URL (or surfaces it for browserless environments), and polls until the
+   * user authorises or the flow times out.
+   *
+   * @param _win - Unused; kept for the IPC call signature.
+   * @param onStatus - Receives status updates to forward to the renderer.
+   * @returns The authenticated Plex token.
+   */
   async signIn(
     _win: BrowserWindow,
     onStatus: (status: PlexAuthStatus) => void,
@@ -95,9 +114,8 @@ export const PlexAuthService = {
 
     onStatus({ status: 'waiting' })
 
-    // Step 1: Request a PIN from plex.tv. Must be a STRONG pin - the
-    // app.plex.tv/auth redirect link only completes with strong codes (short
-    // 4-char codes are for manual plex.tv/link entry only).
+    // Must be a STRONG pin - the app.plex.tv/auth redirect link only completes
+    // with strong codes (short 4-char codes are for manual plex.tv/link entry)
     const pinRes = await fetch(`${PLEX_TV}/api/v2/pins`, {
       method: 'POST',
       headers: { ...hdrs, 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -106,9 +124,8 @@ export const PlexAuthService = {
     if (!pinRes.ok) throw new Error(`PIN request failed: ${pinRes.status}`)
     const pin = await pinRes.json() as { id: number; code: string }
 
-    // Step 2: Build the Plex auth URL and try to open it. In a browserless
-    // environment (Docker/KasmVNC) openExternal fails - the renderer shows the
-    // URL so the user can open it on their own device. Polling works either way.
+    // In a browserless environment (Docker/KasmVNC) openExternal fails - the
+    // renderer shows the URL so the user can open it on their own device
     const authUrl =
       `https://app.plex.tv/auth#?` +
       `clientID=${encodeURIComponent(clientId)}` +
@@ -124,7 +141,6 @@ export const PlexAuthService = {
       Logger.warn('PlexAuth', `Could not open a browser automatically - use the link shown in the app: ${err instanceof Error ? err.message : err}`)
     }
 
-    // Step 3: Poll plex.tv every 2s until the user authorises (or timeout)
     return new Promise<string>((resolve, reject) => {
       let attempts = 0
 
@@ -154,14 +170,21 @@ export const PlexAuthService = {
     })
   },
 
-  // -- Finalise auth: save token + fetch account info + auto-discover server ----
+  /**
+   * Finalises auth: saves the token, fetches account info, and auto-discovers
+   * the server.
+   *
+   * @param token - Token returned by the PIN poll.
+   * @param clientId - Stable per-install client identifier.
+   * @param hdrs - X-Plex headers from clientHeaders().
+   * @param onStatus - Receives the final authorized status.
+   */
   async _finalise(
     token: string,
     clientId: string,
     hdrs: Record<string, string>,
     onStatus: (status: PlexAuthStatus) => void,
   ) {
-    // 1. Fetch user profile
     try {
       const userRes = await fetch(`${PLEX_TV}/api/v2/user`, {
         headers: { ...hdrs, 'X-Plex-Token': token },
@@ -186,7 +209,6 @@ export const PlexAuthService = {
       Logger.success('PlexAuth', 'Authenticated (user info fetch failed)')
     }
 
-    // 2. Discover primary server and auto-connect
     let serverName: string | undefined
     try {
       const discovered = await discoverPrimaryServer(token, hdrs)
@@ -211,13 +233,13 @@ export const PlexAuthService = {
     void clientId
   },
 
-  // -- Cancel an in-progress sign-in --------------------------------------------
+  /** Cancels an in-progress sign-in poll. */
   cancel() {
     stopPoll()
     Logger.info('PlexAuth', 'Auth flow cancelled by user')
   },
 
-  // -- Disconnect ----------------------------------------------------------------
+  /** Clears the stored token and account info. */
   async disconnect() {
     stopPoll()
     ConfigService.set({
@@ -229,7 +251,11 @@ export const PlexAuthService = {
     Logger.info('PlexAuth', 'Disconnected from Plex')
   },
 
-  // -- Current status (sync, from config) ---------------------------------------
+  /**
+   * Returns the current auth status derived from the stored token.
+   *
+   * @returns authorized when a token is stored, otherwise idle.
+   */
   getStatus(): PlexAuthStatus {
     const cfg = ConfigService.get()
     return cfg.token ? { status: 'authorized' } : { status: 'idle' }

@@ -2,6 +2,12 @@ import type { IpcMain } from 'electron'
 import { PlexService } from '../services/plexService'
 import type { ConnectReq, FindItemReq, FindCollectionReq, UploadReq, LabelReq, ResetReq } from './types'
 
+/**
+ * Registers Plex server IPC handlers: connection, lookups, poster upload/reset,
+ * and stats.
+ *
+ * @param ipcMain - The main-process IPC bus.
+ */
 export function registerPlexHandlers(ipcMain: IpcMain) {
   ipcMain.handle('plex:connect', (_e, req: ConnectReq) =>
     PlexService.connect(req)

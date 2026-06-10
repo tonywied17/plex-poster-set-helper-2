@@ -15,10 +15,14 @@ import { useUpdater } from '../updater/UpdaterContext'
 import type { AppConfig, Library, PlexAuthStatus, BrowserStatus } from '../../../electron/ipc/types'
 import styles from './SettingsPage.module.css'
 
-// --- Application / updates section --------------------------------------------
-
 const DOCKER_UPDATE_GUIDE = 'https://github.com/tonywied17/plex-poster-set-helper/blob/main/docker/README.md#updating-to-a-new-version'
 
+/**
+ * Maps a Plex agent identifier to a short display label.
+ *
+ * @param agent - Agent id such as com.plexapp.agents.hama.
+ * @returns A label like "HAMA", or an empty string.
+ */
 function agentLabel(agent: string | undefined): string {
   if (!agent) return ''
   if (agent.includes('hama'))         return 'HAMA'
@@ -28,6 +32,7 @@ function agentLabel(agent: string | undefined): string {
   return agent.split('.').pop() ?? ''
 }
 
+/** Application section: version, update checks/installs, and log-folder access. */
 function ApplicationSection() {
   const { status, info, version, mode, env, lastChecked, check, download, restart } = useUpdater()
   const [checking, setChecking] = useState(false)
@@ -54,14 +59,13 @@ function ApplicationSection() {
 
       <FieldRow label="Updates" hint={isDocker ? 'Docker is updated by pulling a new image' : 'Check GitHub for a newer release'}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-          {/* Docker: can't self-update - link to the pull-and-recreate guide */}
+          {/* Docker can't self-update; link to the pull-and-recreate guide */}
           {isDocker && status === 'available' && (
             <Button variant="primary" size="sm" icon={<ExternalLink size={13} />}
               onClick={() => window.api.app.openExternal(info?.releaseUrl || DOCKER_UPDATE_GUIDE)}>
               v{info?.version} available - how to update
             </Button>
           )}
-          {/* Desktop: in-app download/install */}
           {!isDocker && status === 'available' && (
             <Button variant="primary" size="sm" icon={<Download size={13} />} onClick={download}>
               Download v{info?.version}
@@ -98,8 +102,7 @@ function ApplicationSection() {
   )
 }
 
-// --- Section wrapper ----------------------------------------------------------
-
+/** Settings section wrapper with icon, title, and optional description/action. */
 function Section({
   icon,
   title,
@@ -128,8 +131,7 @@ function Section({
   )
 }
 
-// --- Field row ----------------------------------------------------------------
-
+/** Labelled settings row with an optional hint. */
 function FieldRow({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className={styles.fieldRow}>
@@ -142,10 +144,9 @@ function FieldRow({ label, hint, children }: { label: string; hint?: string; chi
   )
 }
 
-// --- Setup flow stepper -------------------------------------------------------
-
 type StepState = 'done' | 'active' | 'waiting'
 
+/** Two-step getting-started stepper: authenticate, then connect the server. */
 function SetupFlow({ step1, step2 }: { step1: StepState; step2: StepState }) {
   const steps: Array<{ label: string; sub: string; state: StepState }> = [
     {
@@ -189,29 +190,24 @@ function SetupFlow({ step1, step2 }: { step1: StepState; step2: StepState }) {
   )
 }
 
-// --- Component ----------------------------------------------------------------
-
+/** Settings page: Plex auth/server/libraries, scraper options, browser engine, and app updates. */
 export default function SettingsPage() {
   const [cfg, setCfg] = useState<AppConfig | null>(null)
 
-  // auth
   const [authStatus, setAuthStatus] = useState<PlexAuthStatus>({ status: 'idle' })
   const [signingIn, setSigningIn]   = useState(false)
   const [copiedAuth, setCopiedAuth] = useState(false)
 
-  // server
   const [testing, setTesting]               = useState(false)
   const [testMsg, setTestMsg]               = useState<{ ok: boolean; msg: string } | null>(null)
   const [serverConnected, setServerConnected] = useState(false)
   const [serverName, setServerName]         = useState('')
   const [editingServer, setEditingServer]   = useState(false)
 
-  // libraries
   const [libraries, setLibraries]       = useState<Library[]>([])
   const [refreshingLibs, setRefreshLibs] = useState(false)
   const [libCounts, setLibCounts]       = useState<Record<string, number>>({})
 
-  // browser
   const [browserStatus,    setBrowserStatus]    = useState<BrowserStatus | null>(null)
   const [browserInstalling, setBrowserInstalling] = useState(false)
   const [installLog,       setInstallLog]       = useState<string[]>([])
@@ -224,8 +220,6 @@ export default function SettingsPage() {
     setCfg(prev => prev ? { ...prev, [key]: value } : prev)
     void window.api.config.set({ [key]: value })
   }
-
-  // -- Load -------------------------------------------------------------------
 
   const loadConfig = useCallback(async () => {
     const c = await window.api.config.get() as AppConfig
@@ -300,8 +294,6 @@ export default function SettingsPage() {
     return () => { off() }
   }, [loadConfig, loadLibraries, loadBrowserStatus])
 
-  // -- Auth -------------------------------------------------------------------
-
   async function signIn() {
     setSigningIn(true)
     setAuthStatus({ status: 'waiting' })
@@ -324,8 +316,6 @@ export default function SettingsPage() {
     setEditingServer(false)
     setTestMsg(null)
   }
-
-  // -- Test connection --------------------------------------------------------
 
   async function testConnection() {
     if (!merged) return
@@ -351,8 +341,6 @@ export default function SettingsPage() {
     setTesting(false)
   }
 
-  // -- Library exclusion toggle -----------------------------------------------
-
   function toggleExcludeLibrary(title: string) {
     if (!merged) return
     const current = merged.excludedLibraries ?? []
@@ -361,8 +349,6 @@ export default function SettingsPage() {
       : [...current, title]
     autosave('excludedLibraries', next)
   }
-
-  // -- Browser install --------------------------------------------------------
 
   async function installBrowser() {
     setBrowserInstalling(true)
@@ -384,8 +370,6 @@ export default function SettingsPage() {
     }
   }
 
-  // --- Render ----------------------------------------------------------------
-
   if (!merged) return (
     <div className={styles.loading}><Spinner size="md" /></div>
   )
@@ -394,7 +378,7 @@ export default function SettingsPage() {
   const movieLibs = libraries.filter(l => l.type === 'movie')
   const showLibs  = libraries.filter(l => l.type === 'show')
 
-  // Setup flow state — only 2 steps; libraries default to all-included
+  // Setup flow is only 2 steps; libraries default to all-included
   const step1: StepState = connected ? 'done' : 'active'
   const step2: StepState = serverConnected ? 'done' : connected ? 'active' : 'waiting'
   const setupDone = step1 === 'done' && step2 === 'done'
@@ -402,16 +386,16 @@ export default function SettingsPage() {
   return (
     <div className={styles.page}>
 
-      {/* -- Page header ------------------------------------------------------ */}
+      {/* Page header */}
       <div className={styles.pageHeader}>
         <h1 className="page-title">Settings</h1>
         <p className="page-subtitle">Changes are saved automatically.</p>
       </div>
 
-      {/* -- Scrollable body -------------------------------------------------- */}
+      {/* Scrollable body */}
       <div className={styles.body}>
 
-        {/* -- Group: Plex Connection --------------------------------------- */}
+        {/* Group: Plex Connection */}
         <div className={styles.groupDivider}>
           <div className={styles.groupDividerLine} />
           <span className={styles.groupDividerLabel}>
@@ -422,7 +406,7 @@ export default function SettingsPage() {
           <div className={styles.groupDividerLine} />
         </div>
 
-        {/* -- Setup flow stepper ------------------------------------------- */}
+        {/* Setup flow stepper */}
         <AnimatePresence initial={false}>
           {!setupDone && (
             <motion.div
@@ -437,7 +421,7 @@ export default function SettingsPage() {
           )}
         </AnimatePresence>
 
-        {/* -- Plex account ------------------------------------------------- */}
+        {/* Plex account */}
         <Section icon={<User size={15} />} title="Plex Account" description="Authenticate with your plex.tv account to enable automatic library matching.">
           {connected ? (
             <div className={styles.accountCard}>
@@ -521,11 +505,11 @@ export default function SettingsPage() {
           )}
         </Section>
 
-        {/* -- Plex server - only shown once authenticated ------------------- */}
+        {/* Plex server - only shown once authenticated */}
         {connected && (
         <Section icon={<Server size={15} />} title="Plex Server" description="Your local Plex Media Server address - auto-detected after sign-in.">
           {serverConnected && !editingServer ? (
-            /* -- Connected card -- */
+            /* Connected card */
             <div className={styles.serverCard}>
               <div className={styles.serverCardLeft}>
                 <span className={styles.serverDot} />
@@ -544,7 +528,7 @@ export default function SettingsPage() {
               </Button>
             </div>
           ) : (
-            /* -- URL input (edit / first-time manual) -- */
+            /* URL input (edit / first-time manual) */
             <FieldRow label="Server URL" hint="e.g. http://192.168.1.x:32400">
               <div className={styles.inputWithAction}>
                 <input
@@ -590,7 +574,7 @@ export default function SettingsPage() {
         </Section>
         )}
 
-        {/* -- Libraries - only appear once server connection is established -- */}
+        {/* Libraries - only appear once server connection is established */}
         {serverConnected && (
           <Section
             icon={<SlidersHorizontal size={15} />}
@@ -669,7 +653,7 @@ export default function SettingsPage() {
           </Section>
         )}
 
-        {/* -- Group divider ------------------------------------------------ */}
+        {/* Group divider */}
         <div className={styles.groupDivider}>
           <div className={styles.groupDividerLine} />
           <span className={styles.groupDividerLabel}>
@@ -680,7 +664,7 @@ export default function SettingsPage() {
           <div className={styles.groupDividerLine} />
         </div>
 
-        {/* -- MediUX filters ----------------------------------------------- */}
+        {/* MediUX filters */}
         <Section icon={<Filter size={15} />} title="MediUX Asset Types" description="When applying a MediUX set, only these asset types are uploaded to Plex. Unchecked types are skipped everywhere - scrape, bulk, and scheduled syncs.">
           <div className={styles.filterOptions}>
             {([
@@ -710,7 +694,7 @@ export default function SettingsPage() {
           </div>
         </Section>
 
-        {/* -- Scraper ------------------------------------------------------ */}
+        {/* Scraper */}
         <Section icon={<Sliders size={15} />} title="Scraper" description="Timing and anti-detection are tuned automatically. The only knob is how many sets are fetched in parallel - higher is faster but heavier on the source sites.">
           <FieldRow label="Max Workers" hint="Sets fetched at the same time (1 = safest, 8 = fastest)">
             <Slider
@@ -722,7 +706,7 @@ export default function SettingsPage() {
           </FieldRow>
         </Section>
 
-        {/* -- Library browser --------------------------------------------- */}
+        {/* Library browser */}
         <Section
           icon={<Film size={15} />}
           title="Library Browser"
@@ -741,7 +725,7 @@ export default function SettingsPage() {
           </FieldRow>
         </Section>
 
-        {/* -- Browser engine ---------------------------------------------- */}
+        {/* Browser engine */}
         <Section
           icon={<Globe size={15} />}
           title="Browser Engine"
@@ -808,7 +792,7 @@ export default function SettingsPage() {
           )}
         </Section>
 
-        {/* -- Group: General ----------------------------------------------- */}
+        {/* Group: General */}
         <div className={styles.groupDivider}>
           <div className={styles.groupDividerLine} />
           <span className={styles.groupDividerLabel}>
@@ -819,7 +803,7 @@ export default function SettingsPage() {
           <div className={styles.groupDividerLine} />
         </div>
 
-        {/* -- General ------------------------------------------------------ */}
+        {/* General */}
         <Section icon={<Wrench size={15} />} title="General">
           <FieldRow label="Tray Notification" hint="Show a notice when the app minimizes to the system tray">
             <Switch
@@ -835,7 +819,7 @@ export default function SettingsPage() {
           </FieldRow>
         </Section>
 
-        {/* -- Application / updates ---------------------------------------- */}
+        {/* Application / updates */}
         <ApplicationSection />
 
       </div>

@@ -3,23 +3,36 @@ import * as path from 'path'
 import { app } from 'electron'
 import { Logger } from './logger'
 
-// --- Helpers ------------------------------------------------------------------
-
+/**
+ * Returns the bulk-files directory under userData, creating it if needed.
+ *
+ * @returns Absolute path to the directory.
+ */
 function bulkDir(): string {
   const dir = path.join(app.getPath('userData'), 'bulk-files')
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
   return dir
 }
 
+/**
+ * Resolves a sanitised absolute path for a bulk file.
+ *
+ * @param filename - User-supplied name; path separators are stripped and a
+ *   .txt extension is enforced.
+ * @returns Absolute path inside the bulk-files directory.
+ */
 function filePath(filename: string): string {
-  // Sanitise - strip any path separators, ensure .txt extension
   const safe = path.basename(filename).replace(/[/\\]/g, '')
   return path.join(bulkDir(), safe.endsWith('.txt') ? safe : `${safe}.txt`)
 }
 
-// --- Service ------------------------------------------------------------------
-
+/** Manages the plain-text bulk URL files stored in the app's userData directory. */
 export const BulkService = {
+  /**
+   * Lists all bulk .txt filenames.
+   *
+   * @returns Sorted filenames, or an empty list on failure.
+   */
   list(): string[] {
     try {
       return fs
@@ -32,6 +45,12 @@ export const BulkService = {
     }
   },
 
+  /**
+   * Reads a bulk file.
+   *
+   * @param filename - File to read.
+   * @returns Its non-empty trimmed lines, or an empty list when unreadable.
+   */
   read(filename: string): string[] {
     try {
       const raw = fs.readFileSync(filePath(filename), 'utf8')
@@ -45,6 +64,12 @@ export const BulkService = {
     }
   },
 
+  /**
+   * Overwrites a bulk file with the given lines.
+   *
+   * @param filename - File to write.
+   * @param lines - Replacement content, one URL per line.
+   */
   write(filename: string, lines: string[]): void {
     try {
       fs.writeFileSync(filePath(filename), lines.join('\n'), 'utf8')
@@ -55,6 +80,11 @@ export const BulkService = {
     }
   },
 
+  /**
+   * Creates an empty bulk file; throws if it already exists.
+   *
+   * @param filename - Name for the new file.
+   */
   create(filename: string): void {
     const fp = filePath(filename)
     if (fs.existsSync(fp)) throw new Error(`File "${filename}" already exists`)
@@ -62,6 +92,11 @@ export const BulkService = {
     Logger.info('Bulk', `Created "${filename}"`)
   },
 
+  /**
+   * Deletes a bulk file.
+   *
+   * @param filename - File to remove.
+   */
   delete(filename: string): void {
     try {
       fs.unlinkSync(filePath(filename))
@@ -72,6 +107,12 @@ export const BulkService = {
     }
   },
 
+  /**
+   * Renames a bulk file; throws if the target name already exists.
+   *
+   * @param oldName - Existing file.
+   * @param newName - New name to give it.
+   */
   rename(oldName: string, newName: string): void {
     const oldPath = filePath(oldName)
     const newPath = filePath(newName)

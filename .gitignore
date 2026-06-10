@@ -49,5 +49,6 @@ latest-mac.yml
 /config/
 docker/config/
 
+# Daddy files
 CLAUDE.md
 .claudeignore
