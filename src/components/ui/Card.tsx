@@ -13,6 +13,7 @@ interface CardProps {
   as?: 'div' | 'article' | 'section' | 'li'
 }
 
+/** Content card with optional title and actions. */
 export default function Card({
   children,
   glow = false,

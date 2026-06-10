@@ -2,6 +2,11 @@ import type { IpcMain } from 'electron'
 import { BulkService } from '../services/bulkService'
 import type { BulkWriteReq } from './types'
 
+/**
+ * Registers bulk-file IPC handlers: list, read, write, create, delete, and rename.
+ *
+ * @param ipcMain - The main-process IPC bus.
+ */
 export function registerBulkHandlers(ipcMain: IpcMain) {
   ipcMain.handle('bulk:listFiles', () => BulkService.list())
 

@@ -17,6 +17,7 @@ interface LightboxProps {
   onClose: () => void
 }
 
+/** One animated lightbox slide. */
 function LightboxSlide({ image, dir }: { image: LightboxImage; dir: number }) {
   const [loaded, setLoaded] = useState(false)
   return (
@@ -41,6 +42,7 @@ function LightboxSlide({ image, dir }: { image: LightboxImage; dir: number }) {
   )
 }
 
+/** Full-screen image lightbox with keyboard navigation and neighbour preloading. */
 export default function Lightbox({ images, index, onClose }: LightboxProps) {
   const [i, setI] = useState(index)
   const [dir, setDir] = useState(0)

@@ -4,6 +4,11 @@ import { ScraperFactory } from '../scrapers/scraperFactory'
 import { Logger } from '../services/logger'
 import type { SectionItemsReq, BrowseSetsReq, BrowseSetsRes, UserSetsReq, UserSetsRes, CreatorSearchReq, MediuxUserSet } from './types'
 
+/**
+ * Registers library-browser IPC handlers: sections, items, and MediUX set lookups.
+ *
+ * @param ipcMain - The main-process IPC bus.
+ */
 export function registerLibraryHandlers(ipcMain: IpcMain) {
   ipcMain.handle('library:sections', () => PlexService.getSections())
 
@@ -33,15 +38,15 @@ export function registerLibraryHandlers(ipcMain: IpcMain) {
     try {
       const sets = await ScraperFactory.browseMediuxUser(req.username, page)
 
-      // Resolve which of these titles exist in the user's Plex library, restricting
-      // to the set's detected media type so TV shows never match same-named movies.
+      // Restrict library matching to the set's detected media type so TV shows
+      // never match same-named movies.
       const resolved = await Promise.all(sets.map(async s => {
         if (!s.title) return s
         const match = await PlexService.findInLibrary({ title: s.title, year: s.year, libraries: [], type: s.mediaType })
         return match ? { ...s, matchedKey: match.key, matchedType: match.type as 'movie' | 'show' } : s
       }))
 
-      // Cumulative pages return N×12; if we got a full page, more likely exist.
+      // Cumulative pages return N*12; a full page means more likely exist
       const hasMore = resolved.length >= page * 12
       return { username: req.username, sets: resolved, page, hasMore }
     } catch (err) {
@@ -51,7 +56,7 @@ export function registerLibraryHandlers(ipcMain: IpcMain) {
   })
 
   // Deep search: MediUX only browse-serves a creator's newest ~24 sets, so to find
-  // their art for OLDER titles we search the user's library for the query, then
+  // their art for older titles we search the user's library for the query, then
   // fetch each matched title's sets and keep the ones uploaded by this creator.
   ipcMain.handle('library:creatorSearch', async (_e, req: CreatorSearchReq): Promise<UserSetsRes> => {
     const username = req.username
@@ -61,7 +66,6 @@ export function registerLibraryHandlers(ipcMain: IpcMain) {
       const target = username.toLowerCase()
       const sections = await PlexService.getSections()
 
-      // Gather library items matching the query (a few per section).
       const items = []
       for (const sec of sections) {
         const res = await PlexService.getSectionItems({ sectionKey: sec.key, offset: 0, limit: 6, search: q })
@@ -69,7 +73,6 @@ export function registerLibraryHandlers(ipcMain: IpcMain) {
         if (items.length >= 12) break
       }
 
-      // For each match, pull the title's sets and keep this creator's.
       const out: MediuxUserSet[] = []
       const seen = new Set<string>()
       for (const item of items.slice(0, 10)) {

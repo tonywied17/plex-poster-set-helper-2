@@ -15,6 +15,7 @@ interface TooltipProps {
 
 interface Pos { top: number; left: number }
 
+/** Hover tooltip positioned around its trigger. */
 export default function Tooltip({
   content,
   side = 'top',

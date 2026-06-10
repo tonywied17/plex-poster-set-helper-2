@@ -4,17 +4,17 @@ import { ConfigService } from '../services/config'
 import type { PosterInfo, MediuxSetSummary, MediuxUserSet } from '../ipc/types'
 import type { Page } from 'playwright'
 
-// MediUX embeds set data inside the Next.js App Router RSC flight payload
-// (self.__next_f.push([...]) inline <script> tags) - NOT in __NEXT_DATA__ and
-// NOT in the public Directus API (which is now 403). The data is server-rendered
-// into the raw HTML, so a plain fetch works; a browser is only a fallback.
-//
-// Approach ported from the Python project:
-//   github.com/tonywied17/plex-poster-set-helper  (src/scrapers/mediux_scraper.py)
+/*
+ * MediUX embeds set data inside the Next.js App Router RSC flight payload
+ * (self.__next_f.push([...]) inline <script> tags) - NOT in __NEXT_DATA__ and
+ * NOT in the public Directus API (which is now 403). The data is server-rendered
+ * into the raw HTML, so a plain fetch works; a browser is only a fallback.
+ *
+ * Approach ported from the Python project:
+ * github.com/tonywied17/plex-poster-set-helper (src/scrapers/mediux_scraper.py)
+ */
 
 const ASSET_BASE = 'https://api.mediux.pro/assets'
-
-// --- Data shapes --------------------------------------------------------------
 
 interface SeasonEntry { id?: string | number; season_number?: number }
 
@@ -71,13 +71,17 @@ interface MediuxSet {
   files?:      MediuxFile[]
 }
 
-// --- RSC payload extraction (ported from Python parse_string_to_dict) ---------
-
-// Faithful port of the Python cleaning:
-//   1. remove all `\\\"` (3 backslashes + quote) sequences
-//   2. strip every remaining backslash
-//   3. replace `u0026` → `&`
-//   4. slice from first `{` to last `}` and JSON.parse
+/**
+ * Cleans an RSC flight-payload script and parses it to JSON. Faithful port of
+ * the Python parse_string_to_dict cleaning:
+ * 1. remove all `\\\"` (3 backslashes + quote) sequences
+ * 2. strip every remaining backslash
+ * 3. replace `u0026` with `&`
+ * 4. slice from first `{` to last `}` and JSON.parse
+ *
+ * @param scriptText - Raw text of one inline script tag.
+ * @returns The parsed object, or null when nothing parses.
+ */
 function cleanAndParse(scriptText: string): unknown | null {
   const cleaned = scriptText
     .replace(/\\\\\\"/g, '')   // matches \ \ \ "
@@ -95,8 +99,13 @@ function cleanAndParse(scriptText: string): unknown | null {
   }
 }
 
-// Walk an arbitrary parsed object and collect every "set-like" node:
-// an object with a files[] array whose entries have id + fileType.
+/**
+ * Walks an arbitrary parsed object and collects every "set-like" node:
+ * an object with a files[] array whose entries have id + fileType.
+ *
+ * @param root - Parsed RSC payload of unknown shape.
+ * @returns The unique sets found, in discovery order.
+ */
 function collectSets(root: unknown): MediuxSet[] {
   const found: MediuxSet[] = []
   const seen = new Set<string | number>()
@@ -134,7 +143,12 @@ function collectSets(root: unknown): MediuxSet[] {
   return found
 }
 
-// Parse every script's text, return all sets found across the matching scripts.
+/**
+ * Parses every script's text and collects the sets across them.
+ *
+ * @param scriptTexts - Inline script contents from the page.
+ * @returns Unique sets found across all matching scripts.
+ */
 function setsFromScripts(scriptTexts: string[]): MediuxSet[] {
   const all: MediuxSet[] = []
   const seen = new Set<string | number>()
@@ -159,24 +173,38 @@ function setsFromScripts(scriptTexts: string[]): MediuxSet[] {
   return all
 }
 
-// --- File → PosterInfo mapping -----------------------------------------------
-
+/**
+ * Extracts the 4-digit year from a date string like "1999-11-19".
+ *
+ * @param d - Date string, or nothing.
+ * @returns The year, or undefined.
+ */
 function extractYear(d?: string | null): number | undefined {
   if (!d) return undefined
   const m = d.match(/^(\d{4})/)
   return m ? parseInt(m[1]) : undefined
 }
 
+/**
+ * Parses the episode number from a title-card title like "Show (2026) - S1 E3".
+ *
+ * @param title - The file's title string.
+ * @returns The episode number, or undefined.
+ */
 function parseEpisodeFromTitle(title?: string | null): number | undefined {
   if (!title) return undefined
-  // Python: title.rsplit(" E", 1)[1]
   const m = title.match(/S\d{1,3}\s*E(\d{1,4})/i) ?? title.match(/ E(\d{1,4})\b/i)
   return m ? parseInt(m[1]) : undefined
 }
 
-// Parse a movie poster's "Title (Year)" file name, e.g. "Toy Story 2 (1999)" →
-// { title: "Toy Story 2", year: 1999 }. Used for collection-member posters where
-// the only per-movie signal is the file title.
+/**
+ * Parses a movie poster's "Title (Year)" file name, e.g. "Toy Story 2 (1999)".
+ * Used for collection-member posters where the only per-movie signal is the
+ * file title.
+ *
+ * @param raw - The file's title string.
+ * @returns Parsed title and optional year, or null for blank input.
+ */
 function parseTitleYear(raw?: string | null): { title: string; year?: number } | null {
   if (!raw) return null
   const clean = raw.trim()
@@ -186,18 +214,28 @@ function parseTitleYear(raw?: string | null): { title: string; year?: number } |
   return { title: clean }
 }
 
-// Parse the season number from a title-card title like "Show (2026) - S1 E1".
-// Creator-page title cards lack structured episode_id refs, so the "S<n>" token
-// in the file title is the only season signal available.
+/**
+ * Parses the season number from a title-card title like "Show (2026) - S1 E1".
+ * Creator-page title cards lack structured episode_id refs, so the "S<n>" token
+ * in the file title is the only season signal available.
+ *
+ * @param title - The file's title string.
+ * @returns The season number, or undefined.
+ */
 function parseSeasonFromTitle(title?: string | null): number | undefined {
   if (!title) return undefined
   const m = title.match(/\bS(\d{1,3})\s*E\d{1,4}/i)
   return m ? parseInt(m[1]) : undefined
 }
 
-// Parse the season number from a season-poster title like "Show (2026) - Season 1"
-// (creator-page posters carry the season in the title, not a season_id). Returns
-// undefined for a show-level poster ("Show (2026)") so it stays the main poster.
+/**
+ * Parses the season number from a season-poster title like "Show (2026) - Season 1"
+ * (creator-page posters carry the season in the title, not a season_id).
+ *
+ * @param title - The file's title string.
+ * @returns The season number (0 for Specials), or undefined for a show-level
+ *   poster ("Show (2026)") so it stays the main poster.
+ */
 function parseSeasonPosterFromTitle(title?: string | null): number | undefined {
   if (!title) return undefined
   const m = title.match(/-\s*Season\s+(\d{1,3})\b/i)
@@ -206,9 +244,16 @@ function parseSeasonPosterFromTitle(title?: string | null): number | undefined {
   return undefined
 }
 
+/**
+ * Resolves a file's season number from its season ref, or by id lookup in
+ * set.show.seasons.
+ *
+ * @param file - The set file carrying season references.
+ * @param set - The owning set, used for the id lookup.
+ * @returns The season number, or undefined.
+ */
 function seasonNumberFor(file: MediuxFile, set: MediuxSet): number | undefined {
   if (file.season_id?.season_number != null) return file.season_id.season_number
-  // Look up by season id in set.show.seasons (Python behaviour)
   const sid = file.season_id?.id
   if (sid != null && set.show?.seasons) {
     const match = set.show.seasons.find(s => String(s.id) === String(sid))
@@ -217,10 +262,18 @@ function seasonNumberFor(file: MediuxFile, set: MediuxSet): number | undefined {
   return undefined
 }
 
-// Fallback metadata for pages (shows/boxsets) that don't denormalise show/movie
-// info into each set - derived from the page's og:title ("Name (Year)").
+/**
+ * Fallback metadata for pages (shows/boxsets) that don't denormalise show/movie
+ * info into each set - derived from the page's og:title ("Name (Year)").
+ */
 interface Fallback { title?: string; year?: number }
 
+/**
+ * Parses the page's og:title meta tag into a title/year fallback.
+ *
+ * @param html - Raw page HTML.
+ * @returns Whatever title/year could be parsed.
+ */
 function parseOgTitle(html: string): Fallback {
   const m = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']*)["']/i)
   if (!m?.[1]) return {}
@@ -230,12 +283,21 @@ function parseOgTitle(html: string): Fallback {
   return { title: raw }
 }
 
+/**
+ * Maps a MediUX file into a PosterInfo.
+ *
+ * @param file - The set file to convert.
+ * @param set - The owning set, for denormalised title/year data.
+ * @param allowed - Enabled fileTypes; others are dropped.
+ * @param fb - Title/year fallback when the set lacks denormalised info.
+ * @returns The poster, or null when filtered out or unusable.
+ */
 function fileToInfo(file: MediuxFile, set: MediuxSet, allowed: Set<string>, fb: Fallback): PosterInfo | null {
   const ft = (file.fileType ?? '').toLowerCase().replace(/[-\s]/g, '_')
   if (!allowed.has(ft)) return null
   if (!file.id) return null
 
-  // Full-res original for upload; small webp for the UI grid (≈7× smaller).
+  // Full-res original for upload; small webp for the UI grid
   const url = `${ASSET_BASE}/${file.id}`
   const thumbUrl = `${ASSET_BASE}/${file.id}?width=300&quality=80&format=webp`
 
@@ -248,7 +310,7 @@ function fileToInfo(file: MediuxFile, set: MediuxSet, allowed: Set<string>, fb: 
   const title =
     file.movie_id?.title ??
     file.show_id?.name ?? file.show_id?.title ??
-    fileParsed?.title ??                // collection-member movie poster ("Toy Story 2")
+    fileParsed?.title ??
     set.show?.name ?? set.show?.title ??
     set.movie?.title ??
     file.collection_id?.collection_name ??
@@ -269,7 +331,7 @@ function fileToInfo(file: MediuxFile, set: MediuxSet, allowed: Set<string>, fb: 
     season = 'Backdrop'
   } else if (ft === 'title_card') {
     // Prefer structured refs; fall back to the "S<n> E<n>" tokens in file.title
-    // (creator-page title cards have no episode_id, only the title string).
+    // (creator-page title cards have no episode_id, only the title string)
     season  = file.episode_id?.season_id?.season_number ?? seasonNumberFor(file, set) ?? parseSeasonFromTitle(file.title)
     episode = file.episode_id?.episode_number ?? parseEpisodeFromTitle(file.title)
   } else if (ft === 'poster') {
@@ -278,7 +340,7 @@ function fileToInfo(file: MediuxFile, set: MediuxSet, allowed: Set<string>, fb: 
       if (sn != null) season = sn
     } else {
       // Creator-page season posters encode the season in the title
-      // ("Show (2026) - Season 1"); a bare "Show (2026)" stays the show poster.
+      // ("Show (2026) - Season 1"); a bare "Show (2026)" stays the show poster
       const sn = parseSeasonPosterFromTitle(file.title)
       if (sn != null) season = sn
     }
@@ -297,14 +359,26 @@ function fileToInfo(file: MediuxFile, set: MediuxSet, allowed: Set<string>, fb: 
   }
 }
 
-// --- Set → summary (for the library browser) ----------------------------------
-
+/**
+ * Builds a small avatar thumbnail URL for a set's uploader.
+ *
+ * @param uc - The set's user_created node.
+ * @returns The asset URL, or undefined when there's no avatar.
+ */
 function avatarUrl(uc?: UserCreated | null): string | undefined {
   const a = uc?.avatar
   const id = typeof a === 'string' ? a : a?.id
   return id ? `${ASSET_BASE}/${id}?width=48&height=48&quality=80&format=webp` : undefined
 }
 
+/**
+ * Converts a raw MediUX set into the library-browser summary.
+ *
+ * @param set - The raw set.
+ * @param allowed - fileTypes to include in the posters list.
+ * @param fb - Title/year fallback for files lacking refs.
+ * @returns Counts, preview, posters, uploader info, and detected media type.
+ */
 function setToSummary(set: MediuxSet, allowed: Set<string>, fb: Fallback): MediuxSetSummary {
   const posters = (set.files ?? [])
     .map(f => fileToInfo(f, set, allowed, fb))
@@ -324,8 +398,8 @@ function setToSummary(set: MediuxSet, allowed: Set<string>, fb: Fallback): Mediu
   if (!preview && posters[0]) preview = posters[0].thumbUrl
 
   // Detect media type so library matching only considers same-type items.
-  // Title cards / season / episode / show refs ⇒ a TV show; otherwise a movie
-  // reference (set.movie or a file movie_id) ⇒ a movie. Unknown stays undefined.
+  // Title cards / season / episode / show refs mean a TV show; otherwise a
+  // movie reference (set.movie or a file movie_id) means a movie.
   const mediaType: 'movie' | 'show' | undefined =
     (set.show || hasEpisodic) ? 'show'
     : (set.movie || hasMovieRef) ? 'movie'
@@ -345,8 +419,13 @@ function setToSummary(set: MediuxSet, allowed: Set<string>, fb: Fallback): Mediu
   }
 }
 
-// Derive a {title, year} for a set that lacks denormalised show/movie objects
-// (creator pages) - by parsing a poster file's title ("Name (Year)") or set_name.
+/**
+ * Derives a {title, year} for a set that lacks denormalised show/movie objects
+ * (creator pages) - by parsing a poster file's title ("Name (Year)") or set_name.
+ *
+ * @param set - The raw set.
+ * @returns The best title/year guess, possibly empty.
+ */
 function deriveSetFallback(set: MediuxSet): Fallback {
   const direct =
     set.show?.name ?? set.show?.title ?? set.movie?.title ?? set.collection?.collection_name
@@ -358,19 +437,23 @@ function deriveSetFallback(set: MediuxSet): Fallback {
   if (!raw) return {}
   const ym = raw.match(/^(.*?)\s*\((\d{4})\)\s*$/)
   if (ym) return { title: ym[1].trim(), year: parseInt(ym[2]) }
-  // "X Collection" / "X Set" → strip the suffix
   return { title: raw.replace(/\s+(Collection|Set)$/i, '').trim() }
 }
 
-// --- Scraper ------------------------------------------------------------------
-
+/** Scrapes MediUX set, boxset, and creator pages via the server-rendered RSC payload. */
 export class MediuxScraper extends BaseScraper {
 
+  /**
+   * Scrapes a MediUX URL into posters, using plain HTTP first and a browser
+   * as fallback.
+   *
+   * @param url - Set, boxset, show, or creator page URL.
+   * @returns Posters allowed by the configured fileType filters.
+   */
   async scrape(url: string): Promise<PosterInfo[]> {
     Logger.scrape('MediUX', `Scraping: ${url}`)
     const allowed = new Set<string>(ConfigService.get().mediuxFilters)
 
-    // -- 1. Plain HTTP fetch - RSC payload is server-rendered into the HTML ----
     const result = await this._fetchSets(url)
     if (result?.sets.length) {
       // Boxset pages strip per-file metadata (no movie_id / file titles), so a
@@ -383,15 +466,19 @@ export class MediuxScraper extends BaseScraper {
     }
 
     Logger.warn('MediUX', `HTTP fetch found no set data, trying browser: ${url}`)
-
-    // -- 2. Browser fallback (JS-rendered, anti-bot, or slow hydration) --------
     return this._scrapeViaBrowser(url, allowed)
   }
 
-  // Boxset constituent sets come back stripped: a collection set ("Toy Story
-  // Collection") lists several posters but no movie_id / file titles to tell which
-  // movie each targets. The set's own /sets/{id} page DOES carry that metadata, so
-  // re-fetch just the collection sets (movie/show sets already resolve fine).
+  /**
+   * Re-fetches collection sets via their own /sets/{id} page. Boxset constituent
+   * sets come back stripped: a collection set ("Toy Story Collection") lists
+   * several posters but no movie_id / file titles to tell which movie each
+   * targets. The set's own page does carry that metadata (movie/show sets
+   * already resolve fine).
+   *
+   * @param sets - Sets from a boxset page.
+   * @returns The same sets, with collection sets replaced by enriched copies.
+   */
   private async _enrichCollectionSets(sets: MediuxSet[]): Promise<MediuxSet[]> {
     const out: MediuxSet[] = []
     for (const s of sets) {
@@ -416,10 +503,16 @@ export class MediuxScraper extends BaseScraper {
     return out
   }
 
-  // -- Browse: list all sets for a TMDB title with uploader metadata ----------
-  // Used by the library browser. Unlike scrape(), this keeps the set grouping
-  // and uploader info rather than flattening to a poster list, and ignores the
-  // user's fileType filters (the UI decides what to apply).
+  /**
+   * Lists all sets for a TMDB title with uploader metadata, for the library
+   * browser. Unlike scrape(), this keeps the set grouping and uploader info
+   * rather than flattening to a poster list, and ignores the user's fileType
+   * filters (the UI decides what to apply).
+   *
+   * @param tmdbId - Resolved TMDB id.
+   * @param type - Media type of the title.
+   * @returns Set summaries, empty when none exist.
+   */
   async browseSets(tmdbId: string, type: 'movie' | 'show'): Promise<MediuxSetSummary[]> {
     const url = `https://mediux.pro/${type === 'movie' ? 'movies' : 'shows'}/${tmdbId}`
     Logger.scrape('MediUX', `Browsing sets: ${url}`)
@@ -430,7 +523,6 @@ export class MediuxScraper extends BaseScraper {
     const fallback = result?.fallback ?? {}
 
     if (!sets?.length) {
-      // Browser fallback
       const { context, page } = await this.newContext()
       try {
         await sleepConfig('initial')
@@ -454,12 +546,16 @@ export class MediuxScraper extends BaseScraper {
     return summaries
   }
 
-  // -- Browse: a creator's most-recent sets (for subscriptions) ---------------
-  // Returns their newest sets (the server-rendered first page) with a parsed
-  // title/year per set so the caller can match them against the Plex library.
-  // matchedKey is filled in later by the library handler.
-  // `page` maps to MediUX's cumulative pagination: page N server-renders the
-  // creator's first N×12 sets, so each higher page is a superset of the prior.
+  /**
+   * Lists a creator's most-recent sets (for subscriptions) with a parsed
+   * title/year per set so the caller can match them against the Plex library.
+   * matchedKey is filled in later by the library handler.
+   *
+   * @param username - Creator to browse.
+   * @param page - MediUX's cumulative pagination: page N server-renders the
+   *   creator's first N*12 sets, so each higher page is a superset of the prior.
+   * @returns The creator's own sets from that page.
+   */
   async browseUserSets(username: string, page = 1): Promise<MediuxUserSet[]> {
     const base = `https://mediux.pro/user/${encodeURIComponent(username)}/sets`
     const url = page > 1 ? `${base}?page=${page}` : base
@@ -486,8 +582,8 @@ export class MediuxScraper extends BaseScraper {
       return []
     }
 
-    // The page can include other creators' sets (recommendations) — keep only this
-    // creator's own (plus any set lacking a denormalised username, to be safe).
+    // The page can include other creators' sets (recommendations) - keep only this
+    // creator's own (plus any set lacking a denormalised username, to be safe)
     const target = username.toLowerCase()
     const owned = sets.filter(s => {
       const u = s.user_created?.username?.toLowerCase()
@@ -508,8 +604,13 @@ export class MediuxScraper extends BaseScraper {
     return out
   }
 
-  // -- HTTP: fetch HTML, extract <script> blocks, parse RSC payload ----------
-
+  /**
+   * Fetches a page over plain HTTP, extracts its script blocks, and parses the
+   * RSC payload into sets.
+   *
+   * @param url - Page to fetch.
+   * @returns The sets plus an og:title fallback, or null when none were found.
+   */
   private async _fetchSets(url: string): Promise<{ sets: MediuxSet[]; fallback: Fallback } | null> {
     try {
       const res = await fetch(url, {
@@ -522,8 +623,8 @@ export class MediuxScraper extends BaseScraper {
         signal: AbortSignal.timeout(25_000),
       })
 
-      // NOTE: MediUX set/boxset pages return HTTP 500 while still streaming the
-      // RSC payload with valid data - so parse the body regardless of status.
+      // MediUX set/boxset pages return HTTP 500 while still streaming the RSC
+      // payload with valid data - parse the body regardless of status
       const html = await res.text()
       if (!html || html.length < 500) {
         Logger.warn('MediUX', `HTTP ${res.status}, empty/short body for: ${url}`)
@@ -547,8 +648,13 @@ export class MediuxScraper extends BaseScraper {
     }
   }
 
-  // -- Browser fallback ------------------------------------------------------
-
+  /**
+   * Browser fallback for JS-rendered, anti-bot, or slow-hydration pages.
+   *
+   * @param url - Page to scrape.
+   * @param allowed - Enabled fileTypes.
+   * @returns Posters found, empty on failure.
+   */
   private async _scrapeViaBrowser(url: string, allowed: Set<string>): Promise<PosterInfo[]> {
     Logger.scrape('MediUX', `Browser: ${url}`)
     const { context, page } = await this.newContext()
@@ -587,20 +693,33 @@ export class MediuxScraper extends BaseScraper {
     }
   }
 
+  /**
+   * Reads the text content of every script tag on the page.
+   *
+   * @param page - Loaded page.
+   * @returns Non-empty script bodies.
+   */
   private async _readScripts(page: Page): Promise<string[]> {
     return page.$$eval('script', (els: Array<{ textContent: string | null }>) =>
       els.map(e => e.textContent ?? '').filter(Boolean),
     ).catch(() => [])
   }
 
-  // -- Emit posters ----------------------------------------------------------
-
+  /**
+   * Flattens sets into PosterInfo entries, applying per-set title/year fallbacks.
+   *
+   * @param sets - Sets to emit.
+   * @param allowed - Enabled fileTypes.
+   * @param url - Source URL, for logging.
+   * @param fallback - Page-level title/year fallback.
+   * @returns All posters across the sets.
+   */
   private _emit(sets: MediuxSet[], allowed: Set<string>, url: string, fallback: Fallback = {}): PosterInfo[] {
     const out: PosterInfo[] = []
     for (const set of sets) {
       if (this._aborted) break
-      // Per-set title/year (handles creator pages where each set is a different
-      // title and the page-level og:title is absent) - falls back to page title.
+      // Per-set title/year handles creator pages where each set is a different
+      // title and the page-level og:title is absent
       const fb: Fallback = { ...fallback, ...deriveSetFallback(set) }
       const found = (set.files ?? [])
         .map(f => fileToInfo(f, set, allowed, fb))

@@ -2,8 +2,7 @@ import { chromium, type Browser, type BrowserContext, type Page } from 'playwrig
 import { ConfigService } from '../services/config'
 import type { PosterInfo } from '../ipc/types'
 
-// --- Rotation pools -----------------------------------------------------------
-
+/** User-agent rotation pool for scraper contexts. */
 export const USER_AGENTS = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
@@ -13,6 +12,7 @@ export const USER_AGENTS = [
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15',
 ]
 
+/** Viewport rotation pool for scraper contexts. */
 export const VIEWPORTS = [
   { width: 1920, height: 1080 },
   { width: 1440, height: 900 },
@@ -20,20 +20,41 @@ export const VIEWPORTS = [
   { width: 1366, height: 768 },
 ]
 
-// --- Helpers ------------------------------------------------------------------
-
+/**
+ * Returns a random element from the array.
+ *
+ * @param arr - Pool to pick from; must be non-empty.
+ * @returns One element, uniformly random.
+ */
 export function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
+/**
+ * Returns a random number in [min, max).
+ *
+ * @param min - Lower bound, inclusive.
+ * @param max - Upper bound, exclusive.
+ * @returns The random value.
+ */
 export function rand(min: number, max: number): number {
   return Math.random() * (max - min) + min
 }
 
+/**
+ * Resolves after the given number of milliseconds.
+ *
+ * @param ms - Delay in milliseconds.
+ */
 export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+/**
+ * Sleeps for the configured scraper delay of the given type.
+ *
+ * @param type - Which delay setting to apply.
+ */
 export async function sleepConfig(type: 'min' | 'batch' | 'initial' | 'pageWait'): Promise<void> {
   const cfg = ConfigService.get()
   let ms = 0
@@ -46,16 +67,24 @@ export async function sleepConfig(type: 'min' | 'batch' | 'initial' | 'pageWait'
   if (ms > 0) await sleep(ms)
 }
 
-// --- Abstract base ------------------------------------------------------------
-
+/** Shared Playwright plumbing for site scrapers: browser lifecycle, stealth contexts, and navigation. */
 export abstract class BaseScraper {
   protected _browser: Browser | null = null
   protected _aborted = false
 
+  /**
+   * Scrapes a poster-set URL into a list of posters.
+   *
+   * @param url - Page to scrape.
+   * @returns The posters found, empty on failure.
+   */
   abstract scrape(url: string): Promise<PosterInfo[]>
 
-  // -- Browser lifecycle ------------------------------------------------------
-
+  /**
+   * Returns the shared headless browser, launching it on first use.
+   *
+   * @returns The connected browser instance.
+   */
   async getBrowser(): Promise<Browser> {
     if (!this._browser || !this._browser.isConnected()) {
       // PLEX_BROWSER_EXEC is set by PlaywrightService.setupEnv() - bypasses playwright's
@@ -80,6 +109,12 @@ export abstract class BaseScraper {
     return this._browser
   }
 
+  /**
+   * Creates a fresh context and page with a rotated fingerprint and
+   * automation masking.
+   *
+   * @returns The context (close it when done) and its page.
+   */
   async newContext(): Promise<{ context: BrowserContext; page: Page }> {
     const browser = await this.getBrowser()
     const context = await browser.newContext({
@@ -103,6 +138,13 @@ export abstract class BaseScraper {
     return { context, page }
   }
 
+  /**
+   * Navigates to a URL with configured delays and waits for the given selector.
+   *
+   * @param page - Page to drive.
+   * @param url - Destination URL.
+   * @param waitFor - Selector that signals the content has rendered.
+   */
   async navigate(page: Page, url: string, waitFor: string): Promise<void> {
     await sleepConfig('initial')
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 })
@@ -110,10 +152,12 @@ export abstract class BaseScraper {
     await sleepConfig('pageWait')
   }
 
+  /** Flags the current scrape to stop at its next checkpoint. */
   abort(): void {
     this._aborted = true
   }
 
+  /** Closes the shared browser and clears the abort flag. */
   async close(): Promise<void> {
     await this._browser?.close().catch(() => {})
     this._browser = null

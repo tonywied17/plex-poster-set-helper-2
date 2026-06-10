@@ -13,19 +13,30 @@ export interface BrowserStatus {
 let _win: BrowserWindow | null = null
 let _installing: Promise<void> | null = null
 
-// --- Binary discovery --------------------------------------------------------
-// Playwright's per-platform subdir names vary by OS / arch / version
-// (chrome-headless-shell-win64, -linux64, -mac-arm64, …). Rather than hardcode
-// every variant, search the version dir for the executable by name.
-
+/**
+ * Returns the per-platform browser executable filename. Playwright's subdir
+ * names vary by OS / arch / version, so discovery searches by file name
+ * instead of hardcoding paths. On macOS the headed build is an app bundle
+ * whose binary is named "Chromium".
+ *
+ * @param headless - Whether the headless-shell build is wanted.
+ * @returns The executable filename to search for.
+ */
 function execName(headless: boolean): string {
   const base = headless ? 'chrome-headless-shell' : 'chrome'
   if (process.platform === 'win32') return `${base}.exe`
-  if (process.platform === 'darwin' && !headless) return 'Chromium' // app bundle binary
+  if (process.platform === 'darwin' && !headless) return 'Chromium'
   return base
 }
 
-// Recursively look for an executable file with the given name (depth-limited).
+/**
+ * Recursively looks for a file with the given name.
+ *
+ * @param dir - Directory to search.
+ * @param name - Exact filename to match.
+ * @param depth - Remaining recursion depth.
+ * @returns Full path of the first match, or null.
+ */
 function findFile(dir: string, name: string, depth = 4): string | null {
   let entries: fs.Dirent[]
   try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch { return null }
@@ -40,8 +51,14 @@ function findFile(dir: string, name: string, depth = 4): string | null {
   return null
 }
 
-// Scan the browsers dir; prefer chromium_headless_shell (playwright's default for
-// headless: true), fall back to full chromium.
+/**
+ * Scans the browsers dir for an installed Chromium executable; prefers
+ * chromium_headless_shell (playwright's default for headless: true), falling
+ * back to full chromium.
+ *
+ * @param browsersPath - Root of the Playwright browsers directory.
+ * @returns Full path to the executable, or null when nothing is installed.
+ */
 export function findBrowserExec(browsersPath: string): string | null {
   if (!fs.existsSync(browsersPath)) return null
   const entries = fs.readdirSync(browsersPath)
@@ -70,15 +87,31 @@ export function findBrowserExec(browsersPath: string): string | null {
   return null
 }
 
+/** Manages the bundled Playwright Chromium: discovery, installation, and launch environment. */
 export const PlaywrightService = {
+  /**
+   * Stores the window used to stream install progress to the renderer.
+   *
+   * @param win - Window that receives browser:installProgress events.
+   */
   init(win: BrowserWindow) {
     _win = win
   },
 
+  /**
+   * Returns the app-local directory where Playwright browsers are installed.
+   *
+   * @returns Absolute path under userData.
+   */
   getBrowsersPath(): string {
     return path.join(app.getPath('userData'), 'browsers')
   },
 
+  /**
+   * Reports whether a usable Chromium binary is installed and where.
+   *
+   * @returns Install state plus the resolved executable and browsers paths.
+   */
   async getStatus(): Promise<BrowserStatus> {
     const browsersPath = this.getBrowsersPath()
     const execPath = findBrowserExec(browsersPath)
@@ -89,8 +122,11 @@ export const PlaywrightService = {
     }
   },
 
-  // Coalesce concurrent installs (e.g. the SetupScreen and the main-process
-  // bootstrap both asking at once) into a single download.
+  /**
+   * Installs Chromium via the Playwright CLI. Coalesces concurrent calls
+   * (e.g. the SetupScreen and the main-process bootstrap both asking at once)
+   * into a single download.
+   */
   install(): Promise<void> {
     if (_installing) return _installing
     _installing = this._doInstall().finally(() => { _installing = null })
@@ -160,12 +196,16 @@ export const PlaywrightService = {
     })
   },
 
-  // Must run before any chromium.launch() calls - also re-run after install
+  /**
+   * Points Playwright at the app-local browsers dir and exposes the resolved
+   * executable via PLEX_BROWSER_EXEC so scrapers can bypass playwright's
+   * registry lookup. Must run before any chromium.launch() calls and again
+   * after install.
+   */
   setupEnv() {
     const browsersPath = this.getBrowsersPath()
     process.env.PLAYWRIGHT_BROWSERS_PATH = browsersPath
 
-    // Also set the resolved exec path so scrapers can bypass playwright's registry lookup
     const exec = findBrowserExec(browsersPath)
     if (exec) {
       process.env.PLEX_BROWSER_EXEC = exec

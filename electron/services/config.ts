@@ -33,13 +33,20 @@ const DEFAULTS: AppConfig = {
 
 const store = new Store<Record<string, unknown>>({ name: 'app-config' })
 
+/** Persistent app configuration backed by electron-store, with the Plex token encrypted at rest. */
 export const ConfigService = {
+  /** Ensures a stable clientIdentifier exists (generated once per install). */
   async init() {
     if (!store.get('clientIdentifier')) {
       store.set('clientIdentifier', randomUUID())
     }
   },
 
+  /**
+   * Reads the stored configuration.
+   *
+   * @returns The full config merged over defaults, with the Plex token decrypted.
+   */
   get(): AppConfig {
     const raw = store.store as Partial<AppConfig>
     const config = { ...DEFAULTS, ...raw }
@@ -56,6 +63,12 @@ export const ConfigService = {
     return config
   },
 
+  /**
+   * Persists a partial config update.
+   *
+   * @param partial - Keys to write; the Plex token is encrypted when the OS
+   *   keychain is available.
+   */
   set(partial: Partial<AppConfig>) {
     const updates = { ...partial }
 
@@ -69,6 +82,11 @@ export const ConfigService = {
     })
   },
 
+  /**
+   * Returns the OS log directory for this app.
+   *
+   * @returns Absolute path to the log folder.
+   */
   getLogPath(): string {
     return app.getPath('logs')
   },

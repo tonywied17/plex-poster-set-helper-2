@@ -2,6 +2,12 @@ import type { IpcMain } from 'electron'
 import { SchedulerService } from '../services/schedulerService'
 import type { ScheduledJob } from './types'
 
+/**
+ * Registers scheduler IPC handlers: job CRUD, manual runs, auto-start, and
+ * engine status.
+ *
+ * @param ipcMain - The main-process IPC bus.
+ */
 export function registerSchedulerHandlers(ipcMain: IpcMain) {
   ipcMain.handle('scheduler:list',         ()           => SchedulerService.list())
   ipcMain.handle('scheduler:save',         (_e, job: ScheduledJob) => SchedulerService.save(job))

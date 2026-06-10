@@ -1,8 +1,6 @@
 import { create } from 'zustand'
 import type { PosterInfo } from '../../../electron/ipc/types'
 
-// --- Types --------------------------------------------------------------------
-
 export type EntryStatus = 'idle' | 'scraping' | 'done' | 'error'
 export type UploadStatus = 'idle' | 'matching' | 'uploading' | 'done' | 'error' | 'no_match'
 
@@ -24,26 +22,35 @@ interface ScrapeStore {
   entries: QueueEntry[]
   isRunning: boolean
 
-  // Queue mutations
   addUrls:     (urls: string[]) => void
   removeEntry: (id: string) => void
-  setEntries:  (entries: QueueEntry[]) => void  // for Reorder.onReorder
+  /** Wholesale replacement, used by Reorder.onReorder. */
+  setEntries:  (entries: QueueEntry[]) => void
   patchEntry:  (id: string, patch: Partial<QueueEntry>) => void
   patchPoster: (entryId: string, posterUrl: string, patch: Partial<PosterResult>) => void
   clearAll:    () => void
 
-  // Session control
   setRunning: (v: boolean) => void
 }
 
-// --- Helpers ------------------------------------------------------------------
-
 const SUPPORTED = /theposterdb\.com|mediux\.pro/i
 
+/**
+ * Trims whitespace and a trailing slash.
+ *
+ * @param raw - URL as typed or pasted.
+ * @returns The normalised URL.
+ */
 function normaliseUrl(raw: string): string {
   return raw.trim().replace(/\/$/, '')
 }
 
+/**
+ * Checks whether a URL belongs to a supported source site.
+ *
+ * @param url - URL to test.
+ * @returns true for theposterdb.com and mediux.pro hosts.
+ */
 function isSupported(url: string): boolean {
   try {
     return SUPPORTED.test(new URL(url).hostname)
@@ -52,8 +59,7 @@ function isSupported(url: string): boolean {
   }
 }
 
-// --- Store --------------------------------------------------------------------
-
+/** Zustand store for the scrape queue and its run state. */
 export const useScrapeStore = create<ScrapeStore>((set, get) => ({
   entries: [],
   isRunning: false,

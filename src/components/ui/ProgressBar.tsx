@@ -14,6 +14,7 @@ interface ProgressBarProps {
   size?: 'sm' | 'md'
 }
 
+/** Horizontal progress bar. */
 export default function ProgressBar({
   value = 0,
   max = 100,

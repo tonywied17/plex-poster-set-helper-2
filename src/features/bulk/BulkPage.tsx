@@ -12,7 +12,6 @@ import { useAppContext } from '../../app/AppContext'
 import type { PosterInfo } from '../../../electron/ipc/types'
 import styles from './BulkPage.module.css'
 
-// --- Types --------------------------------------------------------------------
 
 type RunStatus = 'idle' | 'running' | 'done' | 'error'
 
@@ -24,14 +23,19 @@ interface RunResult {
   error?: string
 }
 
-// --- Helpers ------------------------------------------------------------------
 
+/**
+ * Strips the .txt extension for display.
+ *
+ * @param filename - Stored bulk filename.
+ * @returns The name without its extension.
+ */
 function displayName(filename: string) {
   return filename.replace(/\.txt$/, '')
 }
 
-// --- Inline rename input ------------------------------------------------------
 
+/** Inline rename field for a bulk file. */
 function RenameInput({
   initial,
   onConfirm,
@@ -72,8 +76,8 @@ function RenameInput({
   )
 }
 
-// --- Main component -----------------------------------------------------------
 
+/** Bulk import page: manage plain-text URL lists and run them against Plex. */
 export default function BulkPage() {
   const { plexConnected } = useAppContext()
   const [files, setFiles]           = useState<string[]>([])
@@ -90,7 +94,6 @@ export default function BulkPage() {
 
   const isDirty = content !== savedContent
 
-  // -- Load file list ---------------------------------------------------------
 
   const loadFiles = useCallback(async () => {
     const list = await window.api.bulk.listFiles() as string[]
@@ -99,7 +102,6 @@ export default function BulkPage() {
 
   useEffect(() => { loadFiles() }, [loadFiles])
 
-  // -- Select file ------------------------------------------------------------
 
   async function selectFile(filename: string) {
     if (active === filename) return
@@ -112,7 +114,6 @@ export default function BulkPage() {
     setSaved(text)
   }
 
-  // -- Save -------------------------------------------------------------------
 
   async function save() {
     if (!active) return
@@ -121,7 +122,6 @@ export default function BulkPage() {
     setSaved(content)
   }
 
-  // -- New file ---------------------------------------------------------------
 
   useEffect(() => {
     if (showNewInput) setTimeout(() => newInputRef.current?.focus(), 50)
@@ -143,7 +143,6 @@ export default function BulkPage() {
     }
   }
 
-  // -- Rename -----------------------------------------------------------------
 
   async function renameFile(oldName: string, newName: string) {
     const newFilename = newName.endsWith('.txt') ? newName : `${newName}.txt`
@@ -153,7 +152,6 @@ export default function BulkPage() {
     setRenaming(null)
   }
 
-  // -- Delete -----------------------------------------------------------------
 
   async function deleteFile(filename: string) {
     await window.api.bulk.deleteFile(filename)
@@ -165,7 +163,6 @@ export default function BulkPage() {
     }
   }
 
-  // -- Run --------------------------------------------------------------------
 
   const runFile = useCallback(async () => {
     if (!active || runStatus === 'running') return
@@ -222,7 +219,6 @@ export default function BulkPage() {
     setRunStatus('done')
   }, [active, content, isDirty, runStatus])
 
-  // --- Render ----------------------------------------------------------------
 
   const totalUploaded = results.reduce((n, r) => n + r.uploadedCount, 0)
   const errorCount    = results.filter(r => r.status === 'error').length
@@ -231,7 +227,7 @@ export default function BulkPage() {
   return (
     <div className={styles.page}>
 
-      {/* -- Left: file list -------------------------------------------------- */}
+      {/* Left: file list */}
       <aside className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
           <span className="page-title">Bulk Import</span>
@@ -325,7 +321,7 @@ export default function BulkPage() {
         </div>
       </aside>
 
-      {/* -- Right: editor ---------------------------------------------------- */}
+      {/* Right: editor */}
       <div className={styles.editor}>
         {!plexConnected && <PlexConnectBanner />}
         {!active ? (

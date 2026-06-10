@@ -14,6 +14,7 @@ interface SliderProps {
   formatValue?: (v: number) => string
 }
 
+/** Single-value slider with optional ticks. */
 export default function Slider({
   min,
   max,

@@ -5,7 +5,6 @@ import Button from '../../components/ui/Button'
 import EmptyState from '../../components/ui/EmptyState'
 import styles from './MappingsPage.module.css'
 
-// --- Types --------------------------------------------------------------------
 
 interface MappingRow {
   id: string
@@ -13,8 +12,8 @@ interface MappingRow {
   scraperTitle: string
 }
 
-// --- Component ----------------------------------------------------------------
 
+/** Title-mappings editor: maps scraped titles to the exact Plex titles. */
 export default function MappingsPage() {
   const [rows, setRows]       = useState<MappingRow[]>([])
   const [saved, setSaved]     = useState<MappingRow[]>([])
@@ -23,7 +22,6 @@ export default function MappingsPage() {
 
   const isDirty = JSON.stringify(rows) !== JSON.stringify(saved)
 
-  // -- Load -------------------------------------------------------------------
 
   useEffect(() => {
     window.api.config.get().then(cfg => {
@@ -37,7 +35,6 @@ export default function MappingsPage() {
     })
   }, [])
 
-  // -- Mutators ---------------------------------------------------------------
 
   function addRow() {
     const row: MappingRow = { id: crypto.randomUUID(), plexTitle: '', scraperTitle: '' }
@@ -57,7 +54,6 @@ export default function MappingsPage() {
     setRows(r => r.filter(row => row.id !== id))
   }
 
-  // -- Save -------------------------------------------------------------------
 
   async function save() {
     setSaving(true)
@@ -71,12 +67,11 @@ export default function MappingsPage() {
     setSaving(false)
   }
 
-  // --- Render ----------------------------------------------------------------
 
   return (
     <div className={styles.page}>
 
-      {/* -- Header ----------------------------------------------------------- */}
+      {/* Header */}
       <div className={styles.header}>
         <div>
           <h1 className="page-title">Title Mappings</h1>
@@ -106,7 +101,7 @@ export default function MappingsPage() {
         </div>
       </div>
 
-      {/* -- Info banner ------------------------------------------------------ */}
+      {/* Info banner */}
       <div className={styles.infoBanner}>
         <Info size={13} />
         <span>
@@ -115,7 +110,7 @@ export default function MappingsPage() {
         </span>
       </div>
 
-      {/* -- Table ------------------------------------------------------------ */}
+      {/* Table */}
       {rows.length === 0 ? (
         <EmptyState
           icon={<ArrowRight size={22} />}

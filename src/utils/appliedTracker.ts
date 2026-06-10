@@ -1,10 +1,15 @@
 import type { AppliedRecord } from '../../electron/ipc/types'
 
-// Record an applied poster set in local history - the single source of truth for
-// the "Applied / in library" markers and the Reset Posters page. Deduped by the
-// Plex item + set (manual uploads have no setId, so they dedupe per item); the
-// per-poster `posterUrls` are merged so multiple uploads to the same set/item
-// accumulate rather than overwrite.
+/**
+ * Records an applied poster set in local history - the single source of truth
+ * for the "Applied / in library" markers and the Reset Posters page. Deduped by
+ * the Plex item + set (manual uploads have no setId, so they dedupe per item);
+ * the per-poster `posterUrls` are merged so multiple uploads to the same
+ * set/item accumulate rather than overwrite.
+ *
+ * @param rec - The applied set to record; merged with any existing record for
+ *   the same item + set.
+ */
 export async function recordApplied(rec: AppliedRecord) {
   const cfg = await window.api.config.get()
   const list = cfg.appliedPosters ?? []
@@ -15,28 +20,45 @@ export async function recordApplied(rec: AppliedRecord) {
   await window.api.config.set({ appliedPosters: [merged, ...deduped].slice(0, 2000) })
 }
 
-// Key used to tell if a title already has applied art (title|year).
+/**
+ * Key used to tell if a title already has applied art.
+ *
+ * @param title - Media title.
+ * @param year - Release year, when known.
+ * @returns The "title|year" key, lowercased.
+ */
 export function appliedKey(title: string, year?: number): string {
   return `${title.toLowerCase()}|${year ?? ''}`
 }
 
-// A snapshot of what's been applied - interchangeable across Manual Scrape and
-// the Library Browser. `setIds` = exact MediUX sets applied; `titles` = any title
-// (title|year) that has custom art, regardless of which set/source it came from.
+/**
+ * A snapshot of what's been applied - interchangeable across Manual Scrape and
+ * the Library Browser.
+ */
 export interface AppliedIndex {
-  setIds: Set<string>                  // every set ever applied (current OR previously)
-  titles: Set<string>                  // any title (title|year) that has custom art
-  posterUrls: Set<string>              // exact poster image URLs ever applied
-  currentByItem: Map<string, string>   // itemKey -> the CURRENT set id (latest applied)
-  currentPosterUrls: Set<string>       // poster URLs belonging to the current set per item
+  /** Every set ever applied (current or previously). */
+  setIds: Set<string>
+  /** Any title (title|year) that has custom art, regardless of set/source. */
+  titles: Set<string>
+  /** Exact poster image URLs ever applied. */
+  posterUrls: Set<string>
+  /** itemKey to the current set id (latest applied). */
+  currentByItem: Map<string, string>
+  /** Poster URLs belonging to the current set per item. */
+  currentPosterUrls: Set<string>
 }
 
+/**
+ * Builds the applied index from local history.
+ *
+ * @returns Lookup sets/maps over everything recorded as applied.
+ */
 export async function loadAppliedIndex(): Promise<AppliedIndex> {
   const c = await window.api.config.get()
   const recs = c.appliedPosters ?? []
 
   // The most-recently-applied record per item is the one currently live in Plex;
-  // older records for the same item were overwritten (downloaded, not current).
+  // older records for the same item were overwritten (downloaded, not current)
   const latestPerItem = new Map<string, typeof recs[number]>()
   for (const r of recs) {
     const at = Date.parse(r.appliedAt) || 0

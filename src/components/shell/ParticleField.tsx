@@ -1,19 +1,23 @@
 import { useEffect, useRef } from 'react'
 import styles from './ParticleField.module.css'
 
-// --- Types -------------------------------------------------------------------
-
 interface Orb {
-  baseX: number    // 0–1 fraction of canvas width
-  baseY: number    // 0–1 fraction of canvas height
-  radius: number   // 0–1 fraction of Math.max(w, h)
+  /** 0-1 fraction of canvas width. */
+  baseX: number
+  /** 0-1 fraction of canvas height. */
+  baseY: number
+  /** 0-1 fraction of Math.max(w, h). */
+  radius: number
   r: number
   g: number
   b: number
   alpha: number
-  driftX: number   // 0–1 fraction of canvas width
-  driftY: number   // 0–1 fraction of canvas height
-  speed: number    // radians per frame
+  /** 0-1 fraction of canvas width. */
+  driftX: number
+  /** 0-1 fraction of canvas height. */
+  driftY: number
+  /** Radians per frame. */
+  speed: number
   phase: number
 }
 
@@ -28,10 +32,10 @@ interface Ember {
   phase: number
 }
 
-// --- Orb definitions ---------------------------------------------------------
-// Positions / sizes are fractions so they scale with any window size.
-// Alpha is intentionally very low - these are atmospheric, not decorative.
-
+/**
+ * Atmospheric background orbs. Positions / sizes are fractions so they scale
+ * with any window size; alpha is intentionally very low.
+ */
 const ORBS: Orb[] = [
   // Large warm gold bloom - upper left
   { baseX: -0.05, baseY: -0.15, radius: 0.55, r: 212, g: 170, b: 64,  alpha: 0.10, driftX: 0.07, driftY: 0.10, speed: 0.00018, phase: 0 },
@@ -45,10 +49,9 @@ const ORBS: Orb[] = [
   { baseX: 0.88,  baseY: -0.08, radius: 0.34, r: 8,   g: 14,  b: 70,  alpha: 0.18, driftX: 0.06, driftY: 0.08, speed: 0.00013, phase: 2.6 },
 ]
 
-// --- Ember helpers ------------------------------------------------------------
-
 const EMBER_COUNT = 22
 
+/** Creates an ember; scatter spreads initial positions across the canvas for first paint. */
 function spawnEmber(w: number, h: number, scatter: boolean): Ember {
   const maxLife = 240 + Math.random() * 320
   return {
@@ -63,8 +66,7 @@ function spawnEmber(w: number, h: number, scatter: boolean): Ember {
   }
 }
 
-// --- Radial gradient orb draw -------------------------------------------------
-
+/** Draws one radial-gradient orb. */
 function drawOrb(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, radius: number,
@@ -82,8 +84,7 @@ function drawOrb(
   ctx.fill()
 }
 
-// --- Component ----------------------------------------------------------------
-
+/** Ambient canvas background of drifting orbs, rising embers, and a vignette. */
 export default function ParticleField({ animate = true }: { animate?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animRef   = useRef<number>(0)
@@ -102,7 +103,7 @@ export default function ParticleField({ animate = true }: { animate?: boolean })
       embers.current = Array.from({ length: EMBER_COUNT }, () =>
         spawnEmber(canvas!.width, canvas!.height, true)
       )
-      // Static mode (e.g. Docker/VNC): paint a single frame on resize, no loop.
+      // Static mode (e.g. Docker/VNC): paint a single frame on resize, no loop
       if (!animate) draw()
     }
 
@@ -114,7 +115,6 @@ export default function ParticleField({ animate = true }: { animate?: boolean })
 
       ctx.clearRect(0, 0, w, h)
 
-      // -- Orbs --
       const maxDim = Math.max(w, h)
       for (const orb of ORBS) {
         const cx = orb.baseX * w + Math.sin(t * orb.speed + orb.phase) * orb.driftX * w
@@ -122,7 +122,6 @@ export default function ParticleField({ animate = true }: { animate?: boolean })
         drawOrb(ctx, cx, cy, orb.radius * maxDim, orb.r, orb.g, orb.b, orb.alpha)
       }
 
-      // -- Embers --
       ctx.save()
       for (const e of embers.current) {
         e.life += 1
@@ -135,7 +134,7 @@ export default function ParticleField({ animate = true }: { animate?: boolean })
 
         const p = e.life / e.maxLife
         let opacity = p < 0.12 ? p / 0.12 : p > 0.75 ? (1 - p) / 0.25 : 1
-        opacity *= 0.32   // max opacity - subtle
+        opacity *= 0.32   // cap opacity so embers stay subtle
 
         ctx.shadowBlur  = 4 + e.size * 3
         ctx.shadowColor = `hsla(${e.hue},100%,65%,${opacity * 0.7})`
@@ -146,14 +145,13 @@ export default function ParticleField({ animate = true }: { animate?: boolean })
       }
       ctx.restore()
 
-      // -- Vignette --
       const vig = ctx.createRadialGradient(w / 2, h / 2, h * 0.2, w / 2, h / 2, Math.max(w, h) * 0.75)
       vig.addColorStop(0, 'rgba(0,0,0,0)')
       vig.addColorStop(1, 'rgba(0,0,0,0.38)')
       ctx.fillStyle = vig
       ctx.fillRect(0, 0, w, h)
 
-      // Keep looping only when animating; static mode renders a single frame.
+      // Loop only when animating; static mode renders a single frame
       if (animate) animRef.current = requestAnimationFrame(draw)
     }
 

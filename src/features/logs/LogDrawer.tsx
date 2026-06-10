@@ -4,7 +4,6 @@ import { X, FolderOpen, Trash2, ChevronDown } from 'lucide-react'
 import type { LogEntry } from '../../../electron/ipc/types'
 import styles from './LogDrawer.module.css'
 
-// --- Constants ----------------------------------------------------------------
 
 const LEVEL_COLORS: Record<string, string> = {
   error:   '#f87171',
@@ -27,13 +26,13 @@ const FILTERABLE_LEVELS = ['error', 'warn', 'info', 'success', 'session', 'scrap
 const MIN_H = 120
 const MAX_H = 640
 
-// --- Component ----------------------------------------------------------------
 
 interface Props {
   open: boolean
   onClose: () => void
 }
 
+/** Resizable bottom drawer streaming live log entries with level filtering. */
 export default function LogDrawer({ open, onClose }: Props) {
   const [entries, setEntries]       = useState<LogEntry[]>([])
   const [height, setHeight]         = useState(300)
@@ -45,7 +44,6 @@ export default function LogDrawer({ open, onClose }: Props) {
   const heightRef   = useRef(300)
   const atBottomRef = useRef(true)
 
-  // -- Load initial height from config -----------------------------------------
 
   useEffect(() => {
     window.api.config.get().then(cfg => {
@@ -55,7 +53,6 @@ export default function LogDrawer({ open, onClose }: Props) {
     }).catch(() => {})
   }, [])
 
-  // -- Load history when first opened ------------------------------------------
 
   useEffect(() => {
     if (!open) return
@@ -64,7 +61,6 @@ export default function LogDrawer({ open, onClose }: Props) {
     }).catch(() => {})
   }, [open])
 
-  // -- Live entries ------------------------------------------------------------
 
   useEffect(() => {
     if (!open) return
@@ -80,7 +76,6 @@ export default function LogDrawer({ open, onClose }: Props) {
     return () => { unsub() }
   }, [open])
 
-  // -- Auto-scroll -------------------------------------------------------------
 
   useEffect(() => {
     if (atBottom && scrollRef.current) {
@@ -116,7 +111,6 @@ export default function LogDrawer({ open, onClose }: Props) {
     setNewCount(0)
   }
 
-  // -- Drag-to-resize ----------------------------------------------------------
 
   function startDrag(e: React.MouseEvent) {
     e.preventDefault()
@@ -139,7 +133,6 @@ export default function LogDrawer({ open, onClose }: Props) {
     document.addEventListener('mouseup', onUp)
   }
 
-  // -- Render ------------------------------------------------------------------
 
   const filtered = levelFilter ? entries.filter(e => e.level === levelFilter) : entries
 
@@ -158,12 +151,12 @@ export default function LogDrawer({ open, onClose }: Props) {
           exit={{ height: 0, opacity: 0 }}
           transition={{ ease: [0.16, 1, 0.3, 1], duration: 0.26 }}
         >
-          {/* -- Drag handle ------------------------------------------------ */}
+          {/* Drag handle */}
           <div className={styles.dragHandle} onMouseDown={startDrag}>
             <span className={styles.dragGrip} />
           </div>
 
-          {/* -- Toolbar ---------------------------------------------------- */}
+          {/* Toolbar */}
           <div className={styles.toolbar}>
             <span className={styles.toolbarTitle}>Logs</span>
 
@@ -206,7 +199,7 @@ export default function LogDrawer({ open, onClose }: Props) {
             </div>
           </div>
 
-          {/* -- Log body --------------------------------------------------- */}
+          {/* Log body */}
           <div className={styles.logBody} ref={scrollRef} onScroll={onScroll}>
             {filtered.length === 0 ? (
               <div className={styles.emptyMsg}>No log entries yet.</div>
@@ -230,7 +223,7 @@ export default function LogDrawer({ open, onClose }: Props) {
             )}
           </div>
 
-          {/* -- Scroll-to-bottom button ------------------------------------- */}
+          {/* Scroll-to-bottom button */}
           <AnimatePresence>
             {!atBottom && newCount > 0 && (
               <motion.button

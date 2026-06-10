@@ -22,6 +22,7 @@ interface SelectProps<T extends string = string> {
   error?: string
 }
 
+/** Custom dropdown select with optional search. */
 export default function Select<T extends string = string>({
   options,
   value,

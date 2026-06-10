@@ -11,6 +11,7 @@ export const AppContext = createContext<AppContextValue>({
   plexConnected: false,
 })
 
+/** Accesses the shared app context. */
 export function useAppContext() {
   return useContext(AppContext)
 }

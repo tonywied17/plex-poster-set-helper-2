@@ -26,6 +26,7 @@ interface Props {
   onToggleLogs: () => void
 }
 
+/** App navigation sidebar. */
 export default function Sidebar({ activeTab, onNavigate, onToggleLogs }: Props) {
   const [pinned, setPinned] = useState(false)
   const [hovered, setHovered] = useState(false)

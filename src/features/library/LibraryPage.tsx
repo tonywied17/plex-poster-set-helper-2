@@ -18,15 +18,22 @@ import styles from './LibraryPage.module.css'
 
 const PAGE_SIZE = 60
 
-// Session cache for a creator's fully-paginated sets, so flipping between
-// creators (or re-opening one) is instant instead of re-scraping every time.
-// Lives for the renderer process lifetime; a manual Refresh or a stale entry
-// (older than the TTL) triggers a re-fetch.
+/**
+ * Session cache for a creator's fully-paginated sets, so flipping between
+ * creators (or re-opening one) is instant instead of re-scraping every time.
+ * Lives for the renderer process lifetime; a manual Refresh or a stale entry
+ * (older than the TTL) triggers a re-fetch.
+ */
 interface CreatorCacheEntry { sets: MediuxUserSet[]; capped: boolean; fetchedAt: number }
 const creatorSetsCache = new Map<string, CreatorCacheEntry>()
-const CREATOR_CACHE_TTL = 30 * 60 * 1000   // 30 minutes
+const CREATOR_CACHE_TTL = 30 * 60 * 1000
 
-// Compact relative time for the "last checked" stamp.
+/**
+ * Compact relative time for the "last checked" stamp.
+ *
+ * @param ts - Epoch milliseconds of the check.
+ * @returns A short label like "5m ago".
+ */
 function timeAgo(ts: number): string {
   const s = Math.floor((Date.now() - ts) / 1000)
   if (s < 45) return 'just now'
@@ -35,10 +42,18 @@ function timeAgo(ts: number): string {
   return `${Math.floor(h / 24)}d ago`
 }
 
-// Apply progress for a single set
+/** Apply progress for a single set. */
 interface ApplyState { status: 'idle' | 'applying' | 'done' | 'error'; done: number; total: number; error?: string }
 
-// Apply a set's posters to a Plex target, routing each by season/episode.
+/**
+ * Applies a set's posters to a Plex target, routing each by season/episode.
+ *
+ * @param targetKey - Plex ratingKey to apply onto.
+ * @param posters - Candidate posters; filtered by the enabled types.
+ * @param enabled - File types the user has switched on.
+ * @param onProgress - Called after each poster with done/total counts.
+ * @returns Done/failed counts, the URLs actually applied, and the last error.
+ */
 async function applyPosters(
   targetKey: string,
   posters: PosterInfo[],
@@ -59,10 +74,14 @@ async function applyPosters(
   return { done, failed, total: list.length, appliedUrls, lastError }
 }
 
-// Lets any nested set card jump to a creator in the Creators tab.
+/** Lets any nested set card jump to a creator in the Creators tab. */
 const CreatorNav = createContext<(username: string) => void>(() => {})
 
-// Shared: read the followed-creator usernames (lowercased) from config.
+/**
+ * Reads the followed-creator usernames from config.
+ *
+ * @returns Lowercased usernames, loaded once on mount.
+ */
 function useSubscriptions() {
   const [subs, setSubs] = useState<string[]>([])
   useEffect(() => {
@@ -71,6 +90,7 @@ function useSubscriptions() {
   return subs
 }
 
+/** Plex library grid with per-section tabs, cross-library search, and the MediUX sets panel. */
 function MyLibraryView({ subs }: { subs: string[] }) {
   const [sections, setSections]   = useState<LibrarySection[]>([])
   const [activeKey, setActiveKey] = useState<string>('')
@@ -80,12 +100,11 @@ function MyLibraryView({ subs }: { subs: string[] }) {
   const [loading, setLoading] = useState(false)
   const [search, setSearch]   = useState('')
 
-  // Cross-library search state
   const [globalResults, setGlobalResults] = useState<{ section: LibrarySection; items: LibraryItem[] }[]>([])
   const [globalLoading, setGlobalLoading] = useState(false)
 
   const [selected, setSelected] = useState<LibraryItem | null>(null)
-  const [reloadNonce, setReloadNonce] = useState(0)        // manual-refresh trigger
+  const [reloadNonce, setReloadNonce] = useState(0)
   const [manualRefreshing, setManualRefreshing] = useState(false)
 
   const offsetRef = useRef(0)
@@ -93,7 +112,6 @@ function MyLibraryView({ subs }: { subs: string[] }) {
 
   const isGlobalSearch = search.trim().length > 0
 
-  // -- Load sections (on mount + whenever the Plex connection becomes ready) ---
   const loadSections = useCallback(() => {
     return window.api.library.sections().then((s: LibrarySection[]) => {
       setSections(s)
@@ -109,7 +127,6 @@ function MyLibraryView({ subs }: { subs: string[] }) {
     return () => { unsub() }
   }, [loadSections])
 
-  // -- Single-tab load (only when not in global search mode) ------------------
   const loadItems = useCallback(async (key: string, q: string, append: boolean) => {
     if (!key) return
     setLoading(true)
@@ -131,7 +148,7 @@ function MyLibraryView({ subs }: { subs: string[] }) {
     return () => clearTimeout(t)
   }, [activeKey, isGlobalSearch, loadItems, reloadNonce])
 
-  // -- Cross-library search: fire all sections in parallel with debounce ------
+  // Cross-library search: fire all sections in parallel, debounced
   useEffect(() => {
     if (!isGlobalSearch || !sections.length) { setGlobalResults([]); return }
     setGlobalLoading(true)
@@ -153,7 +170,7 @@ function MyLibraryView({ subs }: { subs: string[] }) {
     return () => { cancelled = true; clearTimeout(t) }
   }, [search, isGlobalSearch, sections, reloadNonce])
 
-  // -- Infinite scroll (single-tab mode only) ---------------------------------
+  // Infinite scroll, single-tab mode only
   function onScroll() {
     const el = scrollRef.current
     if (!el || loading || isGlobalSearch) return
@@ -164,10 +181,8 @@ function MyLibraryView({ subs }: { subs: string[] }) {
 
   const totalGlobalHits = globalResults.reduce((n, g) => n + g.items.length, 0)
 
-  // Manual refresh: re-check sections (catches libraries added/removed in Plex)
-  // and reload whatever is on screen (active tab, or the cross-library search).
-  // Awaits the work and holds the spin for a brief minimum so a fast local Plex
-  // still reads as "did something" rather than flickering sub-frame.
+  // Manual refresh re-checks sections and reloads what's on screen, holding the
+  // spin for a brief minimum so a fast local Plex doesn't flicker sub-frame
   const refreshing = manualRefreshing || loading || globalLoading
   async function handleRefresh() {
     if (manualRefreshing) return
@@ -179,7 +194,7 @@ function MyLibraryView({ subs }: { subs: string[] }) {
         offsetRef.current = 0
         await loadItems(activeKey, '', false)
       } else {
-        setReloadNonce(n => n + 1)   // cross-library search is effect-driven
+        setReloadNonce(n => n + 1)   // cross-library search reloads via its effect
       }
     } finally {
       const elapsed = Date.now() - started
@@ -190,7 +205,7 @@ function MyLibraryView({ subs }: { subs: string[] }) {
 
   return (
     <>
-      {/* -- Controls -------------------------------------------------------- */}
+      {/* Controls */}
       <div className={styles.controls}>
         <div className={`${styles.sectionTabs} ${isGlobalSearch ? styles.sectionTabsDimmed : ''}`}>
           {isGlobalSearch && (
@@ -239,10 +254,9 @@ function MyLibraryView({ subs }: { subs: string[] }) {
         </div>
       </div>
 
-      {/* -- Grid area ------------------------------------------------------- */}
+      {/* Grid area */}
       <div className={styles.gridScroll} ref={scrollRef} onScroll={onScroll}>
         {isGlobalSearch ? (
-          // Cross-library results
           globalLoading ? (
             <div className={styles.gridLoading}><Spinner size="sm" /><span>Searching all libraries…</span></div>
           ) : globalResults.length === 0 ? (
@@ -277,7 +291,6 @@ function MyLibraryView({ subs }: { subs: string[] }) {
             </div>
           )
         ) : (
-          // Single-tab browsing
           <>
             {items.length === 0 && !loading ? (
               <div className={styles.emptyGrid}>
@@ -302,7 +315,7 @@ function MyLibraryView({ subs }: { subs: string[] }) {
         )}
       </div>
 
-      {/* -- Sets panel ------------------------------------------------------ */}
+      {/* Sets panel */}
       <AnimatePresence>
         {selected && (
           <SetsPanel
@@ -321,10 +334,9 @@ function MyLibraryView({ subs }: { subs: string[] }) {
   )
 }
 
-// --- Shell: mode switch between My Library and Creators -------------------------
-
 type Mode = 'library' | 'creators'
 
+/** Library Browser page: switches between the My Library grid and the Creators view. */
 export default function LibraryPage() {
   const { plexConnected } = useAppContext()
   const [mode, setMode] = useState<Mode>('library')
@@ -349,7 +361,7 @@ export default function LibraryPage() {
             </p>
           </div>
 
-          {/* -- Mode switch (header right) -------------------------------- */}
+          {/* Mode switch */}
           <div className={styles.tabBar}>
             <button
               className={`${styles.tabBarBtn} ${mode === 'library' ? styles.tabBarBtnActive : ''}`}
@@ -389,8 +401,7 @@ export default function LibraryPage() {
   )
 }
 
-// --- Plex item card ------------------------------------------------------------
-
+/** Poster-grid card for one Plex library item. */
 function ItemCard({ item, active, onClick }: { item: LibraryItem; active: boolean; onClick: () => void }) {
   const [err, setErr]       = useState(false)
   const [loaded, setLoaded] = useState(false)
@@ -422,8 +433,7 @@ function ItemCard({ item, active, onClick }: { item: LibraryItem; active: boolea
   )
 }
 
-// --- Sets panel (right drawer) -------------------------------------------------
-
+/** Right drawer listing MediUX sets for the selected library item, with apply controls. */
 function SetsPanel({ item, subs, onClose, onItemPoster }: {
   item: LibraryItem
   subs: string[]
@@ -505,15 +515,15 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
     let totalDone = 0, totalFailed = 0
     const allAppliedUrls: string[] = []
 
-    // 1. Apply collection-level / show-level posters to the main item key.
+    // Collection-level / show-level posters go to the main item key
     const mainRes = await applyPosters(item.key, mainPosters, types,
       (d, _t) => setApplyMap(m => ({ ...m, [s.id]: { status: 'applying', done: totalDone + d, total: enabledTotal } })))
     totalDone   += mainRes.done
     totalFailed += mainRes.failed
     allAppliedUrls.push(...mainRes.appliedUrls)
 
-    // 2. For individual movies within a boxset/collection: look up each movie's
-    //    own Plex key, upload to it, and record it separately in Reset Posters.
+    // Individual movies within a boxset/collection: look up each movie's own
+    // Plex key, upload to it, and record it separately in Reset Posters
     if (memberPosters.length > 0) {
       const movieMap = new Map<string, { title: string; year?: number; posters: PosterInfo[] }>()
       for (const p of memberPosters) {
@@ -660,7 +670,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
   )
 }
 
-// Small skeleton-aware thumbnail button used in the SetCard expanded view.
+/** Small skeleton-aware thumbnail button used in the SetCard expanded view. */
 function ThumbButton({ url, label, episode, onClick }: { url: string; label: string; episode?: number; onClick: () => void }) {
   const [loaded, setLoaded] = useState(false)
   return (
@@ -682,18 +692,22 @@ function ThumbButton({ url, label, episode, onClick }: { url: string; label: str
   )
 }
 
-// --- Set card ------------------------------------------------------------------
-
+/** Expandable card for one MediUX set: preview, uploader, counts, apply state, and grouped posters. */
 function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, followed, selectable, checked, onToggleSelect }: {
   set: MediuxSetSummary
   apply?: ApplyState
   onApply: () => void
   enabledTypes: Set<FileType>
-  title?: string          // when shown (Creators view), heading is the media title
-  badge?: React.ReactNode // optional match/applied badge
-  disabled?: boolean      // disable Apply (e.g. no library match)
-  followed?: boolean      // uploader is a followed creator
-  selectable?: boolean    // show a selection checkbox (Creators sync)
+  /** When shown (Creators view), the heading is the media title. */
+  title?: string
+  /** Optional match/applied badge. */
+  badge?: React.ReactNode
+  /** Disables Apply (e.g. no library match). */
+  disabled?: boolean
+  /** Uploader is a followed creator. */
+  followed?: boolean
+  /** Shows a selection checkbox (Creators sync). */
+  selectable?: boolean
   checked?: boolean
   onToggleSelect?: () => void
 }) {
@@ -706,7 +720,7 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, fo
   const groups = useMemo(() => groupPosters(set.posters), [set.posters])
   const totalCount = set.posterCount + set.titleCardCount + set.backdropCount
 
-  // Flattened poster list (group order) for the full-screen lightbox
+  // Flattened poster list in group order for the full-screen lightbox
   const [lightbox, setLightbox] = useState<number | null>(null)
   const lightboxImages = useMemo<LightboxImage[]>(
     () => groups.flatMap(g => g.posters.map(p => ({
@@ -786,13 +800,12 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, fo
         </div>
       </div>
 
-      {/* Clear, full-width expand affordance */}
       <button className={`${styles.setExpandBar} ${open ? styles.setExpandBarOpen : ''}`} onClick={() => setOpen(v => !v)}>
         {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         <span>{open ? 'Hide posters' : `Preview ${totalCount} poster${totalCount !== 1 ? 's' : ''}`}</span>
       </button>
 
-      {/* Grouped contents - posters never mixed across types */}
+      {/* Grouped contents; posters never mixed across types */}
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
@@ -845,8 +858,7 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, fo
   )
 }
 
-// --- File tile (Posters / Backdrops tab in Creators) ---------------------------
-
+/** Single-file tile for the Posters / Backdrops / Title Cards tabs in Creators. */
 function FileTile({ poster, set, st, done, error, onLightbox, onApply }: {
   poster: PosterInfo
   set: MediuxUserSet
@@ -905,22 +917,25 @@ function FileTile({ poster, set, st, done, error, onLightbox, onApply }: {
   )
 }
 
-// --- Creators view --------------------------------------------------------------
-
+/**
+ * Normalises creator input.
+ *
+ * @param input - A full profile URL or a bare username.
+ * @returns The bare username, with any leading @ stripped.
+ */
 function normalizeUsername(input: string): string {
   const t = input.trim()
-  // Accept a full profile URL or a bare username
   const m = t.match(/mediux\.pro\/user\/([^/?#]+)/i)
   return (m ? m[1] : t).replace(/^@/, '').trim()
 }
 
+/** Creators view: followed-creator rail plus the selected creator's sets. */
 function CreatorsView({ initialCreator }: { initialCreator: string | null }) {
   const [subs, setSubs]       = useState<string[]>([])
   const [appliedIdx, setAppliedIdx] = useState<AppliedIndex>({ setIds: new Set(), titles: new Set(), posterUrls: new Set(), currentByItem: new Map(), currentPosterUrls: new Set() })
   const [active, setActive]   = useState<string | null>(null)
   const [adding, setAdding]   = useState('')
 
-  // -- Load subscriptions + applied index -------------------------------------
   useEffect(() => {
     window.api.config.get().then(c => {
       const list = c.mediuxSubscriptions ?? []
@@ -930,7 +945,7 @@ function CreatorsView({ initialCreator }: { initialCreator: string | null }) {
     loadAppliedIndex().then(setAppliedIdx)
   }, [])
 
-  // -- A username arriving from a clicked badge (preview, may not be followed) --
+  // A username arriving from a clicked badge (preview, may not be followed)
   useEffect(() => {
     if (initialCreator) setActive(initialCreator)
   }, [initialCreator])
@@ -963,7 +978,7 @@ function CreatorsView({ initialCreator }: { initialCreator: string | null }) {
 
   return (
     <div className={styles.creators}>
-      {/* Left rail - subscriptions */}
+      {/* Subscriptions rail */}
       <div className={styles.creatorRail}>
         <div className={styles.railHeader}>Following</div>
         <div className={styles.creatorList}>
@@ -999,7 +1014,7 @@ function CreatorsView({ initialCreator }: { initialCreator: string | null }) {
         </div>
       </div>
 
-      {/* Main - selected creator's recent sets */}
+      {/* Selected creator's recent sets */}
       <div className={styles.creatorMain}>
         {active ? (
           <CreatorSets
@@ -1029,10 +1044,10 @@ function CreatorsView({ initialCreator }: { initialCreator: string | null }) {
   )
 }
 
-// --- Loading skeletons (Creators) ----------------------------------------------
-
-// Placeholder set card so the list keeps its shape while a creator's art loads,
-// instead of a layout-shifting centered spinner.
+/**
+ * Placeholder set card so the list keeps its shape while a creator's art loads,
+ * instead of a layout-shifting centered spinner.
+ */
 function SetCardSkeleton() {
   return (
     <div className={styles.setCardSkeleton} aria-hidden="true">
@@ -1049,7 +1064,7 @@ function SetCardSkeleton() {
   )
 }
 
-// Placeholder tabs row so the toolbar holds its place until the real tabs load.
+/** Placeholder tabs row so the toolbar holds its place until the real tabs load. */
 function SkeletonTabs() {
   return (
     <div className={styles.creatorTabsRow} aria-hidden="true">
@@ -1061,8 +1076,7 @@ function SkeletonTabs() {
   )
 }
 
-// --- A creator's recent sets ----------------------------------------------------
-
+/** A creator's recent sets with tabs, deep search, selection, and weekly-sync scheduling. */
 function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, onApplied }: {
   username: string
   following: boolean
@@ -1086,13 +1100,13 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
   const [capped, setCapped]   = useState(false)
   const [lastChecked, setLastChecked] = useState<number | null>(null)
   const [refreshing, setRefreshing]   = useState(false)
-  const [, setNowTick] = useState(0)   // ticks the "checked Xm ago" stamp
+  const [, setNowTick] = useState(0)   // re-renders the "checked Xm ago" stamp
   const [searchResults, setSearchResults] = useState<MediuxUserSet[]>([])
   const [searching, setSearching] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 
-  // Which sets are already covered by a saved schedule (individually, or by a
-  // whole-creator "/user/{name}/sets" sync job).
+  // Sets already covered by a saved schedule, individually or by a
+  // whole-creator "/user/{name}/sets" sync job
   const [scheduledSetIds, setScheduledSetIds] = useState<Set<string>>(new Set())
   const [creatorScheduled, setCreatorScheduled] = useState(false)
 
@@ -1106,13 +1120,13 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
   const refresh = useCallback(() => setReloadKey(k => k + 1), [])
 
   // Auto-load the creator's sets in the background. MediUX server-renders a
-  // cumulative page (N = first N×12) but caps the creator's own sets after a
-  // couple of pages, so we keep fetching higher pages until a page adds nothing
+  // cumulative page (N = first N*12) but caps the creator's own sets after a
+  // couple of pages, so keep fetching higher pages until a page adds nothing
   // new (the cap), then stop. Cancels cleanly when switching creators.
   //
   // Backed by a session cache: a fresh cached entry is served instantly with no
   // network. A manual Refresh (reloadKey > 0) or a stale entry re-fetches; when
-  // we already have cached sets to show, the re-fetch happens quietly in the
+  // cached sets are already shown, the re-fetch happens quietly in the
   // background so the list never blanks or visibly re-sorts.
   useEffect(() => {
     let cancelled = false
@@ -1131,7 +1145,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
       setSets([]); setCapped(false); setLoading(true); setLoadingMore(false)
     }
 
-    // Fresh cache and not an explicit refresh → no network at all.
+    // Fresh cache and not an explicit refresh: no network at all
     if (fresh && !forced) return
 
     const hasCache = !!cached
@@ -1158,9 +1172,9 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
         }
         latest = res.sets
         if (!hasCache) { setSets(res.sets); setLoading(false) }  // progressive only when nothing is shown yet
-        if (res.sets.length <= prev) break      // no growth → MediUX cap reached
+        if (res.sets.length <= prev) break      // no growth: MediUX cap reached
         prev = res.sets.length
-        if (!res.hasMore) break                 // server says no full page → done
+        if (!res.hasMore) break                 // no full page: done
         if (!hasCache) setLoadingMore(true)
       }
       if (cancelled) return
@@ -1173,7 +1187,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
     return () => { cancelled = true }
   }, [username, reloadKey])
 
-  // Keep the "checked Xm ago" stamp honest while sitting on a creator.
+  // Keep the "checked Xm ago" stamp honest while sitting on a creator
   useEffect(() => {
     if (!lastChecked) return
     const id = setInterval(() => setNowTick(t => t + 1), 60_000)
@@ -1200,8 +1214,8 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
 
   useEffect(() => { loadSchedule() }, [loadSchedule])
 
-  // Deep search across the creator's WHOLE catalog (beyond the browse cap): match
-  // the query to the user's library, then fetch this creator's sets for those titles.
+  // Deep search across the creator's whole catalog (beyond the browse cap): match
+  // the query to the user's library, then fetch this creator's sets for those titles
   useEffect(() => {
     const term = query.trim()
     if (term.length < 2) { setSearchResults([]); setSearching(false); return }
@@ -1215,22 +1229,22 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
     return () => { cancelled = true; clearTimeout(t) }
   }, [query, username])
 
-  // In-library matches first, then the rest (keeps newest order within each).
+  // In-library matches first, then the rest (keeps newest order within each)
   const q = query.trim().toLowerCase()
   const matchFirst = (a: MediuxUserSet, b: MediuxUserSet) => (a.matchedKey ? 0 : 1) - (b.matchedKey ? 0 : 1)
   const matchQuery = (s: MediuxUserSet) => !q || s.title.toLowerCase().includes(q) || s.setName.toLowerCase().includes(q)
 
-  // Merge deep-search results (creator's sets for matching library titles) with the
-  // browsed sets, deduped — so search finds art beyond MediUX's browse cap.
+  // Merge deep-search results (creator's sets for matching library titles) with
+  // the browsed sets, deduped, so search finds art beyond MediUX's browse cap
   const allSets = useMemo(() => {
     if (!searchResults.length) return sets
     const seen = new Set(sets.map(s => s.id))
     return [...searchResults.filter(s => !seen.has(s.id)), ...sets]
   }, [sets, searchResults])
 
-  // Tab data, all filtered by the title search and sorted matches-first. A creator's
-  // uploads on MediUX are always single-title sets; multi-title boxsets live on a
-  // separate URL space (/boxsets/N) and are handled by manual import, not here.
+  // Tab data, filtered by the title search and sorted matches-first. A creator's
+  // uploads on MediUX are always single-title sets; multi-title boxsets live on
+  // a separate URL space (/boxsets/N) and are handled by manual import, not here
   const setsFiltered = useMemo(() => allSets.filter(s => matchQuery(s)).sort(matchFirst), [allSets, q])
   const flatFiles = useMemo(() => allSets.flatMap(s => s.posters.map(poster => ({ set: s, poster }))), [allSets])
   const posterItems = useMemo(
@@ -1246,7 +1260,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
     [flatFiles, q],
   )
 
-  // Unfiltered counts for the tab labels.
+  // Unfiltered counts for the tab labels
   const counts = useMemo(() => {
     let p = 0, b = 0, tc = 0
     for (const s of sets) {
@@ -1263,7 +1277,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
     })
   }
   // Selection acts on the currently-shown (search-filtered) sets, so "Select all" /
-  // "In library" reflect what the user is actually looking at, not the whole catalog.
+  // "In library" reflect what the user is actually looking at, not the whole catalog
   const selectAll       = () => setSelected(new Set(setsFiltered.map(s => s.id)))
   const selectInLibrary = () => setSelected(new Set(setsFiltered.filter(s => s.matchedKey).map(s => s.id)))
   const clearSelection  = () => setSelected(new Set())
@@ -1329,7 +1343,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
     }))
   }
 
-  // Apply a single poster/backdrop file (from the Posters/Backdrops tabs).
+  /** Applies a single poster/backdrop file (from the Posters/Backdrops tabs). */
   async function applySingle(s: MediuxUserSet, file: PosterInfo) {
     if (!s.matchedKey) return
     const key = `${s.id}:${file.url}`
@@ -1346,8 +1360,8 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
     setApplyMap(m => ({ ...m, [key]: { status: done ? 'done' : 'error', done, total: 1, error: lastError } }))
   }
 
+  /** Saves a weekly sync job for the selected sets, or the whole creator when none are selected. */
   async function scheduleWeekly() {
-    // Selected (visible) sets → sync just those; otherwise sync the creator's newest uploads.
     const chosen = setsFiltered.filter(s => selected.has(s.id))
     const useSelection = chosen.length > 0
     const urls = useSelection
@@ -1357,7 +1371,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
       id: crypto.randomUUID(),
       name: useSelection ? `Sync @${username} (${urls.length} sets)` : `Sync @${username}`,
       urls,
-      cronExpr: '0 9 * * 1',   // Mondays at 09:00
+      cronExpr: '0 9 * * 1',   // Mondays at 09:00 local time
       enabled: true,
     }
     await window.api.scheduler.save(job)
@@ -1367,11 +1381,10 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
       : `Weekly sync saved - newest matching uploads apply automatically.`)
   }
 
-  // Scoped to the visible (search-filtered) sets so the toolbar counts track the view.
+  // Scoped to the visible (search-filtered) sets so the toolbar counts track the view
   const matchCount      = setsFiltered.filter(s => s.matchedKey).length
   const selectedVisible = setsFiltered.filter(s => selected.has(s.id)).length
 
-  // Render one set as a SetCard (shared by the Sets + Boxsets tabs).
   const renderSetCard = (s: MediuxUserSet) => {
     const isCurrent    = !!s.matchedKey && appliedIdx.currentByItem.get(s.matchedKey) === s.id
     const wasApplied   = appliedIdx.setIds.has(s.id)
@@ -1403,7 +1416,6 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
     )
   }
 
-  // Individual-file tabs (Posters / Backdrops / Title Cards)
   const fileItems = tab === 'posters' ? posterItems : tab === 'backdrops' ? backdropItems : tab === 'titlecards' ? titleCardItems : []
   const fileLightboxImages = useMemo<LightboxImage[]>(
     () => fileItems.map(({ set, poster }) => ({ url: poster.url, label: set.year ? `${set.title} (${set.year})` : set.title, caption: poster.episode != null ? `Episode ${poster.episode}` : undefined })),
@@ -1450,7 +1462,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
         </div>
       </div>
 
-      {/* Tabs + title filter — skeleton on first load, real once sets exist */}
+      {/* Tabs + title filter: skeleton on first load, real once sets exist */}
       {!error && loading && sets.length === 0 && <SkeletonTabs />}
       {!error && sets.length > 0 && (
         <div className={styles.creatorTabsRow}>
@@ -1521,9 +1533,9 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
       </AnimatePresence>
 
       <div className={styles.creatorSetsList}>
-        {/* Gate the list until the background auto-load settles, so it appears once
-            (already sorted) instead of visibly re-sorting as each page arrives —
-            showing skeleton cards meanwhile so the layout stays put. */}
+        {/* Gate the list until the background auto-load settles, so it appears
+            once (already sorted) instead of visibly re-sorting as each page
+            arrives; skeleton cards keep the layout in place meanwhile */}
         {(loading || loadingMore) && !error &&
           Array.from({ length: 6 }).map((_, i) => <SetCardSkeleton key={`skel-${i}`} />)}
         {error && <div className={styles.panelNotice}><AlertCircle size={20} /><p>{error}</p></div>}
@@ -1531,14 +1543,14 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
           <div className={styles.panelNotice}><ImageIcon size={20} /><p>No sets found for this creator.</p></div>
         )}
 
-        {/* Sets tab → SetCards */}
+        {/* Sets tab */}
         {!loading && !loadingMore && !error && sets.length > 0 && tab === 'sets' && (
           setsFiltered.length
             ? setsFiltered.map(renderSetCard)
             : <div className={styles.panelNotice}><ImageIcon size={20} /><p>{query ? (searching ? 'Searching their full catalog…' : 'No matches found — try a different title.') : 'No sets loaded yet.'}</p></div>
         )}
 
-        {/* Posters / Backdrops / Title Cards tabs → individual files */}
+        {/* Posters / Backdrops / Title Cards tabs: individual files */}
         {!loading && !loadingMore && !error && (tab === 'posters' || tab === 'backdrops' || tab === 'titlecards') && (
           fileItems.length ? (
             <div className={`${styles.fileGrid} ${tab === 'backdrops' || tab === 'titlecards' ? styles.fileGridWide : ''}`}>

@@ -2,6 +2,7 @@ import { PlugZap, ArrowRight } from 'lucide-react'
 import { useAppContext } from '../../app/AppContext'
 import styles from './PlexConnectBanner.module.css'
 
+/** Banner prompting the user to connect Plex in Settings. */
 export default function PlexConnectBanner() {
   const { navigate } = useAppContext()
 

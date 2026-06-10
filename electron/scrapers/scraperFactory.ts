@@ -6,18 +6,21 @@ import { Logger } from '../services/logger'
 import { ConfigService } from '../services/config'
 import type { PosterInfo, ScrapeProgress } from '../ipc/types'
 
-// --- URL classification -------------------------------------------------------
-
 export type ScraperSource = 'posterdb' | 'mediux' | 'unknown'
 
+/**
+ * Classifies a URL by its scraping source site.
+ *
+ * @param url - URL to inspect.
+ * @returns posterdb, mediux, or unknown.
+ */
 export function classifyUrl(url: string): ScraperSource {
   if (url.includes('theposterdb.com')) return 'posterdb'
   if (url.includes('mediux.pro')) return 'mediux'
   return 'unknown'
 }
 
-// --- Scraper instances (reused across calls within a session) -----------------
-
+// Scraper instances are reused across calls within a session
 let _posterdb: PosterdbScraper | null = null
 let _mediux: MediuxScraper | null = null
 let _aborted = false
@@ -38,12 +41,18 @@ function getScraper(source: ScraperSource): BaseScraper | null {
   return null
 }
 
-// --- Factory ------------------------------------------------------------------
-
 export type ProgressCallback = (progress: ScrapeProgress) => void
 
+/** Routes scrape requests to the right site scraper and manages their shared lifecycle. */
 export const ScraperFactory = {
-  // -- Scrape a single URL ----------------------------------------------------
+  /**
+   * Scrapes a single URL, reporting progress along the way.
+   *
+   * @param url - Page to scrape.
+   * @param onProgress - Receives status transitions for the UI.
+   * @param workerId - Worker slot shown in progress events.
+   * @returns The posters found, empty on failure or unsupported URLs.
+   */
   async scrapeUrl(
     url: string,
     onProgress: ProgressCallback,
@@ -73,7 +82,13 @@ export const ScraperFactory = {
     }
   },
 
-  // -- Scrape multiple URLs with concurrency cap ------------------------------
+  /**
+   * Scrapes multiple URLs concurrently, capped at the configured worker count.
+   *
+   * @param urls - Pages to scrape.
+   * @param onProgress - Receives status transitions for the UI.
+   * @returns Posters keyed by their source URL.
+   */
   async scrapeMany(
     urls: string[],
     onProgress: ProgressCallback,
@@ -96,7 +111,7 @@ export const ScraperFactory = {
     return results
   },
 
-  // -- Abort all in-flight scrapes --------------------------------------------
+  /** Aborts all in-flight scrapes. */
   abort(): void {
     _aborted = true
     _posterdb?.abort()
@@ -104,7 +119,7 @@ export const ScraperFactory = {
     Logger.info('ScraperFactory', 'Scrape session aborted')
   },
 
-  // -- Close browser instances (end of session) -------------------------------
+  /** Closes scraper browser instances at the end of a session. */
   async close(): Promise<void> {
     await Promise.allSettled([
       _posterdb?.close(),
@@ -116,27 +131,55 @@ export const ScraperFactory = {
     Logger.info('ScraperFactory', 'Scraper browsers closed')
   },
 
-  // -- Library browser: list MediUX sets for a TMDB title --------------------
+  /**
+   * Lists MediUX sets for a TMDB title (library browser).
+   *
+   * @param tmdbId - Resolved TMDB id.
+   * @param type - Media type of the title.
+   * @returns Set summaries with uploader metadata.
+   */
   async browseMediux(tmdbId: string, type: 'movie' | 'show') {
     return getMediux().browseSets(tmdbId, type)
   },
 
-  // -- Library browser: list a creator's sets (cumulative page N = first N×12) -
+  /**
+   * Lists a MediUX creator's sets.
+   *
+   * @param username - Creator to browse.
+   * @param page - Cumulative page; page N returns their first N*12 sets.
+   * @returns The creator's sets with parsed title/year per set.
+   */
   async browseMediuxUser(username: string, page = 1) {
     return getMediux().browseUserSets(username, page)
   },
 
-  // -- Quick validation helper for the UI ------------------------------------
+  /**
+   * Checks whether a URL belongs to a supported scraping source.
+   *
+   * @param url - URL to inspect.
+   * @returns true for theposterdb.com and mediux.pro URLs.
+   */
   isSupported(url: string): boolean {
     return classifyUrl(url) !== 'unknown'
   },
 
+  /**
+   * Returns the URL's source site.
+   *
+   * @param url - URL to inspect.
+   * @returns The source, or null when unsupported.
+   */
   sourceOf(url: string): 'posterdb' | 'mediux' | null {
     const src = classifyUrl(url)
     return src === 'unknown' ? null : src
   },
 
-  // -- Expose internals so the scrape tab can show URL-type metadata ----------
+  /**
+   * Describes a URL's source and page type for display in the scrape tab.
+   *
+   * @param url - URL to inspect.
+   * @returns The source plus a page-type hint when recognisable.
+   */
   describeUrl(url: string): { source: ScraperSource; type?: string } {
     const source = classifyUrl(url)
     if (source === 'posterdb') return { source, type: posterdbUrlType(url) }

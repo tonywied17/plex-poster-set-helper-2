@@ -9,8 +9,6 @@ import type {
   LibrarySection, SectionItemsReq, SectionItemsRes, LibraryItem,
 } from '../ipc/types'
 
-// --- Internal state -----------------------------------------------------------
-
 interface PlexConnection {
   baseUrl: string
   token: string
@@ -20,8 +18,12 @@ interface PlexConnection {
 
 let _conn: PlexConnection | null = null
 
-// --- Helpers ------------------------------------------------------------------
-
+/**
+ * Builds the standard X-Plex-* headers for Plex Media Server requests.
+ *
+ * @param token - Plex auth token.
+ * @returns Header map to spread into fetch options.
+ */
 function plexHeaders(token: string): Record<string, string> {
   return {
     'X-Plex-Token': token,
@@ -31,6 +33,15 @@ function plexHeaders(token: string): Record<string, string> {
   }
 }
 
+/**
+ * Fetches a Plex API path, throwing on non-2xx responses.
+ *
+ * @param baseUrl - Server base URL.
+ * @param token - Plex auth token.
+ * @param path - API path beginning with a slash.
+ * @param options - Extra fetch options merged over the defaults.
+ * @returns Parsed JSON when possible, otherwise the raw text or an empty object.
+ */
 async function plexFetch(
   baseUrl: string,
   token: string,
@@ -51,9 +62,14 @@ async function plexFetch(
   try { return JSON.parse(text) } catch { return text }
 }
 
-// Extract external IDs (tmdb/tvdb/imdb) from a Plex item's guids. Handles both
-// the modern Guid[] array (plex agent) and legacy single-guid strings such as
-// com.plexapp.agents.themoviedb://1234, com.plexapp.agents.hama://tvdb-458912.
+/**
+ * Extracts external IDs (tmdb/tvdb/imdb) from a Plex item's guids. Handles both
+ * the modern Guid[] array (plex agent) and legacy single-guid strings such as
+ * com.plexapp.agents.themoviedb://1234 or com.plexapp.agents.hama://tvdb-458912.
+ *
+ * @param m - Raw Plex metadata node.
+ * @returns Whichever of tmdbId / tvdbId / imdbId could be parsed.
+ */
 function extractGuids(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   m: any,
@@ -74,6 +90,14 @@ function extractGuids(
   return out
 }
 
+/**
+ * Maps raw Plex metadata into a PlexItem.
+ *
+ * @param m - Raw Plex metadata node.
+ * @param libraryTitle - Title of the owning library.
+ * @param libraryType - Library type, which decides the item type.
+ * @returns The normalised item.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapMetadata(m: any, libraryTitle: string, libraryType: 'movie' | 'show'): PlexItem {
   return {
@@ -88,12 +112,21 @@ function mapMetadata(m: any, libraryTitle: string, libraryType: 'movie' | 'show'
   }
 }
 
-// --- Service ------------------------------------------------------------------
-
+/** Talks to the connected Plex Media Server: lookups, poster upload/reset, and stats. */
 export const PlexService = {
+  /**
+   * Returns the active connection.
+   *
+   * @returns Connection details, or null when not connected.
+   */
   getConnection: () => _conn,
 
-  // -- Connect -----------------------------------------------------------------
+  /**
+   * Connects to a Plex server, caching its name and library list on success.
+   *
+   * @param req - Server base URL and token.
+   * @returns Success flag with server name and library count, or an error message.
+   */
   async connect(req: ConnectReq): Promise<ConnectRes> {
     try {
       const data = await plexFetch(req.baseUrl, req.token, '/') as { MediaContainer?: { friendlyName?: string } }
@@ -110,7 +143,13 @@ export const PlexService = {
     }
   },
 
-  // -- Libraries ----------------------------------------------------------------
+  /**
+   * Fetches the server's movie and show libraries.
+   *
+   * @param baseUrl - Server base URL.
+   * @param token - Plex auth token.
+   * @returns The filtered library list.
+   */
   async fetchLibraries(baseUrl: string, token: string): Promise<Library[]> {
     const data = await plexFetch(baseUrl, token, '/library/sections') as {
       MediaContainer?: { Directory?: Array<{ key: string; title: string; type: string; agent?: string }> }
@@ -120,6 +159,13 @@ export const PlexService = {
       .map(d => ({ key: d.key, title: d.title, type: d.type as 'movie' | 'show', agent: d.agent }))
   },
 
+  /**
+   * Returns the item count for a library section without fetching its items.
+   *
+   * @param key - Section key.
+   * @param type - Section media type.
+   * @returns The total item count, or 0 when not connected.
+   */
   async getLibraryCount(key: string, type: 'movie' | 'show'): Promise<number> {
     if (!_conn) return 0
     const { baseUrl, token } = _conn
@@ -131,7 +177,13 @@ export const PlexService = {
     return data?.MediaContainer?.totalSize ?? data?.MediaContainer?.size ?? 0
   },
 
-  // -- Find item (fuzzy) --------------------------------------------------------
+  /**
+   * Finds a library item by title (and optional year), preferring exact
+   * matches and falling back to a fuzzy search.
+   *
+   * @param req - Title, optional year, library include-list, and media type.
+   * @returns The best match, or null when nothing qualifies.
+   */
   async findInLibrary(req: FindItemReq): Promise<PlexItem | null> {
     if (!_conn) return null
     const { baseUrl, token, libraries: allLibs } = _conn
@@ -162,13 +214,11 @@ export const PlexService = {
     }
     if (!candidates.length) return null
 
-    // Exact title + year match
     const exact = candidates.find(
       i => i.title.toLowerCase() === title.toLowerCase() && (!year || i.year === year),
     )
     if (exact) return exact
 
-    // Exact title only (when no year given or source year is unreliable)
     if (!year) {
       const exactTitle = candidates.find(i => i.title.toLowerCase() === title.toLowerCase())
       if (exactTitle) return exactTitle
@@ -184,18 +234,23 @@ export const PlexService = {
     return fuse.search(title)[0]?.item ?? null
   },
 
-  // -- Find a Plex Collection by name (for boxset collection art) ----------------
-  // MediUX boxsets include "collection sets" (e.g. "Toy Story Collection") whose
-  // posters apply to a Plex Collection object, not an individual movie. Plex
-  // auto-names these collections after the TMDB collection, so we match by title.
+  /**
+   * Finds a Plex Collection by name (for boxset collection art). MediUX boxsets
+   * include "collection sets" (e.g. "Toy Story Collection") whose posters apply
+   * to a Plex Collection object, not an individual movie. Plex auto-names these
+   * collections after the TMDB collection, so matching is done by title.
+   *
+   * @param req - The collection name to match.
+   * @returns The matched collection, or null.
+   */
   async findCollection(req: FindCollectionReq): Promise<PlexCollection | null> {
     if (!_conn) return null
     const { baseUrl, token, libraries: allLibs } = _conn
     const title = req.title.trim()
     if (!title) return null
 
-    // Also try a "<name>" without a trailing "Collection" word, since some users
-    // rename Plex collections (e.g. "Toy Story" instead of "Toy Story Collection").
+    // Some users rename Plex collections without the trailing "Collection" word
+    // (e.g. "Toy Story" instead of "Toy Story Collection")
     const altTitle = title.replace(/\s+Collection$/i, '').trim()
 
     const candidates: PlexCollection[] = []
@@ -224,17 +279,20 @@ export const PlexService = {
 
     const lc = title.toLowerCase()
     const lcAlt = altTitle.toLowerCase()
-    // Exact match on the full name, then on the suffix-stripped name.
     const exact = candidates.find(c => c.title.toLowerCase() === lc)
       ?? candidates.find(c => c.title.toLowerCase() === lcAlt)
     if (exact) return exact
 
-    // Fuzzy fallback on the full collection name.
     const fuse = new Fuse(candidates, { keys: ['title'], threshold: 0.3 })
     return fuse.search(title)[0]?.item ?? null
   },
 
-  // -- Library browser: sections ------------------------------------------------
+  /**
+   * Returns browsable movie/show sections, honouring the excluded-libraries
+   * setting.
+   *
+   * @returns Sections available to the library browser.
+   */
   async getSections(): Promise<LibrarySection[]> {
     if (!_conn) return []
     const excluded = ConfigService.get().excludedLibraries ?? []
@@ -243,7 +301,12 @@ export const PlexService = {
       .map(l => ({ key: l.key, title: l.title, type: l.type as 'movie' | 'show' }))
   },
 
-  // -- Library browser: paginated items with external IDs -----------------------
+  /**
+   * Returns a page of section items with external IDs and thumb URLs.
+   *
+   * @param req - Section key, offset/limit, and optional title filter.
+   * @returns The page of items plus the section's total count.
+   */
   async getSectionItems(req: SectionItemsReq): Promise<SectionItemsRes> {
     if (!_conn) return { items: [], total: 0 }
     const { baseUrl, token, libraries } = _conn
@@ -286,7 +349,13 @@ export const PlexService = {
     return { items, total: mc?.totalSize ?? mc?.size ?? items.length }
   },
 
-  // -- Library browser: resolve a TMDB id (direct, or via tvdb/imdb + key) -------
+  /**
+   * Resolves an item's TMDB id: direct, or via tvdb/imdb lookup when a TMDB
+   * API key is configured.
+   *
+   * @param item - Library item carrying whatever external IDs Plex exposed.
+   * @returns The TMDB id, or null when it can't be resolved.
+   */
   async resolveTmdbId(item: LibraryItem): Promise<string | null> {
     if (item.tmdbId) return item.tmdbId
 
@@ -314,7 +383,12 @@ export const PlexService = {
     }
   },
 
-  // -- Labeled items ------------------------------------------------------------
+  /**
+   * Returns all items tagged with the given label across every library.
+   *
+   * @param req - The label to filter on.
+   * @returns Matching items with display-ready thumb URLs.
+   */
   async getLabeledItems(req: LabelReq): Promise<PlexItem[]> {
     if (!_conn) return []
     const { baseUrl, token, libraries: allLibs } = _conn
@@ -342,10 +416,18 @@ export const PlexService = {
     return items
   },
 
-  // -- Resolve the real target (show / season / episode) for a poster ----------
-  // Given the show's ratingKey plus optional season/episode hints, walk the
-  // Plex hierarchy to find the ratingKey the poster should actually apply to,
-  // and whether it's a poster or a background ("art", for backdrops).
+  /**
+   * Resolves the real upload target for a poster. Given the show's ratingKey
+   * plus optional season/episode hints, walks the Plex hierarchy to find the
+   * ratingKey the poster should actually apply to, and whether it's a poster
+   * or a background ("art", for backdrops).
+   *
+   * @param showKey - The show or movie ratingKey.
+   * @param season - Season number, or Cover / Backdrop markers.
+   * @param episode - Episode number within the season.
+   * @returns The target key and kind, or a skip result when the season/episode
+   *   doesn't exist in this library.
+   */
   async resolveTarget(
     showKey: string,
     season?: number | 'Cover' | 'Backdrop',
@@ -354,38 +436,32 @@ export const PlexService = {
     if (!_conn) return { key: showKey, kind: 'poster' }
     const { baseUrl, token } = _conn
 
-    // Backdrop → the show's background art
     if (season === 'Backdrop') return { key: showKey, kind: 'art' }
-
-    // Show-level cover / no season info → the show poster itself
     if (season == null || season === 'Cover') return { key: showKey, kind: 'poster' }
 
-    // Numeric season → find the season child by its index
     try {
       const seasonData = await plexFetch(baseUrl, token, `/library/metadata/${showKey}/children`) as {
         MediaContainer?: { Metadata?: Array<{ ratingKey: string; index?: number }> }
       }
       const seasons = seasonData?.MediaContainer?.Metadata ?? []
       const seasonNode = seasons.find(s => s.index === season)
-      // Season not in this library → skip rather than clobbering the show poster
-      // with a season poster / title card the user can't actually use.
+      // Skip rather than clobbering the show poster with a season poster /
+      // title card the user can't actually use
       if (!seasonNode) {
         Logger.warn('Plex', `Season ${season} not found under show ${showKey} - skipping`)
         return { kind: 'skip', reason: `Season ${season} not in library` }
       }
 
-      // No episode → the season poster
       if (episode == null) return { key: seasonNode.ratingKey, kind: 'poster' }
 
-      // Episode → find the episode child by its index
       const epData = await plexFetch(baseUrl, token, `/library/metadata/${seasonNode.ratingKey}/children`) as {
         MediaContainer?: { Metadata?: Array<{ ratingKey: string; index?: number }> }
       }
       const episodes = epData?.MediaContainer?.Metadata ?? []
       const epNode = episodes.find(e => e.index === episode)
-      // Episode not in this library → skip rather than overwriting the season
-      // poster with this episode's title card (the cause of "all cards on the
-      // season poster" when a set has more episodes than Plex has).
+      // Skip rather than overwriting the season poster with this episode's
+      // title card (the cause of "all cards on the season poster" when a set
+      // has more episodes than Plex has)
       if (!epNode) {
         Logger.warn('Plex', `S${season}E${episode} not found - skipping`)
         return { kind: 'skip', reason: `S${season}E${episode} not in library` }
@@ -397,7 +473,13 @@ export const PlexService = {
     }
   },
 
-  // -- Upload poster ------------------------------------------------------------
+  /**
+   * Downloads a poster image and uploads it to the resolved target (show,
+   * season, episode, or background art), tagging the item with its source label.
+   *
+   * @param req - Item key, image URL, source site, and season/episode hints.
+   * @returns Success flag, with an error message on failure or skip.
+   */
   async uploadPoster(req: UploadReq): Promise<UploadRes> {
     if (!_conn) return { success: false, error: 'Not connected to Plex' }
     const { baseUrl, token } = _conn
@@ -405,17 +487,14 @@ export const PlexService = {
     const labelTag = source === 'mediux' ? 'MediUX' : 'ThePosterDB'
 
     try {
-      // Resolve the real target (season/episode) before uploading
       const target = await PlexService.resolveTarget(itemKey, season, episode)
-      // The requested season/episode doesn't exist in this library - skip cleanly
-      // instead of misapplying the art to a parent (season/show) poster.
+      // Skip cleanly instead of misapplying the art to a parent (season/show) poster
       if (target.kind === 'skip') {
         Logger.scrape('Plex', `Skipped upload - ${target.reason} (key ${itemKey})`)
         return { success: false, error: target.reason }
       }
       const endpoint = target.kind === 'art' ? 'arts' : 'posters'
 
-      // Download image from source URL
       const imgRes = await fetch(imageUrl, {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
       })
@@ -423,7 +502,6 @@ export const PlexService = {
       const imgBuf = Buffer.from(await imgRes.arrayBuffer())
       const contentType = imgRes.headers.get('content-type') ?? 'image/jpeg'
 
-      // Upload binary to the resolved target (poster or background art)
       await plexFetch(baseUrl, token, `/library/metadata/${target.key}/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': contentType },
@@ -448,19 +526,23 @@ export const PlexService = {
     }
   },
 
-  // -- Reset poster -------------------------------------------------------------
+  /**
+   * Restores an item's original provider poster, removes source labels, and
+   * optionally recurses into children (seasons and episodes).
+   *
+   * @param req - Item key and whether to reset hierarchically.
+   */
   async resetPoster(req: ResetReq): Promise<void> {
     if (!_conn) throw new Error('Not connected to Plex')
     const { baseUrl, token } = _conn
     const { itemKey, hierarchical } = req
 
-    // Get available posters and select the original provider poster
     const postersData = await plexFetch(baseUrl, token, `/library/metadata/${itemKey}/posters`) as {
       MediaContainer?: { Metadata?: Array<{ ratingKey?: string; thumb?: string; selected?: boolean; provider?: string }> }
     }
     const posters = postersData?.MediaContainer?.Metadata ?? []
 
-    // Find any poster that isn't from the custom upload provider
+    // Any poster that isn't from the custom upload provider
     const original = posters.find(p => {
       const src = p.provider ?? ''
       return src !== 'custom' && src !== ''
@@ -477,7 +559,6 @@ export const PlexService = {
       }
     }
 
-    // Remove source labels
     for (const label of ['MediUX', 'ThePosterDB']) {
       try {
         await plexFetch(
@@ -490,7 +571,6 @@ export const PlexService = {
       }
     }
 
-    // Recurse into children (seasons → episodes) when hierarchical
     if (hierarchical) {
       try {
         const childData = await plexFetch(baseUrl, token, `/library/metadata/${itemKey}/children`) as {
@@ -507,7 +587,11 @@ export const PlexService = {
     Logger.info('Plex', `Poster reset - key ${itemKey}`)
   },
 
-  // -- Stats --------------------------------------------------------------------
+  /**
+   * Counts labeled items per source and media type for the dashboard.
+   *
+   * @returns Counts keyed by mediux, posterdb, total, movies, and shows.
+   */
   async getStats(): Promise<Record<string, number>> {
     const [mediuxItems, posterdbItems] = await Promise.all([
       PlexService.getLabeledItems({ label: 'MediUX' }),
@@ -523,7 +607,12 @@ export const PlexService = {
     }
   },
 
-  // -- Auto-reconnect from saved config -----------------------------------------
+  /**
+   * Auto-reconnects from saved config; clears the token if the server rejects
+   * it (401).
+   *
+   * @returns Success flag with the server name, or tokenInvalid when re-auth is needed.
+   */
   async tryRestoreFromConfig(): Promise<{ success: boolean; serverName?: string; tokenInvalid?: boolean }> {
     const cfg = ConfigService.get()
     if (!cfg.baseUrl || !cfg.token) return { success: false }

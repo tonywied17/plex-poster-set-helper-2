@@ -21,7 +21,8 @@ export interface FindItemReq {
   title: string
   year?: number
   libraries: string[]
-  type?: 'movie' | 'show'   // restrict search to this library type (avoids show↔movie cross-matches)
+  /** Restrict search to this library type (avoids show/movie cross-matches). */
+  type?: 'movie' | 'show'
 }
 
 export interface FindCollectionReq {
@@ -29,7 +30,8 @@ export interface FindCollectionReq {
 }
 
 export interface PlexCollection {
-  key: string                 // collection ratingKey
+  /** Collection ratingKey. */
+  key: string
   title: string
   libraryTitle: string
   thumb?: string
@@ -49,12 +51,19 @@ export interface PlexItem {
 }
 
 export interface UploadReq {
-  itemKey: string                              // resolved show/movie ratingKey
+  /** Resolved show/movie ratingKey. */
+  itemKey: string
   imageUrl: string
   source: 'mediux' | 'posterdb'
-  // Routing hints - when present, the poster is applied to the matching
-  // season/episode under itemKey instead of the show itself.
+  /**
+   * Routing hint - when present, the poster is applied to the matching
+   * season under itemKey instead of the show itself.
+   */
   season?: number | 'Cover' | 'Backdrop'
+  /**
+   * Routing hint - when present, the poster is applied to the matching
+   * episode under itemKey instead of the show itself.
+   */
   episode?: number
 }
 
@@ -79,14 +88,18 @@ export interface ScrapeReq {
 
 export interface PosterInfo {
   title: string
-  url: string            // full-res / download URL
-  thumbUrl?: string      // thumbnail for UI display (may differ from url on PosterDB)
+  /** Full-res / download URL. */
+  url: string
+  /** Thumbnail for UI display (may differ from url on PosterDB). */
+  thumbUrl?: string
   source: 'mediux' | 'posterdb'
   year?: number
   season?: number | 'Cover' | 'Backdrop'
   episode?: number
-  isCollectionMember?: boolean  // poster belongs to an individual movie inside a boxset/collection set
-  isCollection?: boolean        // poster is art for a Plex Collection object (match by collection name, not a movie/show)
+  /** Poster belongs to an individual movie inside a boxset/collection set. */
+  isCollectionMember?: boolean
+  /** Poster is art for a Plex Collection object (match by collection name, not a movie/show). */
+  isCollection?: boolean
 }
 
 export interface ScrapeProgress {
@@ -124,18 +137,27 @@ export interface AppConfig {
   plexAccountEmail?: string
   plexAccountThumb?: string
   logDrawerHeight: number
-  plexServerName?: string  // friendly name of the connected Plex server
+  /** Friendly name of the connected Plex server. */
+  plexServerName?: string
   scheduledJobs?: ScheduledJob[]
-  tmdbApiKey?: string      // optional - enables tvdb/imdb→tmdb resolution for legacy/HAMA libraries
-  mediuxSubscriptions?: string[]  // followed MediUX usernames
-  appliedSetIds?: string[]        // (legacy) set ids already applied
-  appliedPosters?: AppliedRecord[] // local history of applied poster sets (source of truth for Reset)
-  trayNotice?: boolean            // show the "minimized to tray" notification (default true)
-  excludedLibraries?: string[]    // library titles excluded from all operations (empty = include all)
+  /** Optional - enables tvdb/imdb to tmdb resolution for legacy/HAMA libraries. */
+  tmdbApiKey?: string
+  /** Followed MediUX usernames. */
+  mediuxSubscriptions?: string[]
+  /** @deprecated Set ids already applied; superseded by appliedPosters. */
+  appliedSetIds?: string[]
+  /** Local history of applied poster sets (source of truth for Reset). */
+  appliedPosters?: AppliedRecord[]
+  /** Show the "minimized to tray" notification (default true). */
+  trayNotice?: boolean
+  /** Library titles excluded from all operations (empty = include all). */
+  excludedLibraries?: string[]
 }
 
-// One applied poster-set, recorded locally so tracking/reset never depends on
-// fragile Plex label round-trips.
+/**
+ * One applied poster-set, recorded locally so tracking/reset never depends on
+ * fragile Plex label round-trips.
+ */
 export interface AppliedRecord {
   itemKey: string
   title: string
@@ -146,8 +168,10 @@ export interface AppliedRecord {
   thumb?: string
   setId?: string
   uploader?: string
-  posterUrls?: string[]           // exact poster image URLs applied (per-poster tracking)
-  appliedAt: string               // ISO timestamp
+  /** Exact poster image URLs applied (per-poster tracking). */
+  posterUrls?: string[]
+  /** ISO timestamp. */
+  appliedAt: string
 }
 
 export interface LogEntry {
@@ -162,11 +186,13 @@ export interface UpdateInfo {
   available: boolean
   version?: string
   releaseNotes?: string
-  mode?: 'desktop' | 'docker'   // desktop = in-app auto-update; docker = manual container update
-  releaseUrl?: string           // link to the GitHub release (docker mode)
+  /** desktop = in-app auto-update; docker = manual container update. */
+  mode?: 'desktop' | 'docker'
+  /** Link to the GitHub release (docker mode). */
+  releaseUrl?: string
 }
 
-// Where/how the app is running, so the renderer can tailor the update UX.
+/** Where/how the app is running, so the renderer can tailor the update UX. */
 export interface AppEnv {
   packaged: boolean
   container: boolean
@@ -174,21 +200,26 @@ export interface AppEnv {
   repoUrl: string
 }
 
-// Download progress pushed from electron-updater while a new version downloads.
+/** Download progress pushed from electron-updater while a new version downloads. */
 export interface UpdateProgress {
-  percent: number          // 0-100
-  transferred: number      // bytes
-  total: number            // bytes
+  /** 0-100. */
+  percent: number
+  /** Bytes transferred so far. */
+  transferred: number
+  /** Total bytes. */
+  total: number
   bytesPerSecond: number
 }
 
 export interface PlexAuthStatus {
   status: 'idle' | 'waiting' | 'authorized' | 'timeout' | 'error'
   pin?: string
-  authUrl?: string      // open this to sign in (shown when no browser can be opened, e.g. Docker)
+  /** Open this to sign in (shown when no browser can be opened, e.g. Docker). */
+  authUrl?: string
   token?: string
   error?: string
-  serverName?: string   // set when auto-connect succeeds at auth time
+  /** Set when auto-connect succeeds at auth time. */
+  serverName?: string
 }
 
 export interface BrowserStatus {
@@ -209,11 +240,11 @@ export interface ScheduledJob {
 }
 
 export interface SchedulerEngineStatus {
-  external: boolean   // a 24/7 headless engine elsewhere is running this config's jobs
-  updatedAt?: string  // last heartbeat from that engine
+  /** A 24/7 headless engine elsewhere is running this config's jobs. */
+  external: boolean
+  /** Last heartbeat from that engine. */
+  updatedAt?: string
 }
-
-// --- Library browser (AURA-style) ---------------------------------------------
 
 export interface LibrarySection {
   key: string
@@ -222,11 +253,13 @@ export interface LibrarySection {
 }
 
 export interface LibraryItem {
-  key: string                 // Plex ratingKey
+  /** Plex ratingKey. */
+  key: string
   title: string
   year?: number
   type: 'movie' | 'show'
-  thumb?: string              // full, token-bearing transcode URL for the UI
+  /** Full, token-bearing transcode URL for the UI. */
+  thumb?: string
   tmdbId?: string
   tvdbId?: string
   imdbId?: string
@@ -244,7 +277,7 @@ export interface SectionItemsRes {
   total: number
 }
 
-// One MediUX set available for a given title, with its uploader.
+/** One MediUX set available for a given title, with its uploader. */
 export interface MediuxSetSummary {
   id: string
   setName: string
@@ -253,9 +286,12 @@ export interface MediuxSetSummary {
   posterCount: number
   backdropCount: number
   titleCardCount: number
-  previewUrl?: string         // representative poster thumbnail
-  posters: PosterInfo[]       // every file in the set, ready to apply
-  mediaType?: 'movie' | 'show' // detected from the set's files (title cards/seasons → show)
+  /** Representative poster thumbnail. */
+  previewUrl?: string
+  /** Every file in the set, ready to apply. */
+  posters: PosterInfo[]
+  /** Detected from the set's files (title cards/seasons imply a show). */
+  mediaType?: 'movie' | 'show'
 }
 
 export interface BrowseSetsReq {
@@ -265,22 +301,27 @@ export interface BrowseSetsReq {
   imdbId?: string
 }
 
-// A set from a creator's page, with library-match info resolved.
+/** A set from a creator's page, with library-match info resolved. */
 export interface MediuxUserSet extends MediuxSetSummary {
-  title: string            // parsed media title (for matching)
+  /** Parsed media title (for matching). */
+  title: string
   year?: number
   dateUpdated?: string
-  matchedKey?: string      // Plex ratingKey if this title is in the library
+  /** Plex ratingKey if this title is in the library. */
+  matchedKey?: string
   matchedType?: 'movie' | 'show'
 }
 
 export interface UserSetsReq {
   username: string
-  page?: number            // cumulative page (N = first N×12 sets); default 1
+  /** Cumulative page (N = first N*12 sets); default 1. */
+  page?: number
 }
 
-// Deep search: find a creator's sets for library titles matching a query — works
-// across the creator's ENTIRE catalog (not just the browse-capped first pages).
+/**
+ * Deep search: find a creator's sets for library titles matching a query - works
+ * across the creator's entire catalog (not just the browse-capped first pages).
+ */
 export interface CreatorSearchReq {
   username: string
   query: string
@@ -290,14 +331,17 @@ export interface UserSetsRes {
   username: string
   sets: MediuxUserSet[]
   page: number
-  hasMore: boolean         // a full page came back, so more likely exist
+  /** A full page came back, so more likely exist. */
+  hasMore: boolean
   error?: string
 }
 
 export interface BrowseSetsRes {
   sets: MediuxSetSummary[]
-  tmdbId?: string          // the resolved id (echoed back for the UI)
-  error?: string           // e.g. "no_tmdb" when the item can't be matched
+  /** The resolved id (echoed back for the UI). */
+  tmdbId?: string
+  /** e.g. "no_tmdb" when the item can't be matched. */
+  error?: string
 }
 
 export type IpcChannels = {
