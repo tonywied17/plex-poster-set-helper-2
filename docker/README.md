@@ -4,13 +4,19 @@ Run Plex Poster Helper on a server (unraid, a NAS, any computer with Docker) so 
 always available and can sync posters on a schedule. No coding required - follow the
 steps below in order.
 
-It comes as two containers. **Everyone starts with the GUI** - the headless one is an
-optional add-on you can bolt on later with a single command.
+**You only need one container: the GUI.** It's the full app in your browser, and it keeps
+running your schedules 24/7 for as long as it's up - so for most people it's the whole
+solution. You manage it from any device's browser over your network; the server itself
+never needs a monitor or a desktop.
 
-| | What it is | When to use |
+There's an **optional** second container - a headless (window-less) scheduler - for people
+who'd rather not keep the full desktop running just to fire jobs. It shares the GUI's
+sign-in and schedules automatically. Most users can ignore it.
+
+| | What it is | Do you need it? |
 | --- | --- | --- |
-| **GUI** | The full app, in your web browser | Start here - sign in to Plex, browse, follow creators, build schedules |
-| **Headless** | Just the scheduler, no window | Optional - keeps your schedules running 24/7; it shares the GUI's sign-in and schedules automatically |
+| **GUI** | The full app in your browser: sign in, browse, follow creators, build schedules. Also runs those schedules 24/7. | **Yes** - this is the app. |
+| **Headless** | A lighter, window-less copy of *just* the scheduler, sharing the GUI's sign-in and schedules. | **Optional** - only if you'd rather run the scheduler without keeping the full desktop alive. |
 
 **In this guide:**
 [Setup](#step-1---get-the-files) ·
@@ -71,7 +77,10 @@ When it finishes it prints a link. Open it in your browser:
 
 ### → http://localhost:3939
 
-(From another device, use your server's IP: `http://YOUR-SERVER-IP:3939`.)
+> **Running this on a server, NAS, or unraid box?** You don't sit at that machine. The GUI
+> is a web app, so open it from any device on your network - your laptop, phone, whatever -
+> at `http://YOUR-SERVER-IP:3939`. That browser tab *is* the app: sign in, browse, and build
+> schedules from there. The server itself never needs a screen or a desktop.
 
 ---
 
@@ -90,10 +99,12 @@ schedules and want them running around the clock, add the
 
 ---
 
-## Optional - keep schedules running 24/7 (headless)
+## Optional - keep schedules running 24/7 without the desktop (headless)
 
-The GUI container already runs your schedules while it's up. The **headless** image is a
-lighter, window-less version for people who want the scheduler running on its own.
+**You can skip this whole section.** The GUI container already runs your schedules 24/7
+while it's up - it's a complete solution on its own. The **headless** image is just a
+lighter, window-less alternative that runs *only* the scheduler, so you're not keeping a
+full KasmVNC desktop alive around the clock to fire a couple of cron jobs.
 
 It's a one-command add-on: the run scripts give the GUI and the scheduler the **same
 config volume** (`ppsh-config`), so the scheduler automatically reuses the Plex sign-in

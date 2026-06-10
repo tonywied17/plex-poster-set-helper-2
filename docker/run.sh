@@ -20,7 +20,15 @@ HL_IMAGE=plex-poster-helper:headless
 VOLUME=ppsh-config
 PORT="${PORT:-3939}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-TZONE="$(cat /etc/timezone 2>/dev/null || echo UTC)"
+# Timezone jobs run in: an explicit TZ wins, else read the host (Linux
+# /etc/timezone or the macOS /etc/localtime symlink), else fall back to UTC.
+detect_tz() {
+  if [[ -n "${TZ:-}" ]]; then echo "$TZ"; return; fi
+  if [[ -s /etc/timezone ]]; then cat /etc/timezone; return; fi
+  if [[ -L /etc/localtime ]]; then readlink /etc/localtime | sed -E 's#.*/zoneinfo/##'; return; fi
+  echo UTC
+}
+TZONE="$(detect_tz)"
 
 TARGET="" BUILD=0 STOP=0
 for arg in "$@"; do

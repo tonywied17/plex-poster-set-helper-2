@@ -27,12 +27,15 @@ $hlImage  = 'plex-poster-helper:headless'
 $volume   = 'ppsh-config'
 $root     = Split-Path $PSScriptRoot -Parent
 
-# Containers want an IANA timezone (America/New_York); convert the Windows id.
-$tz = 'UTC'
-try {
-  $iana = $null
-  if ([TimeZoneInfo]::TryConvertWindowsIdToIanaId((Get-TimeZone).Id, [ref]$iana)) { $tz = $iana }
-} catch { }
+# Timezone jobs run in: an explicit TZ env wins, otherwise convert the host's
+# Windows id to the IANA name (America/New_York) that containers expect.
+$tz = if ($env:TZ) { $env:TZ } else { 'UTC' }
+if (-not $env:TZ) {
+  try {
+    $iana = $null
+    if ([TimeZoneInfo]::TryConvertWindowsIdToIanaId((Get-TimeZone).Id, [ref]$iana)) { $tz = $iana }
+  } catch { }
+}
 
 if ($Stop) {
   if (-not $Target) { $Target = 'both' }
