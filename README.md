@@ -106,7 +106,13 @@ npm run dev
 
 ### Option 3 - Docker (servers / unraid / always‑on)
 
-Run the full app in your browser, or a lightweight headless scheduler that keeps your weekly syncs going 24/7.
+Run the full app in your browser, a lightweight headless scheduler that keeps your weekly syncs going 24/7, or both. One script handles all three - and the GUI and scheduler share a single config volume, so your Plex sign‑in and schedules carry over automatically:
+
+```bash
+./docker/run.sh            # GUI in your browser        (Windows: ./docker/run.ps1)
+./docker/run.sh headless   # 24/7 scheduler, no window
+./docker/run.sh both       # both, sharing one config
+```
 
 👉 **[Read the Docker guide →](docker/README.md)**
 
@@ -127,7 +133,45 @@ That's it - head to the **Library Browser** and start applying posters.
 The **Scheduler** lets you re‑apply a set on a repeating schedule, which is great for shows that keep getting new episodes (so new title cards get art too).
 
 - **In the desktop app (Windows / Linux):** schedules run whenever the app is open **and** while it's **minimized to the system tray** - close the window and it keeps running quietly in the background. You can also enable **launch on startup** so it's always there after a reboot. No server required.
-- **For 24/7 on a server:** set your schedules up once in the GUI, then run the **Docker headless** image to keep them firing around the clock without leaving anything open. See the [Docker guide](docker/README.md).
+- **For 24/7 on a server:** set your schedules up once in the Docker GUI, then add the headless scheduler with one command (`./docker/run.sh headless`) - it shares the GUI's config volume, so your sign‑in and schedules are picked up automatically. See the [Docker guide](docker/README.md).
+
+---
+
+## Updating
+
+Your data (Plex sign‑in, schedules, applied‑poster history) survives every update - the desktop app keeps it in your user profile, Docker keeps it in the config volume.
+
+**Desktop app (Windows / Linux):** the app checks GitHub and updates itself with one click - or grab the latest installer from [Releases](https://github.com/tonywied17/plex-poster-set-helper/releases/latest).
+
+**From source:**
+```bash
+git pull
+npm install
+npm run dev
+```
+
+**Docker - Windows (PowerShell):**
+```powershell
+git pull
+./docker/run.ps1 -Build              # GUI only
+./docker/run.ps1 both -Build         # GUI + headless scheduler
+```
+
+**Docker - Mac / Linux / unraid:**
+```bash
+git pull
+./docker/run.sh --build              # GUI only
+./docker/run.sh both --build         # GUI + headless scheduler
+```
+
+**Docker Compose:**
+```bash
+git pull
+docker compose -f docker/docker-compose.yml up -d --build gui                   # GUI only
+docker compose -f docker/docker-compose.yml --profile headless up -d --build    # GUI + headless
+```
+
+More detail (unraid, ports, volumes) in the [Docker guide](docker/README.md#updating-to-a-new-version).
 
 ---
 

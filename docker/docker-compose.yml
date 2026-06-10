@@ -1,7 +1,10 @@
-# Plex Poster Helper - choose ONE service (or run both against the same /config).
+# Plex Poster Helper - GUI, headless scheduler, or both.
+# Both services mount the same ./config folder, so the headless scheduler
+# automatically reuses the Plex sign-in and schedules you set up in the GUI.
 #
-#   docker compose -f docker/docker-compose.yml up -d gui        # browser GUI
-#   docker compose -f docker/docker-compose.yml up -d headless   # scheduler only
+#   docker compose -f docker/docker-compose.yml up -d gui                            # browser GUI
+#   docker compose -f docker/docker-compose.yml --profile headless up -d headless    # scheduler only
+#   docker compose -f docker/docker-compose.yml --profile headless up -d             # both
 
 services:
   # -- Full GUI in your browser (http://<host>:3000) --------------------------
@@ -24,6 +27,8 @@ services:
     restart: unless-stopped
 
   # -- Headless scheduler (no UI) ---------------------------------------------
+  # Shares ./config with the gui service: sign in and build schedules there
+  # first, then start this - it picks everything up automatically.
   headless:
     build:
       context: ..
@@ -32,9 +37,10 @@ services:
     container_name: plex-poster-helper-scheduler
     environment:
       - TZ=America/New_York
-      # Required (safeStorage is unavailable in containers):
-      - PLEX_BASEURL=http://192.168.1.10:32400
-      - PLEX_TOKEN=changeme
+      # Optional overrides - NOT needed when sharing ./config with the GUI.
+      # Only set these if you run headless standalone (no GUI container):
+      # - PLEX_BASEURL=http://192.168.1.10:32400
+      # - PLEX_TOKEN=your-plex-token
     volumes:
       - ./config:/config
     shm_size: "1gb"

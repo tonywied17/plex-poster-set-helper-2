@@ -1,46 +1,100 @@
-# Plex Poster Helper - one-command GUI launcher (Windows / PowerShell).
+# Plex Poster Helper - one-command Docker launcher (Windows / PowerShell).
 #
-#   ./docker/run.ps1            build (if needed) + start the GUI on :3939
-#   ./docker/run.ps1 -Build     force a rebuild first
-#   ./docker/run.ps1 -Stop      stop & remove the container (config is kept)
-#   ./docker/run.ps1 -Port 8095 use a different host port
+#   ./docker/run.ps1                    build (if needed) + start the GUI on :3939
+#   ./docker/run.ps1 headless           start the 24/7 scheduler (no window)
+#   ./docker/run.ps1 both               start the GUI and the scheduler together
+#   ./docker/run.ps1 [target] -Build    force a rebuild first
+#   ./docker/run.ps1 [target] -Stop     stop & remove container(s); default: both
+#   ./docker/run.ps1 -Port 8095         use a different host port for the GUI
 #
+# The GUI and the headless scheduler mount the same named volume (ppsh-config)
+# at /config, so the scheduler automatically reuses the Plex sign-in and the
+# schedules you set up in the GUI - no tokens or env vars to copy around.
 param(
+  [Parameter(Position = 0)]
+  [ValidateSet('gui', 'headless', 'both')]
+  [string]$Target,
   [switch]$Build,
   [switch]$Stop,
   [int]$Port = 3939
 )
 
 $ErrorActionPreference = 'Stop'
-$name  = 'plex-poster-helper'
-$image = 'plex-poster-helper:gui'
-$root  = Split-Path $PSScriptRoot -Parent
+$guiName  = 'plex-poster-helper'
+$guiImage = 'plex-poster-helper:gui'
+$hlName   = 'plex-poster-helper-scheduler'
+$hlImage  = 'plex-poster-helper:headless'
+$volume   = 'ppsh-config'
+$root     = Split-Path $PSScriptRoot -Parent
+
+# Containers want an IANA timezone (America/New_York); convert the Windows id.
+$tz = 'UTC'
+try {
+  $iana = $null
+  if ([TimeZoneInfo]::TryConvertWindowsIdToIanaId((Get-TimeZone).Id, [ref]$iana)) { $tz = $iana }
+} catch { }
 
 if ($Stop) {
-  docker rm -f $name 2>$null | Out-Null
-  Write-Host "Stopped and removed '$name'. Your config volume 'ppsh-config' is preserved." -ForegroundColor Yellow
+  if (-not $Target) { $Target = 'both' }
+  if ($Target -ne 'headless') { docker rm -f $guiName 2>$null | Out-Null }
+  if ($Target -ne 'gui')      { docker rm -f $hlName  2>$null | Out-Null }
+  Write-Host "Stopped ($Target). Config volume '$volume' is preserved." -ForegroundColor Yellow
   return
 }
+if (-not $Target) { $Target = 'gui' }
 
-# Build if the image is missing or -Build was passed
-$exists = docker images -q $image
-if ($Build -or -not $exists) {
-  Write-Host "Building $image (first build takes a few minutes)…" -ForegroundColor Cyan
-  docker build -f "$PSScriptRoot/Dockerfile" -t $image $root
+function Build-ImageIfNeeded([string]$Image, [string]$Dockerfile) {
+  $exists = docker images -q $Image
+  if ($Build -or -not $exists) {
+    Write-Host "Building $Image (first build takes a few minutes)…" -ForegroundColor Cyan
+    docker build -f "$PSScriptRoot/$Dockerfile" -t $Image $root
+    if ($LASTEXITCODE -ne 0) { throw "docker build failed for $Image" }
+  }
 }
 
-docker volume create ppsh-config | Out-Null
-docker rm -f $name 2>$null | Out-Null
+function Start-Gui {
+  Build-ImageIfNeeded $guiImage 'Dockerfile'
+  docker rm -f $guiName 2>$null | Out-Null
+  docker run -d --name $guiName `
+    -p "${Port}:3000" `
+    -e PUID=1000 -e PGID=1000 -e "TZ=$tz" `
+    -v "${volume}:/config" `
+    --shm-size=1g `
+    --restart unless-stopped `
+    $guiImage | Out-Null
+  Write-Host "✓ GUI running:        http://localhost:$Port" -ForegroundColor Green
+}
 
-docker run -d --name $name `
-  -p "${Port}:3000" `
-  -e PUID=1000 -e PGID=1000 -e TZ=(Get-TimeZone).Id `
-  -v ppsh-config:/config `
-  --shm-size=1g `
-  --restart unless-stopped `
-  $image | Out-Null
+function Start-Headless {
+  Build-ImageIfNeeded $hlImage 'Dockerfile.headless'
+  docker rm -f $hlName 2>$null | Out-Null
+  # Optional overrides; not needed when the GUI shares the same config volume.
+  $extra = @()
+  if ($env:PLEX_BASEURL) { $extra += @('-e', "PLEX_BASEURL=$($env:PLEX_BASEURL)") }
+  if ($env:PLEX_TOKEN)   { $extra += @('-e', "PLEX_TOKEN=$($env:PLEX_TOKEN)") }
+  docker run -d --name $hlName `
+    -e "TZ=$tz" `
+    -v "${volume}:/config" `
+    @extra `
+    --shm-size=1g `
+    --restart unless-stopped `
+    $hlImage | Out-Null
+  Write-Host "✓ Headless scheduler: running (shares the GUI's sign-in & schedules)" -ForegroundColor Green
+}
 
-Write-Host "`n✓ Plex Poster Helper is running." -ForegroundColor Green
-Write-Host "  Open: http://localhost:$Port" -ForegroundColor Green
-Write-Host "  Logs: docker logs -f $name"
-Write-Host "  Stop: ./docker/run.ps1 -Stop"
+docker volume create $volume | Out-Null
+
+switch ($Target) {
+  'gui'      { Start-Gui }
+  'headless' { Start-Headless }
+  'both'     { Start-Gui; Start-Headless }
+}
+
+Write-Host ''
+if ($Target -ne 'gui') {
+  Write-Host "  Tip:  sign in to Plex and build schedules in the GUI first -"
+  Write-Host "        the scheduler picks them up automatically from '$volume'."
+}
+Write-Host "  Logs: docker logs -f $guiName      (GUI)"
+Write-Host "        docker logs -f $hlName       (headless)"
+Write-Host '  Stop: ./docker/run.ps1 -Stop [gui|headless|both]'

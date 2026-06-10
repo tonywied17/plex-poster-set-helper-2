@@ -9,7 +9,7 @@ There are two ways to run it. **Start with the GUI.**
 | | What it is | When to use |
 | --- | --- | --- |
 | **GUI** | The full app, in your web browser | Start here - set up Plex, browse, follow creators, build schedules |
-| **Headless** | Just the scheduler, no window | Optional add-on - keeps your schedules running 24/7 in the background |
+| **Headless** | Just the scheduler, no window | Optional one-command add-on - keeps your schedules running 24/7, sharing the GUI's sign-in and schedules automatically |
 
 ---
 
@@ -53,6 +53,9 @@ Pick your OS - this builds the app the first time (a few minutes) and starts it:
 
 Prefer Docker Compose? `docker compose -f docker/docker-compose.yml up -d --build gui`
 
+> The same script can also start the 24/7 scheduler: `./docker/run.sh headless` or
+> `./docker/run.sh both`. More on that [below](#optional---keep-schedules-running-247-headless).
+
 When it finishes it prints a link. Open it in your browser:
 
 ### -> http://localhost:3939
@@ -76,13 +79,38 @@ That's it - open **Library Browser** and start applying posters.
 
 ## Updating to a new version
 
-Your settings, schedules, and history are safe (they live in a separate data volume).
+Your settings, schedules, and history are safe - they live in the config volume, which
+updates never touch. Updating is always the same three beats: **pull, rebuild, restart**
+(the commands below do all three).
 
+**Windows (PowerShell):**
+```powershell
+git pull
+./docker/run.ps1 -Build              # GUI only
+./docker/run.ps1 both -Build         # GUI + headless scheduler
+```
+
+**Mac / Linux:**
 ```bash
 git pull
-./docker/run.ps1            # Windows  (or ./docker/run.sh)
+./docker/run.sh --build              # GUI only
+./docker/run.sh both --build         # GUI + headless scheduler
 ```
-Compose: `docker compose -f docker/docker-compose.yml up -d --build gui`
+
+**Docker Compose:**
+```bash
+git pull
+docker compose -f docker/docker-compose.yml up -d --build gui                   # GUI only
+docker compose -f docker/docker-compose.yml --profile headless up -d --build    # GUI + headless
+```
+
+**unraid (template install):**
+```bash
+cd /path/to/plex-poster-set-helper
+git pull
+docker build -f docker/Dockerfile -t plex-poster-helper:gui .
+```
+Then restart the container from the **Docker** tab - it picks up the rebuilt image.
 
 ---
 
@@ -102,29 +130,57 @@ Compose: `docker compose -f docker/docker-compose.yml up -d --build gui`
 The GUI container already runs your schedules while it's up. The **headless** image is a
 lighter, window-less version for people who want the scheduler running on its own.
 
-**Workflow:**
+It's a one-command add-on: the run scripts give the GUI and the scheduler the **same
+config volume** (`ppsh-config`), so the scheduler automatically reuses the Plex sign-in
+and the schedules you built in the GUI. Nothing to copy, no tokens to hunt down.
 
-1. **First, build your schedules in the GUI** (Scheduler tab) and sign in to Plex there.
-2. Then start the headless container pointing at the **same data folder** - it picks up
-   your saved Plex credentials and jobs automatically:
+1. **First, sign in and build your schedules in the GUI** (Scheduler tab).
+2. Then add the scheduler:
 
+**Windows (PowerShell):**
+```powershell
+./docker/run.ps1 headless
+```
+**Mac / Linux / unraid:**
 ```bash
-docker compose -f docker/docker-compose.yml --profile headless up -d --build headless
+./docker/run.sh headless
 ```
 
-Or with plain Docker:
+Want everything up in one go (fresh server, after a reboot)? Use `both`:
+
 ```bash
-docker run -d --name ppsh-scheduler \
+./docker/run.sh both          # PowerShell: ./docker/run.ps1 both
+```
+
+<details>
+<summary><b>Docker Compose instead</b></summary>
+
+Both services in [`docker-compose.yml`](docker-compose.yml) share `./config`, so the
+same auto-sharing applies:
+
+```bash
+docker compose -f docker/docker-compose.yml --profile headless up -d --build headless   # scheduler only
+docker compose -f docker/docker-compose.yml --profile headless up -d --build            # GUI + scheduler
+```
+</details>
+
+<details>
+<summary><b>Plain <code>docker run</code> instead</b></summary>
+
+Mount the **same volume the GUI uses** (`ppsh-config` if you used the run scripts):
+
+```bash
+docker run -d --name plex-poster-helper-scheduler \
   -e TZ=America/New_York \
-  -v /path/to/your/config:/config \
+  -v ppsh-config:/config \
   --shm-size=1g --restart unless-stopped \
   plex-poster-helper:headless
 ```
+</details>
 
-> **Tip:** If the headless container shares the same `/config` volume as the GUI, it
-> automatically reuses the Plex credentials you signed in with — no env vars needed.
-> `PLEX_BASEURL` and `PLEX_TOKEN` are optional overrides useful for first-run or
-> environments where you can't share a volume.
+> **Running headless without the GUI?** Set `PLEX_BASEURL` and `PLEX_TOKEN` env vars so
+> it knows where to connect. They're optional overrides - never needed when the GUI
+> shares the config volume.
 
 **Settings explained:**
 
@@ -142,6 +198,9 @@ docker run -d --name ppsh-scheduler \
   timezone that 9:00 is in** using `TZ`.
 - If you don't set `TZ`, the container uses **UTC** - so "9:00" would fire at 9:00 UTC,
   which may be the middle of your night. Set `TZ` to your zone so 9:00 means *your* 9:00.
+- The **run scripts detect `TZ` from your host automatically** (on Windows the timezone
+  is converted to the IANA name containers expect). You only set it by hand for Compose,
+  plain `docker run`, or the unraid template.
 
 **`TZ` examples:** `America/New_York`, `America/Los_Angeles`, `Europe/London`,
 `Australia/Sydney` ([full list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List)).
@@ -219,9 +278,11 @@ add a free TMDB API key in **Settings -> Library Browser**.
 <summary><b>How do I see logs or stop it?</b></summary>
 
 ```bash
-docker logs -f plex-poster-helper   # live logs
-docker stop plex-poster-helper      # stop
-docker start plex-poster-helper     # start again
-./docker/run.ps1 -Stop              # stop & remove (your data stays)
+docker logs -f plex-poster-helper             # live GUI logs
+docker logs -f plex-poster-helper-scheduler   # live headless logs
+docker stop plex-poster-helper                # stop
+docker start plex-poster-helper               # start again
+./docker/run.ps1 -Stop                        # stop & remove both (your data stays)
+./docker/run.sh --stop headless               # …or just one of them
 ```
 </details>

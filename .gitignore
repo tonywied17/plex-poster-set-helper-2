@@ -48,3 +48,6 @@ latest-mac.yml
 # Docker runtime data
 /config/
 docker/config/
+
+CLAUDE.md
+.claudeignore

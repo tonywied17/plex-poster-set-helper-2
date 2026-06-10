@@ -1,8 +1,9 @@
 # syntax=docker/dockerfile:1
 #
 # Plex Poster Helper - headless scheduler (no GUI).
-# Runs your scheduled poster syncs 24/7. Manage jobs in the desktop/GUI build,
-# or point this at the same /config volume.
+# Runs your scheduled poster syncs 24/7. Manage jobs in the GUI container and
+# mount the same /config volume here - the scheduler reuses the GUI's Plex
+# sign-in and schedules automatically (both store data under /config/app).
 #
 #   docker build -f docker/Dockerfile.headless -t plex-poster-helper:headless .
 
@@ -54,13 +55,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=build /build /app
 WORKDIR /app
 
+# /config/app matches the GUI image, so sharing one volume shares everything.
 ENV PLEX_HELPER_HEADLESS=1 \
     PLEX_HELPER_PROD=1 \
     PLEX_HELPER_DOCKER=1 \
-    PLEX_HELPER_CONFIG_DIR=/config
+    PLEX_HELPER_CONFIG_DIR=/config/app
 
 VOLUME /config
 
-# xvfb-run gives Electron a virtual display; the app itself opens no window.
+COPY docker/headless-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["xvfb-run", "-a", "/app/node_modules/.bin/electron", "/app", "--headless", "--no-sandbox"]
+CMD ["/entrypoint.sh"]
