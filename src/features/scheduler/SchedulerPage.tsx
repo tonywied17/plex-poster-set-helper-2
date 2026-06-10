@@ -9,7 +9,7 @@ import Button from '../../components/ui/Button'
 import Switch from '../../components/ui/Switch'
 import EmptyState from '../../components/ui/EmptyState'
 import Spinner from '../../components/ui/Spinner'
-import type { ScheduledJob, SchedulerEngineStatus } from '../../../electron/ipc/types'
+import type { ScheduledJob, SchedulerEngineStatus, AppEnv } from '../../../electron/ipc/types'
 import styles from './SchedulerPage.module.css'
 
 // --- Cron helpers --------------------------------------------------------------
@@ -357,16 +357,19 @@ export default function SchedulerPage() {
   const [running,    setRunning]    = useState<Set<string>>(new Set())
   const [autoStart,  setAutoStart]  = useState(false)
   const [engine,     setEngine]     = useState<SchedulerEngineStatus>({ external: false })
+  const [env,        setEnv]        = useState<AppEnv | null>(null)
 
   const load = useCallback(async () => {
-    const [list, auto, eng] = await Promise.all([
+    const [list, auto, eng, appEnv] = await Promise.all([
       window.api.scheduler.list() as Promise<ScheduledJob[]>,
       window.api.scheduler.getAutoStart() as Promise<boolean>,
       window.api.scheduler.engineStatus() as Promise<SchedulerEngineStatus>,
+      window.api.app.getEnv() as Promise<AppEnv>,
     ])
     setJobs(list)
     setAutoStart(auto)
     setEngine(eng)
+    setEnv(appEnv)
   }, [])
 
   useEffect(() => {
@@ -420,11 +423,17 @@ export default function SchedulerPage() {
           </p>
         </div>
         <div className={styles.headerActions}>
-          <label className={styles.autoStart}>
-            <Power size={12} className={styles.autoStartIcon} />
-            <span>Launch at login</span>
-            <Switch checked={autoStart} onChange={toggleAutoStart} />
-          </label>
+          {/* "Launch at login" only matters on a standalone desktop install. In a
+              container the OS setting is a no-op (the container restart policy keeps
+              it alive), and when a 24/7 engine is running, launching the desktop app
+              at login is redundant - the engine already handles scheduling. */}
+          {!env?.container && !engine.external && (
+            <label className={styles.autoStart}>
+              <Power size={12} className={styles.autoStartIcon} />
+              <span>Launch at login</span>
+              <Switch checked={autoStart} onChange={toggleAutoStart} />
+            </label>
+          )}
           <Button
             variant="primary"
             size="sm"
