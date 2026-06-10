@@ -86,7 +86,7 @@ right from this GUI container, so there's nothing else to set up.
 
 1. **Build the image** on your unraid box (Terminal, from the cloned repo - see Step 1):
    ```bash
-   docker build -f docker/Dockerfile -t plex-poster-helper:gui .
+   docker build -f docker/Dockerfile -t plex-poster-helper .
    ```
 2. **Docker → Add Container → Template:** import
    [`docker/unraid-template.xml`](unraid-template.xml).
@@ -124,7 +124,7 @@ docker compose -f docker/docker-compose.yml up -d --build gui
 ```bash
 cd /path/to/plex-poster-set-helper
 git pull
-docker build -f docker/Dockerfile -t plex-poster-helper:gui .
+docker build -f docker/Dockerfile -t plex-poster-helper .
 ```
 Then restart the container from the **Docker** tab - it picks up the rebuilt image.
 

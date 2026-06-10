@@ -14,7 +14,7 @@
 set -euo pipefail
 
 GUI_NAME=plex-poster-helper
-GUI_IMAGE=plex-poster-helper:gui
+GUI_IMAGE=plex-poster-helper
 HL_NAME=plex-poster-helper-scheduler
 HL_IMAGE=plex-poster-helper:headless
 VOLUME=ppsh-config

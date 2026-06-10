@@ -1,10 +1,7 @@
-# Plex Poster Helper - GUI, headless scheduler, or both.
-# Both services mount the same ./config folder, so the headless scheduler
-# automatically reuses the Plex sign-in and schedules you set up in the GUI.
+# Plex Poster Helper - Docker Compose
 #
-#   docker compose -f docker/docker-compose.yml up -d gui                            # browser GUI
-#   docker compose -f docker/docker-compose.yml --profile headless up -d headless    # scheduler only
-#   docker compose -f docker/docker-compose.yml --profile headless up -d             # both
+#   docker compose -f docker/docker-compose.yml up -d gui        # start the GUI
+#   docker compose -f docker/docker-compose.yml up -d --build gui  # rebuild + start
 
 services:
   # -- Full GUI in your browser (http://<host>:3000) --------------------------
@@ -12,7 +9,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    image: plex-poster-helper:gui
+    image: plex-poster-helper
     container_name: plex-poster-helper
     ports:
       - "3939:3000"   # web UI (host 3939 → KasmVNC http). Change 3939 if it's taken.

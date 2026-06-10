@@ -21,7 +21,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $guiName  = 'plex-poster-helper'
-$guiImage = 'plex-poster-helper:gui'
+$guiImage = 'plex-poster-helper'
 $hlName   = 'plex-poster-helper-scheduler'
 $hlImage  = 'plex-poster-helper:headless'
 $volume   = 'ppsh-config'

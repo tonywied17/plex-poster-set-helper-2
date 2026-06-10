@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>PlexPosterHelper</Name>
-  <Repository>plex-poster-helper:gui</Repository>
+  <Repository>plex-poster-helper</Repository>
   <Registry/>
   <Network>bridge</Network>
   <MyIP/>
