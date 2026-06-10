@@ -346,6 +346,9 @@ async function runHeadless() {
   }
 
   SchedulerService.init(null)
+  // Claim the engine role: any GUI sharing this config volume will defer its
+  // cron firing to us so jobs never run twice.
+  SchedulerService.startEngineHeartbeat()
   const jobs = ConfigService.get().scheduledJobs ?? []
   Logger.success('Headless', `Scheduler running - ${jobs.filter(j => j.enabled).length}/${jobs.length} job(s) active. Press Ctrl+C to stop.`)
 }

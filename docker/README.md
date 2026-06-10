@@ -120,6 +120,13 @@ Want everything up in one go (fresh server, after a reboot)? Use `both`:
 ./docker/run.sh both          # PowerShell: ./docker/run.ps1 both
 ```
 
+**They won't trip over each other.** When the headless scheduler is up it claims the
+"engine" role (a small heartbeat file in the shared config), and the GUI defers all
+automatic runs to it - so a job never fires twice. The GUI becomes your **editor and
+dashboard**: schedule changes you make there are picked up by the engine within ~30s, with
+no restart. The Scheduler tab shows a banner when an engine is running. Manual **Run now**
+in the GUI always runs locally, on demand.
+
 <details>
 <summary><b>Docker Compose instead</b></summary>
 

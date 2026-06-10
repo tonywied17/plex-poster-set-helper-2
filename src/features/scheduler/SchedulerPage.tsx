@@ -3,13 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   CalendarClock, Plus, Play, Trash2, ToggleLeft, ToggleRight,
   Clock, CheckCircle2, AlertCircle, Loader2, ChevronRight, X, Save,
-  Power,
+  Power, Server,
 } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Switch from '../../components/ui/Switch'
 import EmptyState from '../../components/ui/EmptyState'
 import Spinner from '../../components/ui/Spinner'
-import type { ScheduledJob } from '../../../electron/ipc/types'
+import type { ScheduledJob, SchedulerEngineStatus } from '../../../electron/ipc/types'
 import styles from './SchedulerPage.module.css'
 
 // --- Cron helpers --------------------------------------------------------------
@@ -356,20 +356,28 @@ export default function SchedulerPage() {
   const [editing,    setEditing]    = useState<ScheduledJob | 'new' | null>(null)
   const [running,    setRunning]    = useState<Set<string>>(new Set())
   const [autoStart,  setAutoStart]  = useState(false)
+  const [engine,     setEngine]     = useState<SchedulerEngineStatus>({ external: false })
 
   const load = useCallback(async () => {
-    const [list, auto] = await Promise.all([
+    const [list, auto, eng] = await Promise.all([
       window.api.scheduler.list() as Promise<ScheduledJob[]>,
       window.api.scheduler.getAutoStart() as Promise<boolean>,
+      window.api.scheduler.engineStatus() as Promise<SchedulerEngineStatus>,
     ])
     setJobs(list)
     setAutoStart(auto)
+    setEngine(eng)
   }, [])
 
   useEffect(() => {
     void load()
     const off = window.api.scheduler.onChange((updated: ScheduledJob[]) => setJobs(updated))
-    return () => { off() }
+    // The engine heartbeat can come and go (container started/stopped) while
+    // this page is open - poll it so the banner reflects reality.
+    const poll = setInterval(() => {
+      void (window.api.scheduler.engineStatus() as Promise<SchedulerEngineStatus>).then(setEngine)
+    }, 30_000)
+    return () => { off(); clearInterval(poll) }
   }, [load])
 
   async function saveJob(job: ScheduledJob) {
@@ -427,6 +435,17 @@ export default function SchedulerPage() {
           </Button>
         </div>
       </div>
+
+      {/* 24/7 engine notice - a headless container is running these jobs */}
+      {engine.external && (
+        <div className={styles.engineNotice}>
+          <Server size={13} />
+          <span>
+            A 24/7 scheduler is running these jobs and will fire them even when this app is closed.
+            Edits you make here are picked up automatically - this window is your editor and dashboard.
+          </span>
+        </div>
+      )}
 
       {/* Error notice */}
       {errorCount > 0 && (

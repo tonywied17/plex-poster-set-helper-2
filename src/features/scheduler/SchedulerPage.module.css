@@ -54,6 +54,20 @@
   color: var(--color-accent-error);
 }
 
+.engineNotice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(52, 211, 153, 0.07);
+  border: 1px solid rgba(52, 211, 153, 0.2);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  color: var(--color-accent-success);
+}
+
+.engineNotice svg { flex-shrink: 0; }
+
 /* --- Job list -------------------------------------------------------------- */
 
 .list {

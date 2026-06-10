@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, BrowserStatus, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq } from './ipc/types'
+import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, SchedulerEngineStatus, BrowserStatus, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq } from './ipc/types'
 // (response types are inferred via the invoke return type)
 
 const api = {
@@ -119,6 +119,7 @@ const api = {
     runNow: (id: string): Promise<void>          => ipcRenderer.invoke('scheduler:runNow', id),
     setAutoStart: (v: boolean): Promise<void>    => ipcRenderer.invoke('scheduler:setAutoStart', v),
     getAutoStart: (): Promise<boolean>           => ipcRenderer.invoke('scheduler:getAutoStart'),
+    engineStatus: (): Promise<SchedulerEngineStatus> => ipcRenderer.invoke('scheduler:engineStatus'),
     onChange: (cb: (jobs: ScheduledJob[]) => void) => {
       const handler = (_: unknown, data: ScheduledJob[]) => cb(data)
       ipcRenderer.on('scheduler:onChange', handler)

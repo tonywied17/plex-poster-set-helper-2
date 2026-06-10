@@ -208,6 +208,11 @@ export interface ScheduledJob {
   lastError?: string
 }
 
+export interface SchedulerEngineStatus {
+  external: boolean   // a 24/7 headless engine elsewhere is running this config's jobs
+  updatedAt?: string  // last heartbeat from that engine
+}
+
 // --- Library browser (AURA-style) ---------------------------------------------
 
 export interface LibrarySection {
@@ -337,6 +342,7 @@ export type IpcChannels = {
   'scheduler:runNow':      { req: string; res: void }
   'scheduler:setAutoStart':{ req: boolean; res: void }
   'scheduler:getAutoStart':{ req: void; res: boolean }
+  'scheduler:engineStatus':{ req: void; res: SchedulerEngineStatus }
   'scheduler:onChange':    { event: ScheduledJob[] }
   'browser:status':          { req: void; res: BrowserStatus }
   'browser:install':         { req: void; res: void }

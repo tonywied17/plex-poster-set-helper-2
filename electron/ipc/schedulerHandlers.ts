@@ -9,4 +9,5 @@ export function registerSchedulerHandlers(ipcMain: IpcMain) {
   ipcMain.handle('scheduler:runNow',       (_e, id: string)        => SchedulerService.runNow(id))
   ipcMain.handle('scheduler:setAutoStart', (_e, enable: boolean)   => SchedulerService.setAutoStart(enable))
   ipcMain.handle('scheduler:getAutoStart', ()                      => SchedulerService.getAutoStart())
+  ipcMain.handle('scheduler:engineStatus', ()                      => SchedulerService.engineStatus())
 }
