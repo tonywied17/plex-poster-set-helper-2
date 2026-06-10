@@ -4,12 +4,21 @@ Run Plex Poster Helper on a server (unraid, a NAS, any computer with Docker) so 
 always available and can sync posters on a schedule. No coding required - follow the
 steps below in order.
 
-There are two ways to run it. **Start with the GUI.**
+It comes as two containers. **Everyone starts with the GUI** - the headless one is an
+optional add-on you can bolt on later with a single command.
 
 | | What it is | When to use |
 | --- | --- | --- |
-| **GUI** | The full app, in your web browser | Start here - set up Plex, browse, follow creators, build schedules |
-| **Headless** | Just the scheduler, no window | Optional one-command add-on - keeps your schedules running 24/7, sharing the GUI's sign-in and schedules automatically |
+| **GUI** | The full app, in your web browser | Start here - sign in to Plex, browse, follow creators, build schedules |
+| **Headless** | Just the scheduler, no window | Optional - keeps your schedules running 24/7; it shares the GUI's sign-in and schedules automatically |
+
+**In this guide:**
+[Setup](#step-1---get-the-files) ·
+[24/7 scheduler](#optional---keep-schedules-running-247-headless) ·
+[unraid](#unraid) ·
+[Updating](#updating-to-a-new-version) ·
+[Everyday commands](#everyday-commands) ·
+[FAQ](#faq--help)
 
 ---
 
@@ -20,7 +29,7 @@ You need **Docker** installed and running:
 - **Windows / Mac:** install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and open it.
 - **unraid / Linux / NAS:** Docker is built in (unraid) or install Docker Engine.
 
-You'll also want your **Plex login** ready (you sign in during setup - no token hunting needed for the GUI).
+You'll also want your **Plex login** ready (you sign in during setup - no token hunting needed).
 
 ---
 
@@ -33,7 +42,7 @@ git clone https://github.com/tonywied17/plex-poster-set-helper.git
 cd plex-poster-set-helper
 ```
 
-> No git? Download the project ZIP from GitHub (green **Code** button -> **Download ZIP**),
+> No git? Download the project ZIP from GitHub (green **Code** button → **Download ZIP**),
 > unzip it, and open a terminal in that folder.
 
 ---
@@ -46,19 +55,21 @@ Pick your OS - this builds the app the first time (a few minutes) and starts it:
 ```powershell
 ./docker/run.ps1
 ```
-**Mac / Linux / unraid:**
+**Mac / Linux:**
 ```bash
 ./docker/run.sh
 ```
 
-Prefer Docker Compose? `docker compose -f docker/docker-compose.yml up -d --build gui`
-
-> The same script can also start the 24/7 scheduler: `./docker/run.sh headless` or
-> `./docker/run.sh both`. More on that [below](#optional---keep-schedules-running-247-headless).
+> **On unraid?** The run script works, but the native [template setup](#unraid) is nicer -
+> you get a proper Docker-tab entry with a **WebUI** button.
+>
+> **Prefer Docker Compose?** `docker compose -f docker/docker-compose.yml up -d --build gui`
+> - just stick with one method, since the script and Compose keep their data in
+> [different places](#faq--help).
 
 When it finishes it prints a link. Open it in your browser:
 
-### -> http://localhost:3939
+### → http://localhost:3939
 
 (From another device, use your server's IP: `http://YOUR-SERVER-IP:3939`.)
 
@@ -66,80 +77,16 @@ When it finishes it prints a link. Open it in your browser:
 
 ## Step 3 - Sign in to Plex
 
-1. In the app, go to **Settings -> Sign in with Plex**.
+1. In the app, go to **Settings → Sign in with Plex**.
 2. It shows a **sign-in link**. Click **Copy**, paste it into a browser on your own
    computer or phone, sign in, and click **Approve**.
 3. Back in the app it connects automatically. All your libraries are included by default.
    To exclude a specific library from matching, scraping, and the browser, uncheck it in
    **Settings → Libraries**.
 
-That's it - open **Library Browser** and start applying posters.
-
----
-
-## Updating to a new version
-
-Your settings, schedules, and history are safe - they live in the config volume, which
-updates never touch. Updating is always the same three beats: **pull, rebuild, restart**
-(the commands below do all three).
-
-**Windows (PowerShell):**
-```powershell
-git pull
-./docker/run.ps1 -Build              # GUI only
-./docker/run.ps1 both -Build         # GUI + headless scheduler
-```
-
-**Mac / Linux:**
-```bash
-git pull
-./docker/run.sh --build              # GUI only
-./docker/run.sh both --build         # GUI + headless scheduler
-```
-
-**Docker Compose:**
-```bash
-git pull
-docker compose -f docker/docker-compose.yml up -d --build gui                   # GUI only
-docker compose -f docker/docker-compose.yml --profile headless up -d --build    # GUI + headless
-```
-
-**unraid (template install):**
-```bash
-cd /path/to/plex-poster-set-helper
-git pull
-docker build -f docker/Dockerfile -t plex-poster-helper:gui .
-docker build -f docker/Dockerfile.headless -t plex-poster-helper:headless .   # only if you use the scheduler
-```
-Then restart the container(s) from the **Docker** tab - they pick up the rebuilt images.
-
----
-
-## unraid
-
-1. **Build the image** on your unraid box (Terminal, from the cloned repo - see Step 1):
-   ```bash
-   docker build -f docker/Dockerfile -t plex-poster-helper:gui .
-   ```
-2. **Docker -> Add Container -> Template:** import
-   [`docker/unraid-template.xml`](unraid-template.xml).
-3. Map a host path (e.g. `/mnt/user/appdata/plex-poster-helper`) to **/config**.
-4. Leave the web port at **3939** (change it only if that port is taken).
-5. Set **TZ** to your timezone.
-6. Start it and click **WebUI**, then do Step 3 above.
-
-**Optional - add the 24/7 scheduler.** A second template runs the headless scheduler as
-its own unraid container. Keep its **Config path identical to the GUI's** - that's the
-whole trick: same folder, so it reuses your Plex sign-in and schedules automatically.
-
-```bash
-docker build -f docker/Dockerfile.headless -t plex-poster-helper:headless .
-```
-
-Then import [`docker/unraid-template-headless.xml`](unraid-template-headless.xml), leave
-the Config path at the same `/mnt/user/appdata/plex-poster-helper`, set **TZ**, and start
-it. No ports, no WebUI - check it with the container's log button. (`PLEX_BASEURL` /
-`PLEX_TOKEN` in Advanced are only for running it *without* the GUI - leave them empty.)
+That's it - open **Library Browser** and start applying posters. When you've built some
+schedules and want them running around the clock, add the
+[24/7 scheduler](#optional---keep-schedules-running-247-headless) below.
 
 ---
 
@@ -207,9 +154,9 @@ docker run -d --name plex-poster-helper-scheduler \
 
 | Setting | Needed? | What it does |
 | --- | --- | --- |
+| `TZ` | Recommended | Your timezone, so jobs run at the right *local* time (see below). |
 | `PLEX_BASEURL` | Optional | Override the Plex server address (e.g. `http://192.168.1.10:32400`). Not needed when sharing a config volume with the GUI. |
 | `PLEX_TOKEN` | Optional | Override the Plex token. Not needed when sharing a config volume with the GUI. [How to find it](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/). |
-| `TZ` | Recommended | Your timezone, so jobs run at the right *local* time (see below). |
 
 ### How scheduling & timezone work
 
@@ -221,13 +168,104 @@ docker run -d --name plex-poster-helper-scheduler \
   which may be the middle of your night. Set `TZ` to your zone so 9:00 means *your* 9:00.
 - The **run scripts detect `TZ` from your host automatically** (on Windows the timezone
   is converted to the IANA name containers expect). You only set it by hand for Compose,
-  plain `docker run`, or the unraid template.
+  plain `docker run`, or the unraid templates.
 
 **`TZ` examples:** `America/New_York`, `America/Los_Angeles`, `Europe/London`,
 `Australia/Sydney` ([full list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List)).
 
-> You can run the GUI and headless containers at the same time against the same
+> The GUI and headless containers are designed to run side by side against the same
 > `/config` - use the GUI to manage, the headless one to run.
+
+---
+
+## unraid
+
+1. **Build the image** on your unraid box (Terminal, from the cloned repo - see Step 1):
+   ```bash
+   docker build -f docker/Dockerfile -t plex-poster-helper:gui .
+   ```
+2. **Docker → Add Container → Template:** import
+   [`docker/unraid-template.xml`](unraid-template.xml).
+3. Map a host path (e.g. `/mnt/user/appdata/plex-poster-helper`) to **/config**.
+4. Leave the web port at **3939** (change it only if that port is taken).
+5. Set **TZ** to your timezone.
+6. Start it and click **WebUI**, then do [Step 3](#step-3---sign-in-to-plex) above.
+
+**Optional - add the 24/7 scheduler.** A second template runs the headless scheduler as
+its own unraid container. Keep its **Config path identical to the GUI's** - that's the
+whole trick: same folder, so it reuses your Plex sign-in and schedules automatically.
+
+```bash
+docker build -f docker/Dockerfile.headless -t plex-poster-helper:headless .
+```
+
+Then import [`docker/unraid-template-headless.xml`](unraid-template-headless.xml), leave
+the Config path at the same `/mnt/user/appdata/plex-poster-helper`, set **TZ**, and start
+it. No ports, no WebUI - check it with the container's log button. (`PLEX_BASEURL` /
+`PLEX_TOKEN` in Advanced are only for running it *without* the GUI - leave them empty.)
+
+---
+
+## Updating to a new version
+
+Your settings, schedules, and history are safe - they live in the config volume, which
+updates never touch. Updating is always the same three beats: **pull, rebuild, restart**
+(the commands below do all three).
+
+**Windows (PowerShell):**
+```powershell
+git pull
+./docker/run.ps1 -Build              # GUI only
+./docker/run.ps1 both -Build         # GUI + headless scheduler
+```
+
+**Mac / Linux:**
+```bash
+git pull
+./docker/run.sh --build              # GUI only
+./docker/run.sh both --build         # GUI + headless scheduler
+```
+
+**Docker Compose:**
+```bash
+git pull
+docker compose -f docker/docker-compose.yml up -d --build gui                   # GUI only
+docker compose -f docker/docker-compose.yml --profile headless up -d --build    # GUI + headless
+```
+
+**unraid (template install):**
+```bash
+cd /path/to/plex-poster-set-helper
+git pull
+docker build -f docker/Dockerfile -t plex-poster-helper:gui .
+docker build -f docker/Dockerfile.headless -t plex-poster-helper:headless .   # only if you use the scheduler
+```
+Then restart the container(s) from the **Docker** tab - they pick up the rebuilt images.
+
+---
+
+## Everyday commands
+
+One reference for the run scripts (Windows: same commands with `./docker/run.ps1` and
+`-Build` / `-Stop` / `-Port 8095` instead of the `--flags`):
+
+```bash
+./docker/run.sh                  # start (or restart) the GUI
+./docker/run.sh headless         # add the 24/7 scheduler
+./docker/run.sh both             # start GUI + scheduler together
+./docker/run.sh both --build     # rebuild after an update
+./docker/run.sh --stop           # stop & remove both (your data stays)
+./docker/run.sh --stop headless  # …or stop just one
+PORT=8095 ./docker/run.sh        # use a different web port
+```
+
+And the underlying containers, if you prefer plain Docker:
+
+```bash
+docker logs -f plex-poster-helper             # live GUI logs
+docker logs -f plex-poster-helper-scheduler   # live scheduler logs
+docker stop plex-poster-helper                # stop (docker start … to resume)
+```
 
 ---
 
@@ -251,9 +289,18 @@ backed up the app. It survives updates and restarts.
 </details>
 
 <details>
+<summary><b>I switched between the run script and Compose and my settings vanished.</b></summary>
+
+They keep data in two different places: the run scripts use a named Docker volume
+(`ppsh-config`), while Compose uses the `docker/config` folder in the repo. Nothing is
+lost - it's just in the other store. Switch back to the method you started with, and
+stick with one going forward.
+</details>
+
+<details>
 <summary><b>Port 3939 is taken / I want a different port.</b></summary>
 
-Windows: `./docker/run.ps1 -Port 8095` -> open `http://localhost:8095`.
+Windows: `./docker/run.ps1 -Port 8095` → open `http://localhost:8095`.
 Mac/Linux: `PORT=8095 ./docker/run.sh`. Compose/unraid: change the host side of the port
 mapping (`8095:3000`).
 </details>
@@ -283,27 +330,31 @@ crashes with Docker's tiny default shared memory.
 <summary><b>Headless can't connect to Plex.</b></summary>
 
 If the headless container shares the same `/config` volume as the GUI it will
-automatically pick up the saved credentials — no env vars needed. If you're running
-headless standalone (separate volume or no GUI), set `PLEX_BASEURL` and `PLEX_TOKEN`
-environment variables so it knows where to connect.
+automatically pick up the saved credentials - no env vars needed. Make sure you've
+signed in via the GUI at least once. If you're running headless standalone (separate
+volume or no GUI), set `PLEX_BASEURL` and `PLEX_TOKEN` environment variables so it
+knows where to connect.
+</details>
+
+<details>
+<summary><b>Schedules fire at the wrong time.</b></summary>
+
+That's almost always timezone: the container thinks "9:00" means 9:00 in *its* zone.
+Set `TZ` to yours (see [How scheduling & timezone work](#how-scheduling--timezone-work))
+and restart the container.
 </details>
 
 <details>
 <summary><b>Posters apply to the wrong title (anime / HAMA libraries).</b></summary>
 
 MediUX matches by TMDB id. For libraries using a TVDB/IMDb agent (e.g. anime via HAMA),
-add a free TMDB API key in **Settings -> Library Browser**.
+add a free TMDB API key in **Settings → Library Browser**.
 </details>
 
 <details>
 <summary><b>How do I see logs or stop it?</b></summary>
 
-```bash
-docker logs -f plex-poster-helper             # live GUI logs
-docker logs -f plex-poster-helper-scheduler   # live headless logs
-docker stop plex-poster-helper                # stop
-docker start plex-poster-helper               # start again
-./docker/run.ps1 -Stop                        # stop & remove both (your data stays)
-./docker/run.sh --stop headless               # …or just one of them
-```
+See [Everyday commands](#everyday-commands) - short version:
+`docker logs -f plex-poster-helper` for logs, `./docker/run.sh --stop` (or
+`./docker/run.ps1 -Stop`) to stop and remove the containers. Your data stays.
 </details>
