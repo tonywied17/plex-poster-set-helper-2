@@ -73,10 +73,7 @@ Not sure where to run it? Here's the plain‑English version:
 | You want to… | Use this |
 |---|---|
 | Use it on your own PC | **Desktop app** (Windows / Linux) - _start here_ |
-| Run it on a home server / unraid in your browser | **Docker GUI** (the full app, in a web page) |
-| Keep weekly schedules running 24/7 with no window open | **Docker headless** (just the background scheduler) |
-
-The **Docker GUI** and **Docker headless** images are two different things: the GUI is the whole app you click around in; the headless one has **no interface at all** - it only runs the schedules you already set up. Most people just want the **desktop app**.
+| Run it on a home server / unraid, accessible from any browser | **Docker** (the full app, in a web page) |
 
 ---
 
@@ -106,12 +103,10 @@ npm run dev
 
 ### Option 3 - Docker (servers / unraid / always‑on)
 
-Run the full app in your browser, a lightweight headless scheduler that keeps your weekly syncs going 24/7, or both. One script handles all three - and the GUI and scheduler share a single config volume, so your Plex sign‑in and schedules carry over automatically:
+Run the full app in your browser - schedules keep firing 24/7 as long as the container is up. One script gets you going:
 
 ```bash
-./docker/run.sh            # GUI in your browser        (Windows: ./docker/run.ps1)
-./docker/run.sh headless   # 24/7 scheduler, no window
-./docker/run.sh both       # both, sharing one config
+./docker/run.sh    # start the GUI in your browser   (Windows: ./docker/run.ps1)
 ```
 
 👉 **[Read the Docker guide →](docker/README.md)**
@@ -133,7 +128,7 @@ That's it - head to the **Library Browser** and start applying posters.
 The **Scheduler** lets you re‑apply a set on a repeating schedule, which is great for shows that keep getting new episodes (so new title cards get art too).
 
 - **In the desktop app (Windows / Linux):** schedules run whenever the app is open **and** while it's **minimized to the system tray** - close the window and it keeps running quietly in the background. You can also enable **launch on startup** so it's always there after a reboot. No server required.
-- **For 24/7 on a server:** set your schedules up once in the Docker GUI, then add the headless scheduler with one command (`./docker/run.sh headless`) - it shares the GUI's config volume, so your sign‑in and schedules are picked up automatically. See the [Docker guide](docker/README.md).
+- **For 24/7 on a server:** run it in Docker. The container keeps your schedules firing around the clock - just set them up in the app and leave it running. See the [Docker guide](docker/README.md).
 
 ---
 
@@ -153,22 +148,19 @@ npm run dev
 **Docker - Windows (PowerShell):**
 ```powershell
 git pull
-./docker/run.ps1 -Build              # GUI only
-./docker/run.ps1 both -Build         # GUI + headless scheduler
+./docker/run.ps1 -Build
 ```
 
 **Docker - Mac / Linux / unraid:**
 ```bash
 git pull
-./docker/run.sh --build              # GUI only
-./docker/run.sh both --build         # GUI + headless scheduler
+./docker/run.sh --build
 ```
 
 **Docker Compose:**
 ```bash
 git pull
-docker compose -f docker/docker-compose.yml up -d --build gui                   # GUI only
-docker compose -f docker/docker-compose.yml --profile headless up -d --build    # GUI + headless
+docker compose -f docker/docker-compose.yml up -d --build gui
 ```
 
 More detail (unraid, ports, volumes) in the [Docker guide](docker/README.md#updating-to-a-new-version).
