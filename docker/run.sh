@@ -13,10 +13,10 @@
 # schedules you set up in the GUI - no tokens or env vars to copy around.
 set -euo pipefail
 
-GUI_NAME=plex-poster-helper
-GUI_IMAGE=plex-poster-helper
-HL_NAME=plex-poster-helper-scheduler
-HL_IMAGE=plex-poster-helper:headless
+GUI_NAME=plex-poster-helper-2
+GUI_IMAGE=plex-poster-helper-2
+HL_NAME=plex-poster-helper-2-scheduler
+HL_IMAGE=plex-poster-helper-2:headless
 VOLUME=ppsh-config
 PORT="${PORT:-3939}"
 HTTPS_PORT="${HTTPS_PORT:-3940}"

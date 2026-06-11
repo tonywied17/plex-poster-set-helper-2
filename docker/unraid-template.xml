@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>PlexPosterHelper</Name>
-  <Repository>plex-poster-helper</Repository>
+  <Repository>plex-poster-helper-2</Repository>
   <Registry/>
   <Network>bridge</Network>
   <MyIP/>
@@ -23,7 +23,7 @@
 
   <Config Name="WebUI HTTP" Target="3000" Default="3939" Mode="tcp" Description="Plain HTTP port. Clipboard paste will not work on HTTP - use the HTTPS port instead." Type="Port" Display="always" Required="true" Mask="false">3939</Config>
   <Config Name="WebUI HTTPS" Target="3001" Default="3940" Mode="tcp" Description="HTTPS port (self-signed cert). Use https://[IP]:3940 in your browser for clipboard paste support. Accept the certificate warning once." Type="Port" Display="always" Required="true" Mask="false">3940</Config>
-  <Config Name="Config" Target="/config" Default="/mnt/user/appdata/plex-poster-helper" Mode="rw" Description="Config, schedules, applied-poster history, and installed Chromium." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/plex-poster-helper</Config>
+  <Config Name="Config" Target="/config" Default="/mnt/user/appdata/plex-poster-helper-2" Mode="rw" Description="Config, schedules, applied-poster history, and installed Chromium." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/plex-poster-helper-2</Config>
   <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID" Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
   <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID" Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
   <Config Name="TZ" Target="TZ" Default="America/New_York" Mode="" Description="Timezone (matches scheduler cron times)" Type="Variable" Display="always" Required="true" Mask="false">America/New_York</Config>

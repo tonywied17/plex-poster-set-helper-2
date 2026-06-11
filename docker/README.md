@@ -95,11 +95,11 @@ right from this GUI container, so there's nothing else to set up.
 
 1. **Build the image** on your unraid box (Terminal, from the cloned repo - see Step 1):
    ```bash
-   docker build -f docker/Dockerfile -t plex-poster-helper .
+   docker build -f docker/Dockerfile -t plex-poster-helper-2 .
    ```
 2. **Docker → Add Container → Template:** import
    [`docker/unraid-template.xml`](unraid-template.xml).
-3. Map a host path (e.g. `/mnt/user/appdata/plex-poster-helper`) to **/config**.
+3. Map a host path (e.g. `/mnt/user/appdata/plex-poster-helper-2`) to **/config**.
 4. Leave the ports at **3939** (http) and **3940** (https) unless they're taken. The
    **WebUI** button uses the https port so clipboard copy & paste works - accept the
    self-signed certificate warning the first time.
@@ -135,7 +135,7 @@ docker compose -f docker/docker-compose.yml up -d --build gui
 ```bash
 cd /path/to/plex-poster-set-helper-2
 git pull
-docker build -f docker/Dockerfile -t plex-poster-helper .
+docker build -f docker/Dockerfile -t plex-poster-helper-2 .
 ```
 Then restart the container from the **Docker** tab - it picks up the rebuilt image.
 
@@ -155,8 +155,8 @@ PORT=8095 HTTPS_PORT=8096 ./docker/run.sh # use different web ports (http / http
 And the underlying container, if you prefer plain Docker:
 
 ```bash
-docker logs -f plex-poster-helper   # live logs
-docker stop plex-poster-helper      # stop (docker start … to resume)
+docker logs -f plex-poster-helper-2   # live logs
+docker stop plex-poster-helper-2      # stop (docker start … to resume)
 ```
 
 ---
@@ -233,7 +233,7 @@ Chromium). Refresh the page. Make sure the port is mapped and not already in use
 <details>
 <summary><b>The first-run Chromium download finished but the setup screen is stuck.</b></summary>
 
-Restart the container (`docker restart plex-poster-helper`) - the browser is already
+Restart the container (`docker restart plex-poster-helper-2`) - the browser is already
 downloaded to the config volume and gets picked up immediately on the next start. The
 download is one-time; it never runs again once installed.
 </details>
@@ -271,7 +271,7 @@ add a free TMDB API key in **Settings → Library Browser**.
 <summary><b>How do I see logs or stop it?</b></summary>
 
 See [Everyday commands](#everyday-commands) - short version:
-`docker logs -f plex-poster-helper` for logs, `./docker/run.sh --stop` (or
+`docker logs -f plex-poster-helper-2` for logs, `./docker/run.sh --stop` (or
 `./docker/run.ps1 -Stop`) to stop and remove the container. Your data stays.
 </details>
 
