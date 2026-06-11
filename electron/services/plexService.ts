@@ -28,7 +28,7 @@ function plexHeaders(token: string): Record<string, string> {
   return {
     'X-Plex-Token': token,
     'X-Plex-Client-Identifier': ConfigService.get().clientIdentifier,
-    'X-Plex-Product': 'Plex Poster Set Helper',
+    'X-Plex-Product': 'Plex Poster Set Helper 2',
     'Accept': 'application/json',
   }
 }

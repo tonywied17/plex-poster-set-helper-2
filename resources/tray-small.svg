@@ -1,6 +1,6 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
   <!--
-    Plex Poster Set Helper - tray glyph for tiny rasters (16/20/24 px).
+    Plex Poster Set Helper 2 - tray glyph for tiny rasters (16/20/24 px).
     One back card instead of two and a bigger play mark, so the icon stays
     crisp at native tray size. Geometry sits on whole pixels at 16px.
   -->

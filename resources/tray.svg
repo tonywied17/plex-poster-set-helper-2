@@ -1,6 +1,6 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
   <!--
-    Plex Poster Set Helper - tray glyph (transparent background).
+    Plex Poster Set Helper 2 - tray glyph (transparent background).
     Bigger shapes than icon-small.svg since there is no tile padding; the
     light back card keeps the "set" readable on dark taskbars while the
     amber hero poster carries the mark on any background.

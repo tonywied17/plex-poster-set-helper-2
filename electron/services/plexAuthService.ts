@@ -17,10 +17,10 @@ const POLL_MAX_ATTEMPTS = 150
  */
 function clientHeaders(clientId: string): Record<string, string> {
   return {
-    'X-Plex-Product': 'Plex Poster Set Helper',
+    'X-Plex-Product': 'Plex Poster Set Helper 2',
     'X-Plex-Client-Identifier': clientId,
     'X-Plex-Device': 'Desktop',
-    'X-Plex-Device-Name': 'Plex Poster Set Helper',
+    'X-Plex-Device-Name': 'Plex Poster Set Helper 2',
     'X-Plex-Version': '2.0.0',
     'Accept': 'application/json',
   }
@@ -130,7 +130,7 @@ export const PlexAuthService = {
       `https://app.plex.tv/auth#?` +
       `clientID=${encodeURIComponent(clientId)}` +
       `&code=${encodeURIComponent(pin.code)}` +
-      `&context[device][product]=${encodeURIComponent('Plex Poster Set Helper')}`
+      `&context[device][product]=${encodeURIComponent('Plex Poster Set Helper 2')}`
 
     Logger.info('PlexAuth', `PIN flow started - code: ${pin.code}`)
     onStatus({ status: 'waiting', pin: pin.code, authUrl })

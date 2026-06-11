@@ -1,5 +1,5 @@
 appId: com.tonywied17.plex-poster-set-helper-2
-productName: Plex Poster Set Helper
+productName: Plex Poster Set Helper 2
 copyright: Copyright © 2026 tonywied17
 
 directories:
@@ -39,8 +39,8 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: Plex Poster Set Helper
-  uninstallDisplayName: Plex Poster Set Helper
+  shortcutName: Plex Poster Set Helper 2
+  uninstallDisplayName: Plex Poster Set Helper 2
 
 linux:
   icon: resources/icon.png

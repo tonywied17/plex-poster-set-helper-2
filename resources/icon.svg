@@ -1,6 +1,6 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
   <!--
-    Plex Poster Set Helper - master app icon (1024).
+    Plex Poster Set Helper 2 - master app icon (1024).
     A fanned "poster set": two muted posters behind, the amber hero poster
     with the play mark in front. Rasterized by scripts/generate-icons.mjs;
     sizes <= 32px use icon-small.svg instead.

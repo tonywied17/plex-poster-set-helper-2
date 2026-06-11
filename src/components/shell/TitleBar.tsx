@@ -26,7 +26,7 @@ export default function TitleBar() {
       <div className={styles.drag}>
         <div className={styles.brand}>
           <PlexIcon />
-          <span className={styles.appName}>Plex Poster Set Helper</span>
+          <span className={styles.appName}>Plex Poster Set Helper 2</span>
         </div>
       </div>
       <div className={styles.controls}>

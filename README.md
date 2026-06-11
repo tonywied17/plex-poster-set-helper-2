@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper-2/main/.github/assets/logo.svg" width="120" alt="Plex Poster Set Helper 2" />
+  <img src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper-2/main/.github/assets/logo.svg" width="120" alt="Plex Poster Set Helper 2 2" />
 </p>
 
-<h1 align="center">Plex Poster Set Helper 2</h1>
+<h1 align="center">Plex Poster Set Helper 2 2</h1>
 
 <p align="center">
   Browse, download, and apply custom poster sets from <b>MediUX</b> and <b>ThePosterDB</b> to your Plex library - in a clean desktop app.
@@ -25,7 +25,7 @@
 
 ## What it does
 
-Plex Poster Set Helper 2 finds high‑quality poster artwork for the movies and shows already in your Plex library and applies it with a click - posters, season posters, episode title cards, and backdrops, all routed to the right place automatically.
+Plex Poster Set Helper 2 2 finds high‑quality poster artwork for the movies and shows already in your Plex library and applies it with a click - posters, season posters, episode title cards, and backdrops, all routed to the right place automatically.
 
 <p align="center">
   <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper-2/main/.github/assets/card-library.svg" alt="Library Browser" />
