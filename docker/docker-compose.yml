@@ -15,8 +15,8 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    image: plex-poster-helper
-    container_name: plex-poster-helper
+    image: plex-poster-helper-2
+    container_name: plex-poster-helper-2
     ports:
       - "3939:3000"   # KasmVNC HTTP  - change 3939 if the port is taken
       - "3940:3001"   # KasmVNC HTTPS - use this for clipboard support
@@ -36,8 +36,8 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.headless
-    image: plex-poster-helper:headless
-    container_name: plex-poster-helper-scheduler
+    image: plex-poster-helper-2:headless
+    container_name: plex-poster-helper-2-scheduler
     environment:
       - TZ=America/New_York
       # Optional overrides - NOT needed when sharing ./config with the GUI.

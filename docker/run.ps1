@@ -21,10 +21,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$guiName  = 'plex-poster-helper'
-$guiImage = 'plex-poster-helper'
-$hlName   = 'plex-poster-helper-scheduler'
-$hlImage  = 'plex-poster-helper:headless'
+$guiName  = 'plex-poster-helper-2'
+$guiImage = 'plex-poster-helper-2'
+$hlName   = 'plex-poster-helper-2-scheduler'
+$hlImage  = 'plex-poster-helper-2:headless'
 $volume   = 'ppsh-config'
 $root     = Split-Path $PSScriptRoot -Parent
 
