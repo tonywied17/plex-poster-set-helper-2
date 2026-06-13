@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Download, RefreshCw, X, Loader2, Sparkles, Container, BookOpen } from 'lucide-react'
 import { useUpdater } from './UpdaterContext'
+import DockerUpdateModal from './DockerUpdateModal'
 import styles from './UpdateToast.module.css'
 
 /**
@@ -13,11 +15,10 @@ function fmtMB(bytes: number): string {
   return (bytes / 1024 / 1024).toFixed(1)
 }
 
-const DOCKER_GUIDE = 'https://github.com/tonywied17/plex-poster-set-helper-2/blob/main/docker/README.md#updating-to-a-new-version'
-
 /** Corner toast announcing updates with download/restart actions. */
 export default function UpdateToast() {
   const { status, info, progress, mode, dismissed, download, restart, dismiss } = useUpdater()
+  const [showGuide, setShowGuide] = useState(false)
   const isDocker = mode === 'docker'
 
   const visible =
@@ -42,19 +43,24 @@ export default function UpdateToast() {
     </motion.div>
   )
 
-  // Docker can't self-update; link to the pull-and-recreate guide instead
+  // Docker can't self-update, and the headless container is viewed from a remote
+  // browser, so openExternal opens nothing the user can see - show the
+  // pull-and-recreate steps inline instead.
   if (isDocker) {
     return (
-      <AnimatePresence>
-        {status === 'available' && !dismissed && shell(
-          <Container size={15} />,
-          `New version ${info?.version ? `v${info.version} ` : ''}available`,
-          <>You're running in Docker. Pull the new image and recreate the container to update.</>,
-          <button className={styles.primary} onClick={() => window.api.app.openExternal(info?.releaseUrl || DOCKER_GUIDE)}>
-            <BookOpen size={13} /> How to update
-          </button>,
-        )}
-      </AnimatePresence>
+      <>
+        <AnimatePresence>
+          {status === 'available' && !dismissed && shell(
+            <Container size={15} />,
+            `New version ${info?.version ? `v${info.version} ` : ''}available`,
+            <>You're running in Docker. Pull the new image and recreate the container to update.</>,
+            <button className={styles.primary} onClick={() => setShowGuide(true)}>
+              <BookOpen size={13} /> How to update
+            </button>,
+          )}
+        </AnimatePresence>
+        <DockerUpdateModal open={showGuide} onClose={() => setShowGuide(false)} version={info?.version} />
+      </>
     )
   }
 

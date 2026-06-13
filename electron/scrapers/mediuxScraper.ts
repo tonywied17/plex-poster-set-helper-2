@@ -353,13 +353,19 @@ function fileToInfo(file: MediuxFile, set: MediuxSet, allowed: Set<string>, fb: 
     !!set.collection && !set.movie && !set.show &&
     !file.movie_id && !file.show_id
 
+  // TMDB id of the movie/show this poster targets, so matching to Plex can prefer
+  // an exact id (same as the Library Browser) instead of guessing by title/year.
+  // Collection art has no single title, so it stays matched by collection name.
+  const tmdbId = isCollection
+    ? undefined
+    : file.movie_id?.id ?? file.show_id?.id ?? set.movie?.id ?? set.show?.id ?? undefined
+
   return {
     title, url, thumbUrl, source: 'mediux', year, season, episode,
     // A collection-set poster that targets one specific movie: flag it so the
-    // apply path routes it to that movie (not just the viewed item), and carry
-    // its TMDB id for an exact "is this the viewed item?" match.
+    // apply path routes it to that movie (not just the viewed item).
     ...(collectionMoviePoster ? { isCollectionMember: true } : {}),
-    ...(collectionMoviePoster && file.movie_id?.id != null ? { tmdbId: String(file.movie_id.id) } : {}),
+    ...(tmdbId != null ? { tmdbId: String(tmdbId) } : {}),
     ...(isCollection ? { isCollection: true } : {}),
   }
 }

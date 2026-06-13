@@ -59,6 +59,7 @@ Plex Poster Set Helper 2 finds high‑quality poster artwork for the movies and 
     <td align="center"><a href=".github/assets/gallery/thumbs/7-reset-posters.png"><img src=".github/assets/gallery/thumbs/7-reset-posters.png" width="160" alt="Reset Posters"/><br/><sub>Reset Posters</sub></a></td>
     <td align="center"><a href=".github/assets/gallery/thumbs/8-settings-top.png"><img src=".github/assets/gallery/thumbs/8-settings-top.png" width="160" alt="Settings Top"/><br/><sub>Settings Top</sub></a></td>
     <td align="center"><a href=".github/assets/gallery/thumbs/9-settings-bottom.png"><img src=".github/assets/gallery/thumbs/9-settings-bottom.png" width="160" alt="Settings Bottom"/><br/><sub>Settings Bottom</sub></a></td>
+    <td align="center"><a href=".github/assets/gallery/thumbs/10-log-drawer.png"><img src=".github/assets/gallery/thumbs/10-log-drawer.png" width="160" alt="Live Log Drawer"/><br/><sub>Live Log Drawer</sub></a></td>
   </tr>
 </table>
 
@@ -112,6 +113,10 @@ Run the full app in your browser - schedules keep firing 24/7 as long as the con
 Then open `http://localhost:3939` - or `https://localhost:3940` to enable copy & paste
 between your machine and the app (browsers require a secure page for clipboard access;
 accept the self-signed certificate warning once).
+
+> **On unraid?** Install it straight from **Community Applications** - search _Plex Poster
+> Helper_ in the **Apps** tab ([Community Apps page](https://ca.unraid.net/apps/plex-poster-helper-2-0va8t8c08x3sa0)).
+> It pulls the prebuilt Docker Hub image and gives you a **WebUI** button - no commands needed.
 
 👉 **[Read the Docker guide →](docker/README.md)**
 

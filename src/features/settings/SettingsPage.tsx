@@ -4,7 +4,7 @@ import {
   LogIn, LogOut, RefreshCw, ServerCrash, Pencil, X,
   Server, User, Sliders, SlidersHorizontal, Filter, Wrench,
   CheckCircle2, Circle, Globe, Download, RotateCcw, AlertTriangle, Film, Tv, Copy, ExternalLink,
-  Package, FolderOpen, Sparkles, MinusCircle, Trash2,
+  Package, FolderOpen, Sparkles, MinusCircle, Trash2, BookOpen,
 } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
@@ -12,11 +12,10 @@ import Switch from '../../components/ui/Switch'
 import Slider from '../../components/ui/Slider'
 import Checkbox from '../../components/ui/Checkbox'
 import { useUpdater } from '../updater/UpdaterContext'
+import DockerUpdateModal from '../updater/DockerUpdateModal'
 import { useNavStore } from '../../app/navStore'
 import type { AppConfig, Library, PlexAuthStatus, BrowserStatus } from '../../../electron/ipc/types'
 import styles from './SettingsPage.module.css'
-
-const DOCKER_UPDATE_GUIDE = 'https://github.com/tonywied17/plex-poster-set-helper-2/blob/main/docker/README.md#updating-to-a-new-version'
 
 /**
  * Maps a Plex agent identifier to a short display label.
@@ -38,6 +37,7 @@ function ApplicationSection() {
   const { status, info, version, mode, env, lastChecked, check, download, restart } = useUpdater()
   const [checking, setChecking] = useState(false)
   const [noUpdate, setNoUpdate] = useState(false)
+  const [showDockerGuide, setShowDockerGuide] = useState(false)
   const isDocker = mode === 'docker'
 
   async function onCheck() {
@@ -60,10 +60,11 @@ function ApplicationSection() {
 
       <FieldRow label="Updates" hint={isDocker ? 'Docker is updated by pulling a new image' : 'Check GitHub for a newer release'}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-          {/* Docker can't self-update; link to the pull-and-recreate guide */}
+          {/* Docker can't self-update and the headless container is viewed from a
+              remote browser, so show the pull-and-recreate steps inline */}
           {isDocker && status === 'available' && (
-            <Button variant="primary" size="sm" icon={<ExternalLink size={13} />}
-              onClick={() => window.api.app.openExternal(info?.releaseUrl || DOCKER_UPDATE_GUIDE)}>
+            <Button variant="primary" size="sm" icon={<BookOpen size={13} />}
+              onClick={() => setShowDockerGuide(true)}>
               v{info?.version} available - how to update
             </Button>
           )}
@@ -99,6 +100,8 @@ function ApplicationSection() {
           Open log folder
         </Button>
       </FieldRow>
+
+      <DockerUpdateModal open={showDockerGuide} onClose={() => setShowDockerGuide(false)} version={info?.version} />
     </Section>
   )
 }
@@ -683,6 +686,41 @@ export default function SettingsPage() {
           </Section>
         )}
 
+        {/* TMDB matching - lives with Plex/libraries since it drives library title matching */}
+        <Section
+          icon={<Film size={15} />}
+          title="TMDB Matching"
+          anchor="tmdb"
+          description="MediUX matches titles by TMDB ID. A free TMDB API key is optional but recommended: it lets the tool match your library by ID instead of guessing by title and year, which fixes most matching and title-mapping issues automatically (and resolves TVDB/IMDb-agent libraries such as anime via HAMA)."
+        >
+          <FieldRow label="TMDB API Key" hint="Optional but recommended - paste your themoviedb.org v3 API key">
+            <div className={styles.inputWithAction}>
+              <input
+                className={styles.textInput}
+                type="password"
+                value={merged.tmdbApiKey ?? ''}
+                onChange={e => setCfg(prev => prev ? { ...prev, tmdbApiKey: e.target.value } : prev)}
+                onBlur={e => autosave('tmdbApiKey', e.target.value.trim())}
+                placeholder="Paste TMDB v3 API key…"
+                spellCheck={false}
+              />
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<ExternalLink size={12} />}
+                onClick={() => window.api.app.openExternal('https://www.themoviedb.org/settings/api')}
+              >
+                Get key
+              </Button>
+            </div>
+            <p className={styles.browserNotice}>
+              {(merged.tmdbApiKey ?? '').trim()
+                ? 'Key saved. Library matching now prefers exact TMDB IDs.'
+                : 'Without a key, matching falls back to title and year, which can miss renamed or subtitled titles.'}
+            </p>
+          </FieldRow>
+        </Section>
+
         {/* Group divider */}
         <div className={styles.groupDivider}>
           <div className={styles.groupDividerLine} />
@@ -733,41 +771,6 @@ export default function SettingsPage() {
               onChange={v => autosave('maxWorkers', v)}
               ticks={8}
             />
-          </FieldRow>
-        </Section>
-
-        {/* Library browser */}
-        <Section
-          icon={<Film size={15} />}
-          title="Library Browser"
-          anchor="tmdb"
-          description="MediUX matches titles by TMDB ID. A free TMDB API key is optional but recommended: it lets the tool match your library by ID instead of guessing by title and year, which fixes most matching and title-mapping issues automatically (and resolves TVDB/IMDb-agent libraries such as anime via HAMA)."
-        >
-          <FieldRow label="TMDB API Key" hint="Optional but recommended - paste your themoviedb.org v3 API key">
-            <div className={styles.inputWithAction}>
-              <input
-                className={styles.textInput}
-                type="password"
-                value={merged.tmdbApiKey ?? ''}
-                onChange={e => setCfg(prev => prev ? { ...prev, tmdbApiKey: e.target.value } : prev)}
-                onBlur={e => autosave('tmdbApiKey', e.target.value.trim())}
-                placeholder="Paste TMDB v3 API key…"
-                spellCheck={false}
-              />
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={<ExternalLink size={12} />}
-                onClick={() => window.api.app.openExternal('https://www.themoviedb.org/settings/api')}
-              >
-                Get key
-              </Button>
-            </div>
-            <p className={styles.browserNotice}>
-              {(merged.tmdbApiKey ?? '').trim()
-                ? 'Key saved. Library matching now prefers exact TMDB IDs.'
-                : 'Without a key, matching falls back to title and year, which can miss renamed or subtitled titles.'}
-            </p>
           </FieldRow>
         </Section>
 

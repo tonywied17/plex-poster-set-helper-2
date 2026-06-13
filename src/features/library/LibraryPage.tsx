@@ -510,8 +510,9 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
   const [types, setTypes]       = useState<Set<FileType>>(new Set(ALL_TYPES))
   const [applyMap, setApplyMap] = useState<Record<string, ApplyState>>({})
   // Per-set apply scope for collection sets: true = spread across the whole
-  // collection, false = apply only the viewed item's art. Defaults to this
-  // movie only; the toggle lets users opt into the whole collection.
+  // collection, false = apply only the viewed item's art. Defaults to the whole
+  // collection (every movie in the library + the collection poster); the toggle
+  // lets users narrow it back to just the viewed item.
   const [collectionScope, setCollectionScope] = useState<Record<string, boolean>>({})
   // TMDB id MediUX resolved for this item (set even when the Plex item uses a
   // tvdb/imdb agent), used to match the viewed item's collection-member poster.
@@ -657,7 +658,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
   const memberKey = (p: PosterInfo) => p.tmdbId ?? `${p.title.toLowerCase()}|${p.year ?? ''}`
 
   async function applySet(s: MediuxSetSummary) {
-    const wholeCollection = collectionScope[s.id] ?? false
+    const wholeCollection = collectionScope[s.id] ?? true
     const collectionArt = s.posters.filter(p => p.isCollection)
     const members       = s.posters.filter(p => p.isCollectionMember)
     const plain         = s.posters.filter(p => !p.isCollection && !p.isCollectionMember)
@@ -861,9 +862,9 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
               collectionMovies={collectionInLib}
               collectionTotal={collectionTotal}
               hasCollectionArt={hasCollectionArt}
-              wholeCollection={collectionScope[s.id] ?? false}
+              wholeCollection={collectionScope[s.id] ?? true}
               onToggleScope={() => {
-                setCollectionScope(m => ({ ...m, [s.id]: !(m[s.id] ?? false) }))
+                setCollectionScope(m => ({ ...m, [s.id]: !(m[s.id] ?? true) }))
                 // Changing scope invalidates the prior "Applied N" - let them re-apply.
                 setApplyMap(m => { const next = { ...m }; delete next[s.id]; return next })
               }}

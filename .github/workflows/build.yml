@@ -90,6 +90,36 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # Set the GitHub release body from the matching CHANGELOG.md section so every
+  # tagged release ships with real notes instead of an empty body. Runs once the
+  # build jobs have created/published the release.
+  release-notes:
+    name: Publish release notes
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Print the "## What's new in <tag>" section up to the next "## " heading.
+      # h3 (### ) subheadings stay as content; only h2 headings end the section.
+      - name: Extract notes for ${{ github.ref_name }}
+        run: |
+          awk -v tag="${{ github.ref_name }}" '
+            /^## / { found = (index($0, tag) > 0) }
+            found  { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "::error::No CHANGELOG.md section found for ${{ github.ref_name }}"
+            exit 1
+          fi
+          echo "----- release notes -----"
+          cat release-notes.md
+
+      - name: Apply release notes
+        run: gh release edit "${{ github.ref_name }}" --repo "${{ github.repository }}" --notes-file release-notes.md
+
   # electron-builder uploads .blockmap files (for delta updates) we don't want in
   # the release. Strip them once both build jobs have published their assets.
   cleanup:
