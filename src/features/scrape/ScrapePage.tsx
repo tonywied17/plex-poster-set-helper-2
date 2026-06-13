@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Reorder, AnimatePresence, motion } from 'framer-motion'
-import { Link2, Play, Square, Trash2, ListPlus, Zap } from 'lucide-react'
+import { Link2, Play, Square, Trash2, ListPlus, Zap, ExternalLink } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import EmptyState from '../../components/ui/EmptyState'
 import Spinner from '../../components/ui/Spinner'
 import PlexConnectBanner from '../../components/ui/PlexConnectBanner'
 import { useAppContext } from '../../app/AppContext'
+import { useUpdater } from '../updater/UpdaterContext'
 import { useScrapeStore } from './useScrapeStore'
 import UrlQueueEntry from './components/UrlQueueEntry'
 import type { QueueEntry, PosterResult } from './useScrapeStore'
@@ -15,10 +16,17 @@ import styles from './ScrapePage.module.css'
 
 const MAX_WORKERS = 2
 
+/** Artwork sources users paste links from - opened in the browser on request. */
+const SOURCES = [
+  { label: 'ThePosterDB', url: 'https://theposterdb.com' },
+  { label: 'MediUX',      url: 'https://mediux.pro' },
+] as const
+
 
 /** Manual scrape page: URL queue with a concurrency-pooled runner and live progress. */
 export default function ScrapePage() {
   const { plexConnected } = useAppContext()
+  const { env } = useUpdater()
   const { entries, isRunning, addUrls, setEntries, patchEntry, patchPoster, clearAll, setRunning } =
     useScrapeStore()
 
@@ -120,6 +128,20 @@ export default function ScrapePage() {
     }
   }
 
+  /**
+   * Open an artwork source in the browser. In the desktop app the click is
+   * routed through the OS browser via openExternal (an in-app <a> would spawn a
+   * blank Electron window). The headless Docker build is viewed in a real
+   * browser where openExternal is a no-op, so there we let the anchor's native
+   * target="_blank" open a new tab instead.
+   */
+  function openSource(e: React.MouseEvent<HTMLAnchorElement>, url: string) {
+    if (!env?.container) {
+      e.preventDefault()
+      window.api.app.openExternal(url)
+    }
+  }
+
 
   const idleCount    = entries.filter(e => e.status === 'idle').length
   const doneCount    = entries.filter(e => e.status === 'done').length
@@ -131,16 +153,6 @@ export default function ScrapePage() {
 
       {!plexConnected && <PlexConnectBanner />}
 
-      {/* Header */}
-      <div className={styles.header}>
-        <div>
-          <h1 className="page-title">Poster Scrape</h1>
-          <p className="page-subtitle">
-            Paste PosterDB set / poster / user links or MediUX set links, one per line.
-          </p>
-        </div>
-      </div>
-
       {/* URL Input */}
       <div className={styles.inputSection}>
         <textarea
@@ -148,16 +160,33 @@ export default function ScrapePage() {
           value={inputValue}
           onChange={e => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={'https://theposterdb.com/set/12345\nhttps://mediux.pro/sets/67890\n…'}
+          placeholder={'https://theposterdb.com/set/12345\nhttps://mediux.pro/sets/67890\nhttps://mediux.pro/boxsets/3722\n…'}
           rows={4}
           disabled={isRunning}
           spellCheck={false}
         />
         <div className={styles.inputFooter}>
-          <p className={styles.inputHint}>
-            <kbd className={styles.kbd}>Ctrl</kbd><kbd className={styles.kbd}>Enter</kbd> to add
-            &nbsp;·&nbsp; PosterDB sets · user pages · MediUX sets
-          </p>
+          <div className={styles.footerLeft}>
+            <p className={styles.inputHint}>
+              <kbd className={styles.kbd}>Ctrl</kbd><kbd className={styles.kbd}>Enter</kbd> to add
+            </p>
+            <span className={styles.sources}>
+              <span className={styles.sourcesLabel}>Browse</span>
+              {SOURCES.map(s => (
+                <a
+                  key={s.url}
+                  className={styles.sourceLink}
+                  href={s.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => openSource(e, s.url)}
+                >
+                  {s.label}
+                  <ExternalLink size={11} />
+                </a>
+              ))}
+            </span>
+          </div>
           <Button
             variant="primary"
             size="sm"

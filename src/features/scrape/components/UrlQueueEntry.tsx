@@ -111,7 +111,9 @@ async function uploadPoster(
       return
     }
 
-    const item = await window.api.plex.findItem(poster.title, poster.year)
+    // Match by TMDB id when the poster carries one (same as the Library Browser),
+    // falling back to title/year inside findItem when it doesn't.
+    const item = await window.api.plex.findItem(poster.title, poster.year, undefined, poster.tmdbId)
     if (!item) {
       patchPoster(entryId, poster.url, { uploadStatus: 'no_match' })
       return

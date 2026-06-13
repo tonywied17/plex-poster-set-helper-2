@@ -189,7 +189,7 @@ export default function BulkPage() {
             // everything else to an individual movie/show.
             const targetKey = poster.isCollection
               ? (await window.api.plex.findCollection(poster.title))?.key
-              : (await window.api.plex.findItem(poster.title, poster.year))?.key
+              : (await window.api.plex.findItem(poster.title, poster.year, undefined, poster.tmdbId))?.key
             if (!targetKey) continue
             const res = await window.api.plex.uploadPoster(targetKey, poster.url, poster.source, poster.season, poster.episode) as { success: boolean; error?: string }
             if (res.success) uploaded++
@@ -230,7 +230,7 @@ export default function BulkPage() {
       {/* Left: file list */}
       <aside className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
-          <span className="page-title">Bulk Import</span>
+          <span className="page-title">Files</span>
           <button
             className={styles.iconBtn}
             title="New file"
@@ -368,7 +368,7 @@ export default function BulkPage() {
               className={styles.urlEditor}
               value={content}
               onChange={e => setContent(e.target.value)}
-              placeholder={'https://theposterdb.com/set/12345\nhttps://mediux.pro/sets/67890\n…'}
+              placeholder={'https://theposterdb.com/set/12345\nhttps://mediux.pro/sets/67890\nhttps://mediux.pro/boxsets/3722\n…'}
               spellCheck={false}
               disabled={runStatus === 'running'}
             />

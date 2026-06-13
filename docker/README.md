@@ -93,9 +93,24 @@ right from this GUI container, so there's nothing else to set up.
 
 ## unraid
 
-No build needed - the template pulls the prebuilt image
+No build needed - it runs from the prebuilt image
 [`tonywied17/plex-poster-helper-2`](https://hub.docker.com/r/tonywied17/plex-poster-helper-2)
-from Docker Hub automatically.
+on Docker Hub.
+
+### Easiest: Community Applications
+
+The app is in the unraid **Community Applications** store:
+
+1. Open the **Apps** tab and search **Plex Poster Helper**
+   ([Community Apps page](https://ca.unraid.net/apps/plex-poster-helper-2-0va8t8c08x3sa0)).
+2. Click **Install**. Map a host path (e.g. `/mnt/user/appdata/plex-poster-helper-2`) to
+   **/config**, set **TZ** to your timezone, and leave the ports at **3939**/**3940**
+   unless they're taken.
+3. Apply, then click **WebUI** and do [Step 3](#step-3---sign-in-to-plex) above.
+
+### Manual template import
+
+Not using Community Applications? Add the template by URL instead:
 
 1. **Docker → Add Container → Template:** import
    [`docker/unraid-template.xml`](unraid-template.xml).

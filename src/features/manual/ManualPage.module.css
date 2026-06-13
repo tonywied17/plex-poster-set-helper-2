@@ -6,33 +6,58 @@
   min-height: 0;
 }
 
-.modeSwitch {
-  display: flex;
-  gap: var(--space-2);
+.header {
   flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
 }
 
-.modeBtn {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
+/* -- Mode tab bar (matches the Library Browser tabs) ----------------------- */
+
+.tabBar {
+  display: inline-flex;
+  align-self: center;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.tabBarBtn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px var(--space-4);
+  background: none;
+  border: none;
+  border-radius: calc(var(--radius-md) - 3px);
   color: var(--color-text-secondary);
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--duration-fast);
+  white-space: nowrap;
+  transition: color var(--duration-fast);
+  isolation: isolate;
 }
 
-.modeBtn:hover { color: var(--color-text-primary); border-color: rgba(255, 255, 255, 0.14); }
+.tabBarBtn:hover { color: var(--color-text-primary); }
+.tabBarBtnActive { color: var(--color-text-primary); }
+.tabBarBtnActive svg { color: var(--color-accent, #e5a00d); }
 
-.modeBtnActive {
+/* Sliding pill background, rendered via motion layoutId inside the button. */
+.tabBarIndicator {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
   background: var(--color-accent-soft);
-  border-color: var(--color-accent);
-  color: var(--color-accent);
+  border: 1px solid var(--color-accent-border);
+  box-shadow: 0 1px 6px rgba(229, 160, 13, 0.12);
+  z-index: -1;
 }
 
 .body {
