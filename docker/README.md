@@ -93,18 +93,18 @@ right from this GUI container, so there's nothing else to set up.
 
 ## unraid
 
-1. **Build the image** on your unraid box (Terminal, from the cloned repo - see Step 1):
-   ```bash
-   docker build -f docker/Dockerfile -t plex-poster-helper-2 .
-   ```
-2. **Docker → Add Container → Template:** import
+No build needed - the template pulls the prebuilt image
+[`tonywied17/plex-poster-helper-2`](https://hub.docker.com/r/tonywied17/plex-poster-helper-2)
+from Docker Hub automatically.
+
+1. **Docker → Add Container → Template:** import
    [`docker/unraid-template.xml`](unraid-template.xml).
-3. Map a host path (e.g. `/mnt/user/appdata/plex-poster-helper-2`) to **/config**.
-4. Leave the ports at **3939** (http) and **3940** (https) unless they're taken. The
+2. Map a host path (e.g. `/mnt/user/appdata/plex-poster-helper-2`) to **/config**.
+3. Leave the ports at **3939** (http) and **3940** (https) unless they're taken. The
    **WebUI** button uses the https port so clipboard copy & paste works - accept the
    self-signed certificate warning the first time.
-5. Set **TZ** to your timezone.
-6. Start it and click **WebUI**, then do [Step 3](#step-3---sign-in-to-plex) above.
+4. Set **TZ** to your timezone.
+5. Start it and click **WebUI**, then do [Step 3](#step-3---sign-in-to-plex) above.
 
 ---
 
@@ -131,13 +131,8 @@ git pull
 docker compose -f docker/docker-compose.yml up -d --build gui
 ```
 
-**unraid (template install):**
-```bash
-cd /path/to/plex-poster-set-helper-2
-git pull
-docker build -f docker/Dockerfile -t plex-poster-helper-2 .
-```
-Then restart the container from the **Docker** tab - it picks up the rebuilt image.
+**unraid (template install):** open the **Docker** tab, click the container, and choose
+**Force update** - it pulls the latest image from Docker Hub and restarts.
 
 ---
 
