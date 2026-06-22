@@ -1,6 +1,7 @@
 # This workflow builds and releases the app when a new tag is pushed.
 # It runs on both Windows and Linux to produce platform-specific builds, then cleans up unwanted .blockmap assets from the release.
-# It also builds the Docker GUI image and pushes it to Docker Hub (tonywied17/plex-poster-helper-2).
+# It also builds the Docker GUI image and pushes it to Docker Hub under
+# DOCKERHUB_USERNAME/plex-poster-helper-2 (set DOCKERHUB_USERNAME + DOCKERHUB_TOKEN secrets).
 
 # To trigger a release, create a new tag (e.g. `git tag v1.2.3`) and push it to the repository
 # (`git push origin v1.2.3`). The workflow will automatically build the app for both platforms and publish
@@ -57,10 +58,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
-  # Build the KasmVNC GUI image and push it to Docker Hub so the unraid template
-  # (tonywied17/plex-poster-helper-2:latest) picks up new releases automatically.
-  # Needs the DOCKERHUB_USERNAME / DOCKERHUB_TOKEN repo secrets (token from
-  # hub.docker.com -> Account settings -> Personal access tokens, Read & Write).
+  # Build the web UI image and push to Docker Hub (DOCKERHUB_USERNAME/plex-poster-helper-2).
+  # Create the repo on hub.docker.com first, then add DOCKERHUB_USERNAME and
+  # DOCKERHUB_TOKEN (Read & Write) as repository secrets.
   docker:
     name: Publish Docker image
     runs-on: ubuntu-latest
@@ -88,8 +88,8 @@ jobs:
           # latest security patches instead of inheriting a stale cached layer.
           pull: true
           tags: |
-            tonywied17/plex-poster-helper-2:latest
-            tonywied17/plex-poster-helper-2:${{ steps.version.outputs.version }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/plex-poster-helper-2:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/plex-poster-helper-2:${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
