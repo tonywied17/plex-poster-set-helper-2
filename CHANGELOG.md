@@ -4,6 +4,15 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.2.1
+
+### Windows desktop startup fixes
+Packaged Windows builds no longer crash on launch (`electron-store` was ESM-only and incompatible with the packaged main process). Config now lives in `config.json` under your app data folder, with automatic migration from the old store file.
+
+First-run Chromium setup, window visibility, and tray behaviour are more reliable on Windows. Startup diagnostics are written to `boot.log` in app data (or `%TEMP%\plex-poster-helper-boot.log`).
+
+If the app seems to flash and quit, check Task Manager for leftover **Plex Poster Set Helper 2** processes from a previous run and end them before launching again.
+
 ## What's new in v2.2.0
 
 ### Plex collection posters
