@@ -13,7 +13,9 @@ import type {
   ConnectReq, FindItemReq, FindCollectionReq, UploadReq, LabelReq, ResetReq,
   ScrapeReq, ScrapeProgress, BulkWriteReq, PlexAuthStatus, ScheduledJob,
   SectionItemsReq, BrowseSetsReq, BrowseSetsRes, UserSetsReq, UserSetsRes,
+  CollectionsReq, CollectionSetsReq,
   CreatorSearchReq, MediuxUserSet, AppEnv, UpdateInfo,
+  CurrentArtReq,
 } from '../ipc/types'
 
 const REPO = 'tonywied17/plex-poster-set-helper-2'
@@ -71,6 +73,44 @@ export const handlers = {
   library: {
     sections: () => PlexService.getSections(),
     items: (req: SectionItemsReq) => PlexService.getSectionItems(req),
+    collections: (req: CollectionsReq) => PlexService.listCollections(req),
+    collectionSets: async (req: CollectionSetsReq): Promise<BrowseSetsRes> => {
+      try {
+        const info = await PlexService.getCollectionInfo(req.collectionKey)
+        const title = info.title || req.title
+        if (!info.children.length) return { sets: [], error: 'no_movies' }
+
+        const childTmdbIds: string[] = []
+        for (const child of info.children) {
+          const tmdbId = await PlexService.resolveTmdbId(child)
+          if (tmdbId) childTmdbIds.push(tmdbId)
+        }
+
+        let tmdbCollectionId = info.tmdbCollectionId
+        if (!tmdbCollectionId && childTmdbIds[0]) {
+          tmdbCollectionId = (await PlexService.resolveTmdbCollectionId(childTmdbIds[0])) ?? undefined
+        }
+
+        if (!tmdbCollectionId && !childTmdbIds.length) {
+          return { sets: [], error: 'no_tmdb' }
+        }
+
+        Logger.scrape(
+          'Library',
+          `Collection "${title}": tmdbCollection=${tmdbCollectionId ?? 'none'}, ${childTmdbIds.length}/${info.children.length} child TMDB id(s)`,
+        )
+
+        const sets = await ScraperFactory.browseMediuxCollection(
+          title,
+          tmdbCollectionId,
+          childTmdbIds,
+        )
+        return { sets, collectionMembers: info.children }
+      } catch (err) {
+        Logger.error('Library', `collectionSets failed: ${err instanceof Error ? err.message : String(err)}`)
+        return { sets: [], error: err instanceof Error ? err.message : String(err) }
+      }
+    },
     sets: async (req: BrowseSetsReq): Promise<BrowseSetsRes> => {
       try {
         const tmdbId = await PlexService.resolveTmdbId({
@@ -117,6 +157,7 @@ export const handlers = {
         const out: MediuxUserSet[] = []
         const seen = new Set<string>()
         for (const item of items.slice(0, 10)) {
+          if (item.type === 'collection') continue
           const tmdbId = await PlexService.resolveTmdbId({
             key: item.key, title: item.title, type: item.type,
             tmdbId: item.tmdbId, tvdbId: item.tvdbId, imdbId: item.imdbId, anidbId: item.anidbId,
@@ -135,6 +176,7 @@ export const handlers = {
         return { username, sets: [], page: 1, hasMore: false, error: err instanceof Error ? err.message : String(err) }
       }
     },
+    currentArt: (req: CurrentArtReq) => PlexService.getCurrentArt(req),
   },
 
   scrape: {

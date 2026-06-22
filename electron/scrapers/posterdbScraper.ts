@@ -133,6 +133,7 @@ function cardsToPosters(cards: RawCard[]): PosterInfo[] {
     source: 'posterdb' as const,
     year: c.year,
     season: c.season,
+    ...( /collection/i.test(c.mediaType) ? { isCollection: true } : {} ),
   }))
 }
 

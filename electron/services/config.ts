@@ -23,6 +23,7 @@ const DEFAULTS: AppConfig = {
   logAppend: true,
   clientIdentifier: '',
   logDrawerHeight: 300,
+  libraryPanelWidth: 560,
   plexServerName: '',
   scheduledJobs: [],
   tmdbApiKey: '',

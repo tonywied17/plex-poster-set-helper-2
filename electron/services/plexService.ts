@@ -8,6 +8,7 @@ import type {
   FindCollectionReq, PlexCollection,
   LabelReq, ResetReq,
   LibrarySection, SectionItemsReq, SectionItemsRes, LibraryItem,
+  CurrentArtReq, CurrentArtRes, PlexArtSlot,
 } from '../ipc/types'
 
 interface PlexConnection {
@@ -91,6 +92,11 @@ function extractGuids(
   for (const g of (m.Guid ?? []) as Array<{ id?: string }>) if (g.id) assign(g.id)
 
   return out
+}
+
+function thumbUrl(baseUrl: string, token: string, thumbPath: string | undefined, w = 240, h = 360): string | undefined {
+  if (!thumbPath) return undefined
+  return `${baseUrl.replace(/\/$/, '')}/photo/:/transcode?width=${w}&height=${h}&minSize=1&upscale=1&url=${encodeURIComponent(thumbPath)}&X-Plex-Token=${token}`
 }
 
 /**
@@ -437,6 +443,249 @@ export const PlexService = {
   },
 
   /**
+   * Lists movie-library Plex Collections for the library browser.
+   *
+   * @param req - Offset/limit and optional title filter.
+   * @returns Collection items sorted by title.
+   */
+  async listCollections(req: { offset: number; limit: number; search?: string }): Promise<SectionItemsRes> {
+    if (!_conn) return { items: [], total: 0 }
+    const { baseUrl, token, libraries } = _conn
+    const excluded = ConfigService.get().excludedLibraries ?? []
+    const all: LibraryItem[] = []
+
+    for (const lib of libraries) {
+      if (lib.type !== 'movie' || excluded.includes(lib.title)) continue
+      try {
+        const data = await plexFetch(
+          baseUrl, token,
+          `/library/sections/${lib.key}/collections`,
+        ) as { MediaContainer?: { Metadata?: Array<{ ratingKey?: string; title?: string; childCount?: number; thumb?: string }> } }
+        for (const c of data?.MediaContainer?.Metadata ?? []) {
+          if (!c.ratingKey || !c.title) continue
+          all.push({
+            key: c.ratingKey,
+            title: c.title,
+            type: 'collection',
+            libraryTitle: lib.title,
+            childCount: c.childCount,
+            thumb: thumbUrl(baseUrl, token, c.thumb),
+          })
+        }
+      } catch {
+        // section may not support collections
+      }
+    }
+
+    all.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }))
+    const q = req.search?.trim().toLowerCase()
+    const filtered = q ? all.filter(c => c.title.toLowerCase().includes(q)) : all
+    const slice = filtered.slice(req.offset, req.offset + req.limit)
+    return { items: slice, total: filtered.length }
+  },
+
+  /**
+   * Returns collection metadata plus member movies for MediUX discovery.
+   */
+  async getCollectionInfo(collectionKey: string): Promise<{
+    title: string
+    tmdbCollectionId?: string
+    children: LibraryItem[]
+  }> {
+    if (!_conn) return { title: '', children: [] }
+    const { baseUrl, token } = _conn
+    let title = ''
+    let tmdbCollectionId: string | undefined
+    try {
+      const data = await plexFetch(
+        baseUrl, token,
+        `/library/metadata/${collectionKey}?includeGuids=1`,
+      ) as {
+        MediaContainer?: { Metadata?: Array<{ title?: string; guid?: string; Guid?: Array<{ id?: string }> }> }
+      }
+      const meta = data?.MediaContainer?.Metadata?.[0]
+      title = meta?.title ?? ''
+      const guidSources = [meta?.guid, ...(meta?.Guid ?? []).map(g => g.id)]
+      for (const raw of guidSources) {
+        if (!raw) continue
+        const m = String(raw).match(/collection[/:](\d+)/i)
+        if (m) { tmdbCollectionId = m[1]; break }
+      }
+    } catch {
+      // metadata fetch failed - still try children
+    }
+    const children = await PlexService.getCollectionChildren(collectionKey)
+    return { title, tmdbCollectionId, children }
+  },
+
+  /**
+   * Returns the movies inside a Plex Collection (for MediUX set discovery).
+   *
+   * @param collectionKey - Collection ratingKey.
+   * @returns Member movies with external ids.
+   */
+  async getCollectionChildren(collectionKey: string): Promise<LibraryItem[]> {
+    if (!_conn) return []
+    const { baseUrl, token } = _conn
+    try {
+      const data = await plexFetch(
+        baseUrl, token,
+        `/library/metadata/${collectionKey}/children?includeGuids=1`,
+      ) as {
+        MediaContainer?: { Metadata?: unknown[] }
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (data?.MediaContainer?.Metadata ?? []).map((m: any) => ({
+        key: m.ratingKey as string,
+        title: m.title as string,
+        year: m.year as number | undefined,
+        type: 'movie' as const,
+        thumb: thumbUrl(baseUrl, token, m.thumb as string | undefined),
+        ...extractGuids(m),
+      }))
+    } catch {
+      return []
+    }
+  },
+
+  /**
+   * Returns current Plex poster thumbs for a library item and its related
+   * hierarchy (collection members, seasons, etc.).
+   */
+  async getCurrentArt(req: CurrentArtReq): Promise<CurrentArtRes> {
+    if (!_conn) return { slots: [] }
+    const { baseUrl, token } = _conn
+    const slots: PlexArtSlot[] = []
+
+    const movieLabel = (title: string, year?: number) =>
+      year ? `${title} (${year})` : title
+
+    if (req.type === 'collection') {
+      try {
+        const data = await plexFetch(
+          baseUrl, token,
+          `/library/metadata/${req.key}?includeGuids=1`,
+        ) as {
+          MediaContainer?: { Metadata?: Array<{ title?: string; thumb?: string }> }
+        }
+        const meta = data?.MediaContainer?.Metadata?.[0]
+        const title = meta?.title ?? req.title
+        slots.push({
+          key: req.key,
+          label: title,
+          thumb: thumbUrl(baseUrl, token, meta?.thumb as string | undefined),
+          kind: 'collection',
+          highlight: true,
+        })
+      } catch {
+        slots.push({ key: req.key, label: req.title, kind: 'collection', highlight: true })
+      }
+      for (const child of await PlexService.getCollectionChildren(req.key)) {
+        slots.push({
+          key: child.key,
+          label: movieLabel(child.title, child.year),
+          thumb: child.thumb,
+          kind: 'movie',
+        })
+      }
+      return { slots }
+    }
+
+    if (req.type === 'movie') {
+      try {
+        const data = await plexFetch(
+          baseUrl, token,
+          `/library/metadata/${req.key}?includeGuids=1`,
+        ) as {
+          MediaContainer?: { Metadata?: Array<{ title?: string; year?: number; thumb?: string }> }
+        }
+        const meta = data?.MediaContainer?.Metadata?.[0]
+        const title = meta?.title ?? req.title
+        const year = meta?.year ?? req.year
+        slots.push({
+          key: req.key,
+          label: movieLabel(title, year),
+          thumb: thumbUrl(baseUrl, token, meta?.thumb as string | undefined),
+          kind: 'movie',
+          highlight: true,
+        })
+      } catch {
+        slots.push({
+          key: req.key,
+          label: movieLabel(req.title, req.year),
+          kind: 'movie',
+          highlight: true,
+        })
+      }
+
+      const collTitle = req.title.replace(/\s*\(\d{4}\)\s*$/, '').trim()
+      const coll = await PlexService.findCollection({ title: collTitle })
+        ?? await PlexService.findCollection({ title: req.title })
+      if (coll) {
+        slots.push({
+          key: coll.key,
+          label: coll.title,
+          thumb: thumbUrl(baseUrl, token, coll.thumb),
+          kind: 'collection',
+        })
+        for (const child of await PlexService.getCollectionChildren(coll.key)) {
+          if (child.key === req.key) continue
+          slots.push({
+            key: child.key,
+            label: movieLabel(child.title, child.year),
+            thumb: child.thumb,
+            kind: 'movie',
+          })
+        }
+      }
+      return { slots }
+    }
+
+    // show
+    try {
+      const data = await plexFetch(
+        baseUrl, token,
+        `/library/metadata/${req.key}?includeGuids=1`,
+      ) as {
+        MediaContainer?: { Metadata?: Array<{ title?: string; thumb?: string }> }
+      }
+      const meta = data?.MediaContainer?.Metadata?.[0]
+      slots.push({
+        key: req.key,
+        label: meta?.title ?? req.title,
+        thumb: thumbUrl(baseUrl, token, meta?.thumb as string | undefined),
+        kind: 'show',
+        highlight: true,
+      })
+    } catch {
+      slots.push({ key: req.key, label: req.title, kind: 'show', highlight: true })
+    }
+
+    try {
+      const seasonData = await plexFetch(baseUrl, token, `/library/metadata/${req.key}/children`) as {
+        MediaContainer?: { Metadata?: Array<{ ratingKey: string; index?: number; thumb?: string }> }
+      }
+      const seasons = (seasonData?.MediaContainer?.Metadata ?? [])
+        .slice()
+        .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
+      for (const s of seasons) {
+        const idx = s.index ?? 0
+        slots.push({
+          key: s.ratingKey,
+          label: idx === 0 ? 'Specials' : `Season ${idx}`,
+          thumb: thumbUrl(baseUrl, token, s.thumb),
+          kind: 'season',
+          season: idx,
+        })
+      }
+    } catch {
+      // seasons unavailable
+    }
+
+    return { slots }
+  },
+
+  /**
    * Returns browsable movie/show sections, honouring the excluded-libraries
    * setting.
    *
@@ -482,9 +731,7 @@ export const PlexService = {
     const items: LibraryItem[] = (mc?.Metadata ?? []).map((m: any) => {
       const guids = extractGuids(m)
       const thumbPath = m.thumb as string | undefined
-      const thumb = thumbPath
-        ? `${baseUrl.replace(/\/$/, '')}/photo/:/transcode?width=240&height=360&minSize=1&upscale=1&url=${encodeURIComponent(thumbPath)}&X-Plex-Token=${token}`
-        : undefined
+      const thumb = thumbUrl(baseUrl, token, thumbPath)
       return {
         key: m.ratingKey as string,
         title: m.title as string,
@@ -505,6 +752,28 @@ export const PlexService = {
    * @param item - Library item carrying whatever external IDs Plex exposed.
    * @returns The TMDB id, or null when it can't be resolved.
    */
+  /**
+   * Looks up a TMDB collection id from a member movie (Plex collections often
+   * only carry a Plex uuid guid, not tmdb://collection/…).
+   */
+  async resolveTmdbCollectionId(movieTmdbId: string): Promise<string | null> {
+    const key = ConfigService.get().tmdbApiKey?.trim()
+    if (!key) return null
+    try {
+      const res = await fetch(
+        `https://api.themoviedb.org/3/movie/${movieTmdbId}?api_key=${key}`,
+        { signal: AbortSignal.timeout(15_000) },
+      )
+      if (!res.ok) return null
+      const body = await res.json() as { belongs_to_collection?: { id?: number } }
+      const id = body.belongs_to_collection?.id
+      return id ? String(id) : null
+    } catch (err) {
+      Logger.warn('Plex', `TMDB collection resolve failed: ${err instanceof Error ? err.message : err}`)
+      return null
+    }
+  },
+
   async resolveTmdbId(item: LibraryItem): Promise<string | null> {
     if (item.tmdbId) return item.tmdbId
 
@@ -644,15 +913,21 @@ export const PlexService = {
   async uploadPoster(req: UploadReq): Promise<UploadRes> {
     if (!_conn) return { success: false, error: 'Not connected to Plex' }
     const { baseUrl, token } = _conn
-    const { itemKey, imageUrl, source, season, episode } = req
+    const { itemKey, imageUrl, source, season, episode, isCollection } = req
     const labelTag = source === 'mediux' ? 'MediUX' : 'ThePosterDB'
 
     try {
-      const target = await PlexService.resolveTarget(itemKey, season, episode)
-      // Skip cleanly instead of misapplying the art to a parent (season/show) poster
-      if (target.kind === 'skip') {
-        Logger.scrape('Plex', `Skipped upload - ${target.reason} (key ${itemKey})`)
-        return { success: false, error: target.reason }
+      let target: { key: string; kind: 'poster' | 'art' }
+      if (isCollection) {
+        // Collections have child movies; never walk /children or art lands on a member.
+        target = season === 'Backdrop' ? { key: itemKey, kind: 'art' } : { key: itemKey, kind: 'poster' }
+      } else {
+        const resolved = await PlexService.resolveTarget(itemKey, season, episode)
+        if (resolved.kind === 'skip') {
+          Logger.scrape('Plex', `Skipped upload - ${resolved.reason} (key ${itemKey})`)
+          return { success: false, error: resolved.reason }
+        }
+        target = resolved
       }
       const endpoint = target.kind === 'art' ? 'arts' : 'posters'
 
@@ -676,8 +951,10 @@ export const PlexService = {
         { method: 'PUT' },
       )
 
-      const where = target.key === itemKey
-        ? 'show' : `S${season ?? '?'}${episode != null ? `E${episode}` : ''}`
+      const where = isCollection
+        ? 'collection'
+        : target.key === itemKey
+          ? 'show' : `S${season ?? '?'}${episode != null ? `E${episode}` : ''}`
       Logger.success('Plex', `${target.kind} uploaded → ${where} (key ${target.key}) [${source}]`)
       return { success: true }
     } catch (err) {

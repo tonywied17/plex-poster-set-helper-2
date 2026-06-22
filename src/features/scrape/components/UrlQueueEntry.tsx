@@ -90,7 +90,7 @@ async function uploadPoster(
         return
       }
       patchPoster(entryId, poster.url, { uploadStatus: 'uploading' })
-      const res = await window.api.plex.uploadPoster(coll.key, poster.url, poster.source, poster.season, poster.episode)
+      const res = await window.api.plex.uploadPoster(coll.key, poster.url, poster.source, poster.season, poster.episode, true)
       if (res.success) {
         void recordApplied({
           itemKey: coll.key,

@@ -2,7 +2,8 @@ import type { Api } from '../../electron/preload'
 import type {
   AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress,
   AppEnv, ScheduledJob, SchedulerEngineStatus, BrowserStatus,
-  SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq,
+  SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq,
+  CurrentArtReq, CurrentArtRes,
 } from '../../electron/ipc/types'
 
 type SseHandler = (event: string, data: unknown) => void
@@ -85,8 +86,8 @@ export function createWebClient(): Api {
         apiFetch('/api/plex/find-item', { method: 'POST', body: JSON.stringify({ title, year, libraries: libraries ?? [], tmdbId }) }),
       findCollection: (title) =>
         apiFetch('/api/plex/find-collection', { method: 'POST', body: JSON.stringify({ title }) }),
-      uploadPoster: (itemKey, imageUrl, source, season, episode) =>
-        apiFetch('/api/plex/upload-poster', { method: 'POST', body: JSON.stringify({ itemKey, imageUrl, source, season, episode }) }),
+      uploadPoster: (itemKey, imageUrl, source, season, episode, isCollection) =>
+        apiFetch('/api/plex/upload-poster', { method: 'POST', body: JSON.stringify({ itemKey, imageUrl, source, season, episode, isCollection }) }),
       getLabeledItems: (label) =>
         apiFetch('/api/plex/labeled-items', { method: 'POST', body: JSON.stringify({ label }) }),
       resetPoster: (itemKey, hierarchical, deleteUploads) =>
@@ -99,9 +100,20 @@ export function createWebClient(): Api {
     library: {
       sections: () => apiFetch('/api/library/sections'),
       items: (req: SectionItemsReq) => apiFetch('/api/library/items', { method: 'POST', body: JSON.stringify(req) }),
+      collections: (req: CollectionsReq) => apiFetch('/api/library/collections', { method: 'POST', body: JSON.stringify(req) }),
+      collectionSets: (req: CollectionSetsReq) => apiFetch('/api/library/collection-sets', { method: 'POST', body: JSON.stringify(req) }),
       sets: (req: BrowseSetsReq) => apiFetch('/api/library/sets', { method: 'POST', body: JSON.stringify(req) }),
       userSets: (req: UserSetsReq) => apiFetch('/api/library/user-sets', { method: 'POST', body: JSON.stringify(req) }),
       creatorSearch: (req: CreatorSearchReq) => apiFetch('/api/library/creator-search', { method: 'POST', body: JSON.stringify(req) }),
+      currentArt: (req: CurrentArtReq) => {
+        const params = new URLSearchParams({
+          key: req.key,
+          type: req.type,
+          title: req.title,
+        })
+        if (req.year != null) params.set('year', String(req.year))
+        return apiFetch<CurrentArtRes>(`/api/library/current-art?${params}`)
+      },
     },
 
     scrape: {

@@ -290,9 +290,34 @@
 
 .itemGrid {
   display: grid;
+  width: 100%;
   grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
   gap: var(--space-4);
   padding-bottom: var(--space-4);
+}
+
+.gridScrollWithPanel {
+  padding-right: var(--library-panel-width, 560px);
+  transition: padding-right 0.2s var(--ease-out-expo, ease);
+}
+
+@media (min-width: 1200px) {
+  .itemGrid {
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: var(--space-5);
+  }
+}
+
+@media (min-width: 1800px) {
+  .itemGrid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+}
+
+@media (min-width: 2400px) {
+  .itemGrid {
+    grid-template-columns: repeat(auto-fill, minmax(172px, 1fr));
+  }
 }
 
 .itemCard {
@@ -430,13 +455,42 @@
   top: 0;
   right: 0;
   bottom: 0;
-  width: min(440px, 80%);
+  container-type: inline-size;
+  container-name: sets-panel;
   background: var(--color-bg-surface);
   border-left: 1px solid var(--color-border);
   box-shadow: -16px 0 48px rgba(0, 0, 0, 0.45);
   display: flex;
   flex-direction: column;
   z-index: 10;
+}
+
+.panelResizeHandle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panelResizeHandle:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.panelResizeGrip {
+  width: 2px;
+  height: 32px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.panelResizeHandle:hover .panelResizeGrip {
+  background: rgba(255, 255, 255, 0.28);
 }
 
 .panelHeader {
@@ -478,6 +532,102 @@
 }
 
 .panelClose:hover { color: var(--color-text-primary); background: rgba(255, 255, 255, 0.06); }
+
+.panelHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.panelRefresh {
+  display: flex;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  background: none;
+  border: none;
+}
+
+.panelRefresh:hover:not(:disabled) { color: var(--color-text-primary); background: rgba(255, 255, 255, 0.06); }
+.panelRefresh:disabled { opacity: 0.4; cursor: default; }
+
+/* -- Current Plex Art strip ----------------------------------------------- */
+
+.artStripSection {
+  flex-shrink: 0;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.artStripLabel {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.artStripLoading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.artStrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: var(--space-2);
+}
+
+.artCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.artCardImg {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  display: block;
+  background: var(--color-bg-base);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.artCardFallback {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-base);
+  color: var(--color-text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.artHighlight .artCardImg,
+.artHighlight .artCardFallback {
+  border-color: var(--color-accent, #e5a00d);
+  box-shadow: 0 0 0 1px var(--color-accent, #e5a00d);
+}
+
+.artLabel {
+  font-size: 9px;
+  line-height: 1.2;
+  color: var(--color-text-secondary);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .filters {
   display: flex;
@@ -560,7 +710,7 @@
 
 .panelLoading { flex-direction: row; }
 .panelNotice p { margin: 0; }
-.noticeSub { font-size: var(--text-xs); opacity: 0.7; max-width: 280px; }
+.noticeSub { font-size: var(--text-xs); opacity: 0.7; max-width: 100%; }
 
 /* -- Set card -------------------------------------------------------------- */
 
@@ -668,10 +818,37 @@
    the info column so it never stretches the preview thumbnail). */
 .scopeToggle {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 8px;
   padding: 8px var(--space-3);
   border-top: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
   background: rgba(255, 255, 255, 0.015);
+}
+
+.scopeBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.scopeSubOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 26px;
+}
+
+.scopeRadio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.scopeRadio input {
+  accent-color: var(--color-accent);
 }
 
 .setActions { margin-top: auto; display: flex; align-items: center; gap: var(--space-2); }
@@ -733,10 +910,10 @@
 
 .groupThumbs {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
   gap: 5px;
 }
-.groupThumbsWide { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
+.groupThumbsWide { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
 
 .groupThumb {
   position: relative;
@@ -753,6 +930,31 @@
 .groupThumbsWide .groupThumb { aspect-ratio: 16 / 9; }
 
 .groupThumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Panel width tiers — respond to SetsPanel inline width, not viewport */
+@container sets-panel (min-width: 520px) {
+  .filters { flex-direction: row; align-items: center; gap: var(--space-3); }
+  .filters > :first-child { flex: 1; min-width: 0; }
+  .typeToggles { flex: 0 0 auto; }
+  .setPreview { width: 72px; }
+  .groupThumbs { grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); }
+  .groupThumbsWide { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+  .artStrip { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
+  .artLabel { font-size: 10px; }
+}
+
+@container sets-panel (min-width: 720px) {
+  .setPreview { width: 88px; }
+  .groupThumbs { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
+  .groupThumbsWide { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); }
+  .artStrip { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+  .panelBody { gap: var(--space-4); padding: var(--space-4); }
+}
+
+@container sets-panel (min-width: 880px) {
+  .setPreview { width: 104px; }
+  .groupThumbs { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
+}
 
 .epBadge {
   position: absolute;

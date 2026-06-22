@@ -179,7 +179,7 @@ export default function ResetPage() {
     setConfirmAll(false)
     // Hand the whole batch to the controller so it keeps running (and stays
     // visible) even if the user navigates away from this page.
-    startAll(filtered.map(i => i.key), deleteUploads)
+    startAll(filtered.map(i => ({ key: i.key, type: i.type })), deleteUploads)
   }
 
 
@@ -432,7 +432,7 @@ export default function ResetPage() {
                       size="sm"
                       className={deleteUploads ? styles.dangerAction : undefined}
                       icon={deleteUploads ? <Trash2 size={12} /> : <RotateCcw size={12} />}
-                      onClick={() => resetOne(item.key, deleteUploads)}
+                      onClick={() => resetOne({ key: item.key, type: item.type }, deleteUploads)}
                       disabled={running}
                       title={deleteUploads
                         ? 'Reset to original art and delete the uploaded images from Plex'

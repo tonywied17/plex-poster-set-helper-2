@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, SchedulerEngineStatus, BrowserStatus, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq } from './ipc/types'
+import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, SchedulerEngineStatus, BrowserStatus, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq, CurrentArtReq } from './ipc/types'
 
 /** Typed IPC bridge exposed to the renderer as window.api. */
 const api = {
@@ -23,8 +23,9 @@ const api = {
       source: 'mediux' | 'posterdb',
       season?: number | 'Cover' | 'Backdrop',
       episode?: number,
+      isCollection?: boolean,
     ) =>
-      ipcRenderer.invoke('plex:uploadPoster', { itemKey, imageUrl, source, season, episode }),
+      ipcRenderer.invoke('plex:uploadPoster', { itemKey, imageUrl, source, season, episode, isCollection }),
     getLabeledItems: (label: string) =>
       ipcRenderer.invoke('plex:getLabeledItems', { label }),
     resetPoster: (itemKey: string, hierarchical?: boolean, deleteUploads?: boolean) =>
@@ -38,9 +39,12 @@ const api = {
   library: {
     sections: () => ipcRenderer.invoke('library:sections'),
     items: (req: SectionItemsReq) => ipcRenderer.invoke('library:items', req),
+    collections: (req: CollectionsReq) => ipcRenderer.invoke('library:collections', req),
+    collectionSets: (req: CollectionSetsReq) => ipcRenderer.invoke('library:collectionSets', req),
     sets: (req: BrowseSetsReq) => ipcRenderer.invoke('library:sets', req),
     userSets: (req: UserSetsReq) => ipcRenderer.invoke('library:userSets', req),
     creatorSearch: (req: CreatorSearchReq) => ipcRenderer.invoke('library:creatorSearch', req),
+    currentArt: (req: CurrentArtReq) => ipcRenderer.invoke('library:currentArt', req),
   },
 
   scrape: {

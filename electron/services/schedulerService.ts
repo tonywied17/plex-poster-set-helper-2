@@ -193,32 +193,54 @@ export const SchedulerService = {
     try {
       let uploaded = 0
       let errors = 0
-      const appliedItems = new Map<string, { key: string; title: string; year?: number; type: 'movie' | 'show'; libraryTitle: string; source: 'mediux' | 'posterdb'; thumb?: string; thumbIsMain: boolean; posterUrls: string[] }>()
+      const appliedItems = new Map<string, { key: string; title: string; year?: number; type: 'movie' | 'show' | 'collection'; libraryTitle: string; source: 'mediux' | 'posterdb'; thumb?: string; thumbIsMain: boolean; posterUrls: string[] }>()
 
       for (const url of job.urls) {
         try {
           const posters = await ScraperFactory.scrapeUrl(url, () => {})
           for (const poster of posters) {
             try {
-              const item = await PlexService.findInLibrary({
-                title: poster.title,
-                year: poster.year,
-                libraries: [],
-                tmdbId: poster.tmdbId,
-              })
-              if (!item) continue
+              let itemKey: string
+              let title: string
+              let year: number | undefined
+              let itemType: 'movie' | 'show' | 'collection'
+              let libraryTitle: string
+
+              if (poster.isCollection) {
+                const coll = await PlexService.findCollection({ title: poster.title })
+                if (!coll) continue
+                itemKey = coll.key
+                title = coll.title
+                itemType = 'collection'
+                libraryTitle = coll.libraryTitle
+              } else {
+                const item = await PlexService.findInLibrary({
+                  title: poster.title,
+                  year: poster.year,
+                  libraries: [],
+                  tmdbId: poster.tmdbId,
+                })
+                if (!item) continue
+                itemKey = item.key
+                title = item.title
+                year = item.year
+                itemType = item.type === 'movie' ? 'movie' : 'show'
+                libraryTitle = item.libraryTitle
+              }
+
               const res = await PlexService.uploadPoster({
-                itemKey: item.key,
+                itemKey,
                 imageUrl: poster.url,
                 source: poster.source,
                 season: poster.season,
                 episode: poster.episode,
+                isCollection: poster.isCollection,
               })
               if (res.success) {
                 uploaded++
                 const isMain = poster.season == null && poster.episode == null
                 const thumb  = poster.thumbUrl ?? poster.url
-                const existing = appliedItems.get(item.key)
+                const existing = appliedItems.get(itemKey)
                 if (existing) {
                   existing.posterUrls.push(poster.url)
                   if ((isMain && !existing.thumbIsMain) || !existing.thumb) {
@@ -226,10 +248,10 @@ export const SchedulerService = {
                     existing.thumbIsMain = existing.thumbIsMain || isMain
                   }
                 } else {
-                  appliedItems.set(item.key, {
-                    key: item.key, title: item.title, year: item.year,
-                    type: item.type === 'movie' ? 'movie' : 'show',
-                    libraryTitle: item.libraryTitle, source: poster.source,
+                  appliedItems.set(itemKey, {
+                    key: itemKey, title, year,
+                    type: itemType,
+                    libraryTitle, source: poster.source,
                     thumb, thumbIsMain: isMain, posterUrls: [poster.url],
                   })
                 }

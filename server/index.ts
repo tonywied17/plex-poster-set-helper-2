@@ -195,9 +195,20 @@ export async function startServer() {
   // Library
   app.get('/api/library/sections', async () => handlers.library.sections())
   app.post('/api/library/items', async (req) => handlers.library.items(req.body as Parameters<typeof handlers.library.items>[0]))
+  app.post('/api/library/collections', async (req) => handlers.library.collections(req.body as Parameters<typeof handlers.library.collections>[0]))
+  app.post('/api/library/collection-sets', async (req) => handlers.library.collectionSets(req.body as Parameters<typeof handlers.library.collectionSets>[0]))
   app.post('/api/library/sets', async (req) => handlers.library.sets(req.body as Parameters<typeof handlers.library.sets>[0]))
   app.post('/api/library/user-sets', async (req) => handlers.library.userSets(req.body as Parameters<typeof handlers.library.userSets>[0]))
   app.post('/api/library/creator-search', async (req) => handlers.library.creatorSearch(req.body as Parameters<typeof handlers.library.creatorSearch>[0]))
+  app.get('/api/library/current-art', async (req) => {
+    const q = req.query as { key: string; type: string; title: string; year?: string }
+    return handlers.library.currentArt({
+      key: q.key,
+      type: q.type as 'movie' | 'show' | 'collection',
+      title: q.title,
+      year: q.year ? parseInt(q.year, 10) : undefined,
+    })
+  })
 
   // Scrape
   app.post('/api/scrape/url', async (req) => handlers.scrape.url(req.body as Parameters<typeof handlers.scrape.url>[0]))
