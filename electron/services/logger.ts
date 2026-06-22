@@ -60,7 +60,8 @@ export const Logger = {
 
   log(level: LogEntry['level'], module: string, message: string, meta?: Record<string, unknown>) {
     const entry: LogEntry = { ts: new Date().toISOString(), level, module, message, meta }
-    ;(logger as unknown as Record<string, (msg: string, meta?: object) => void>)[level]?.(message, { module, ...meta })
+    const write = logger as unknown as Record<string, ((msg: string, meta?: object) => void) | undefined> | undefined
+    write?.[level]?.(message, { module, ...meta })
     buffer.push(entry)
     if (buffer.length > MAX_BUFFER) buffer.shift()
     streamToClients(entry)

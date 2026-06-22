@@ -51,7 +51,10 @@ export function getAppRoot(): string {
   try {
     const { app } = require('electron') as typeof import('electron')
     if (app.isPackaged) {
-      return path.join(process.resourcesPath, 'app.asar.unpacked')
+      const unpacked = path.join(process.resourcesPath, 'app.asar.unpacked')
+      const cliInUnpacked = path.join(unpacked, 'node_modules', 'playwright', 'cli.js')
+      if (fs.existsSync(cliInUnpacked)) return unpacked
+      return app.getAppPath().replace(/\.asar$/i, '.asar.unpacked')
     }
     return app.getAppPath()
   } catch {

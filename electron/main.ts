@@ -245,9 +245,8 @@ function createWindow() {
   return mainWindow
 }
 
-/** Initialises config, logging, scheduler, and the Playwright environment. */
+/** Initialises logging, scheduler, and the Playwright environment (call after createWindow). */
 async function initServices() {
-  await ConfigService.init()
   Logger.init(mainWindow)
   PlaywrightService.setupEnv()
   if (mainWindow) {
@@ -371,15 +370,15 @@ app.whenReady().then(async () => {
     return
   }
 
+  await ConfigService.init()
   createWindow()
   if (!NO_TRAY) setupTray()
-  // Register IPC first so the renderer never gets "no handler" errors
+  await initServices().catch(err => console.error('initServices failed:', err))
   registerIpcHandlers()
   if (mainWindow) {
     wireSchedulerEvents(mainWindow)
     wireBrowserEvents(mainWindow)
   }
-  await initServices().catch(err => console.error('initServices failed:', err))
   setupAutoUpdater()
 
   // macOS: re-show when clicking the dock icon

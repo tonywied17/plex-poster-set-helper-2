@@ -5,7 +5,6 @@ import type { BrowserWindow } from 'electron'
 import { Logger } from './logger'
 import { getUserDataPath, getAppRoot } from '../runtime/paths'
 import { appEvents } from '../runtime/events'
-import { isWebMode } from '../runtime/runtime'
 
 export interface BrowserStatus {
   installed: boolean
@@ -101,9 +100,15 @@ export const PlaywrightService = {
     return new Promise((resolve, reject) => {
       const appRoot = getAppRoot()
       const cliPath = path.join(appRoot, 'node_modules', 'playwright', 'cli.js')
-      const env = {
+      const env: NodeJS.ProcessEnv = {
         ...process.env,
         PLAYWRIGHT_BROWSERS_PATH: this.getBrowsersPath(),
+        ELECTRON_RUN_AS_NODE: '1',
+      }
+
+      if (!fs.existsSync(cliPath)) {
+        reject(new Error(`Playwright CLI not found at ${cliPath}`))
+        return
       }
 
       Logger.info('Playwright', `Installing via ${cliPath}`)
@@ -120,33 +125,23 @@ export const PlaywrightService = {
 
       const onStdout = (d: Buffer) => String(d).split('\n').forEach(sendProgress)
       const onStderr = (d: Buffer) => String(d).split('\n').forEach(sendProgress)
-      const onExit = (code: number) => {
+      const onExit = (code: number | null) => {
         if (code === 0) {
           Logger.success('Playwright', 'Chromium installed')
           done()
         } else {
-          done(new Error(`playwright install exited with code ${code}`))
+          done(new Error(`playwright install exited with code ${code ?? 'unknown'}`))
         }
       }
 
-      if (isWebMode()) {
-        const child = spawn(process.execPath, [cliPath, 'install', 'chromium'], {
-          stdio: ['ignore', 'pipe', 'pipe'],
-          env,
-        })
-        child.stdout?.on('data', onStdout)
-        child.stderr?.on('data', onStderr)
-        child.on('exit', onExit)
-      } else {
-        const { utilityProcess } = require('electron') as typeof import('electron')
-        const child = utilityProcess.fork(cliPath, ['install', 'chromium'], {
-          stdio: ['ignore', 'pipe', 'pipe'] as unknown as Array<'pipe' | 'ignore' | 'inherit'>,
-          env,
-        })
-        child.stdout?.on('data', onStdout)
-        child.stderr?.on('data', onStderr)
-        child.on('exit', onExit)
-      }
+      const child = spawn(process.execPath, [cliPath, 'install', 'chromium'], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env,
+      })
+      child.stdout?.on('data', onStdout)
+      child.stderr?.on('data', onStderr)
+      child.on('error', err => done(err))
+      child.on('exit', onExit)
 
       const browsersPath = this.getBrowsersPath()
       const preExisting = findBrowserExec(browsersPath)
