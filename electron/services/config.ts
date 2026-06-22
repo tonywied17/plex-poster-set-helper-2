@@ -34,7 +34,8 @@ const DEFAULTS: AppConfig = {
   excludedLibraries: [],
 }
 
-function useJsonStore(): boolean {
+/** Web/Docker store tokens in plain JSON; desktop encrypts with OS keychain when available. */
+function persistTokensAsPlaintext(): boolean {
   return isWebMode() || isHeadlessMode() || !!process.env.PLEX_HELPER_CONFIG_DIR
 }
 
@@ -57,32 +58,35 @@ function writeJsonStore(data: Record<string, unknown>): void {
   fs.writeFileSync(jsonConfigPath(), JSON.stringify(data, null, 2), 'utf8')
 }
 
-let electronStore: { get: (k: string) => unknown; set: (k: string, v: unknown) => void; store: Record<string, unknown> } | null = null
+/** One-time import from legacy electron-store file (app-config.json). */
+function migrateLegacyElectronStore(): void {
+  const target = jsonConfigPath()
+  if (fs.existsSync(target)) return
 
-function getElectronStore() {
-  if (electronStore) return electronStore
-  const Store = require('electron-store') as typeof import('electron-store').default
-  electronStore = new Store<Record<string, unknown>>({ name: 'app-config' })
-  return electronStore
+  const legacyPath = path.join(getUserDataPath(), 'app-config.json')
+  if (!fs.existsSync(legacyPath)) return
+
+  try {
+    const legacy = JSON.parse(fs.readFileSync(legacyPath, 'utf8')) as Record<string, unknown>
+    writeJsonStore(legacy)
+    fs.renameSync(legacyPath, `${legacyPath}.migrated`)
+  } catch {
+    /* keep legacy file; fresh config will be created on first write */
+  }
 }
 
 function readRaw(): Partial<AppConfig> {
-  if (useJsonStore()) return readJsonStore()
-  return getElectronStore().store as Partial<AppConfig>
+  return readJsonStore()
 }
 
 function writeKey(key: string, value: unknown): void {
-  if (useJsonStore()) {
-    const current = readJsonStore()
-    writeJsonStore({ ...current, [key]: value })
-  } else {
-    getElectronStore().set(key, value)
-  }
+  const current = readJsonStore()
+  writeJsonStore({ ...current, [key]: value })
 }
 
 function decryptToken(stored: string): string {
   if (!stored) return ''
-  if (useJsonStore()) return stored
+  if (persistTokensAsPlaintext()) return stored
   try {
     const { safeStorage } = require('electron') as typeof import('electron')
     if (safeStorage.isEncryptionAvailable()) {
@@ -94,7 +98,7 @@ function decryptToken(stored: string): string {
 }
 
 function encryptToken(token: string): string {
-  if (useJsonStore()) return token
+  if (persistTokensAsPlaintext()) return token
   try {
     const { safeStorage } = require('electron') as typeof import('electron')
     if (safeStorage.isEncryptionAvailable()) {
@@ -104,9 +108,10 @@ function encryptToken(token: string): string {
   return token
 }
 
-/** Persistent app configuration with JSON file (web/Docker) or electron-store (desktop). */
+/** Persistent app configuration in userData/config.json (all runtimes). */
 export const ConfigService = {
   async init() {
+    migrateLegacyElectronStore()
     if (!readRaw().clientIdentifier) {
       writeKey('clientIdentifier', randomUUID())
     }
