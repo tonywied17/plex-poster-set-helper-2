@@ -3,7 +3,7 @@ import { autoUpdater } from 'electron-updater'
 import type { IpcMain } from 'electron'
 import { ConfigService } from '../services/config'
 
-const REPO = 'tonywied17/plex-poster-set-helper-2'
+const REPO = 'molexxxx/plex-poster-set-helper-2'
 const REPO_URL = `https://github.com/${REPO}`
 
 /** Running inside our Docker images (they set PLEX_HELPER_PROD=1 but aren't packaged). */

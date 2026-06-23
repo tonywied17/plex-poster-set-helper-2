@@ -840,7 +840,7 @@ export default function SettingsPage() {
                   </div>
                   <p className={styles.engineSub}>
                     {browserStatus.installed
-                      ? 'Bundled and ready — launched headlessly to render and scrape poster pages.'
+                      ? 'Bundled and ready - launched headlessly to render and scrape poster pages.'
                       : 'Not installed yet. Install Chromium to enable scraping. Node.js must be on your system PATH.'}
                   </p>
                   <div className={styles.browserActions}>

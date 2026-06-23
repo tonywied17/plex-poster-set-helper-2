@@ -29,7 +29,7 @@ You'll also want your **Plex login** ready (you sign in during setup - no token 
 Open a terminal (PowerShell on Windows) and run:
 
 ```bash
-git clone https://github.com/tonywied17/plex-poster-set-helper-2.git
+git clone https://github.com/molexxxx/plex-poster-set-helper-2.git
 cd plex-poster-set-helper-2
 ```
 
@@ -94,7 +94,7 @@ right from this GUI container, so there's nothing else to set up.
 ## unraid
 
 No build needed - it runs from the prebuilt image
-[`tonywied17/plex-poster-helper-2`](https://hub.docker.com/r/tonywied17/plex-poster-helper-2)
+[`molexxxx/plex-poster-helper-2`](https://hub.docker.com/r/molexxxx/plex-poster-helper-2)
 on Docker Hub.
 
 ### Easiest: Community Applications

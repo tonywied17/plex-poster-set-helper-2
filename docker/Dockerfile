@@ -35,7 +35,7 @@ RUN npm run build   # vite build (renderer → src/dist) + tsc (electron → ele
 RUN npm prune --omit=dev
 
 # Electron is a devDependency (electron-builder requires that), but the container
-# RUNS electron at runtime — so reinstall just electron after the prune and bake
+# RUNS electron at runtime - so reinstall just electron after the prune and bake
 # its Linux binary (the npm postinstall is skipped via ELECTRON_SKIP_BINARY_DOWNLOAD).
 RUN set -eux; \
     npm install --no-save --no-audit --no-fund "electron@$(node -p "require('./package.json').devDependencies.electron")"; \

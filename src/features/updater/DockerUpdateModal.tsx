@@ -3,7 +3,7 @@ import { Copy, Check, Container } from 'lucide-react'
 import Modal from '../../components/ui/Modal'
 import styles from './DockerUpdateModal.module.css'
 
-const GUIDE_URL = 'https://github.com/tonywied17/plex-poster-set-helper-2/blob/main/docker/README.md#updating-to-a-new-version'
+const GUIDE_URL = 'https://github.com/molexxxx/plex-poster-set-helper-2/blob/main/docker/README.md#updating-to-a-new-version'
 
 /**
  * A copyable block of shell commands.
