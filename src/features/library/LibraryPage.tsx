@@ -940,8 +940,13 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
   }, [sets, subSet])
 
   const visibleSets = useMemo(
-    () => uploader === 'all' ? sets : sets.filter(s => s.uploader === uploader),
-    [sets, uploader],
+    () => {
+      const byUploader = uploader === 'all' ? sets : sets.filter(s => s.uploader === uploader)
+      // Hide sets that have nothing to apply under the current type filter, so
+      // the chips actually narrow the result list instead of only dimming art.
+      return byUploader.filter(s => s.posters.some(p => types.has(posterFileType(p))))
+    },
+    [sets, uploader, types],
   )
 
   function toggleType(t: FileType) {
@@ -1272,6 +1277,10 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
           <div className={styles.panelNotice}><ImageIcon size={20} /><p>No MediUX sets found for this title.</p></div>
         )}
 
+        {!loading && !error && sets.length > 0 && visibleSets.length === 0 && (
+          <div className={styles.panelNotice}><ImageIcon size={20} /><p>No sets match the current filters.</p></div>
+        )}
+
         {visibleSets.map(s => {
           // "Applied" = the set currently live on this item; "Downloaded" = a set
           // applied before but since overwritten; "Has art" = title has art elsewhere.
@@ -1395,17 +1404,20 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, fo
   const applyDisabled = disabled || scopeBlocksApply
 
   const groups = useMemo(() => groupPosters(set.posters), [set.posters])
-  const totalCount = set.posterCount + set.titleCardCount + set.backdropCount
+  // Only the groups whose file type is enabled by the type chips; the preview,
+  // counts and lightbox all key off this so the filter drives what's shown.
+  const visibleGroups = useMemo(() => groups.filter(g => enabledTypes.has(g.kind)), [groups, enabledTypes])
+  const totalCount = visibleGroups.reduce((n, g) => n + g.posters.length, 0)
 
   // Flattened poster list in group order for the full-screen lightbox
   const [lightbox, setLightbox] = useState<number | null>(null)
   const lightboxImages = useMemo<LightboxImage[]>(
-    () => groups.flatMap(g => g.posters.map(p => ({
+    () => visibleGroups.flatMap(g => g.posters.map(p => ({
       url: p.url,
       label: g.label,
       caption: p.episode != null ? `Episode ${p.episode}` : (p.title || undefined),
     }))),
-    [groups],
+    [visibleGroups],
   )
 
   return (
@@ -1453,9 +1465,9 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, fo
           </div>
 
           <div className={styles.setCounts}>
-            {set.posterCount > 0    && <span className={styles.countBadge}>{set.posterCount} poster{set.posterCount !== 1 ? 's' : ''}</span>}
-            {set.titleCardCount > 0 && <span className={styles.countBadge}>{set.titleCardCount} card{set.titleCardCount !== 1 ? 's' : ''}</span>}
-            {set.backdropCount > 0  && <span className={styles.countBadge}>{set.backdropCount} backdrop{set.backdropCount !== 1 ? 's' : ''}</span>}
+            {enabledTypes.has('poster')     && set.posterCount > 0    && <span className={styles.countBadge}>{set.posterCount} poster{set.posterCount !== 1 ? 's' : ''}</span>}
+            {enabledTypes.has('title_card') && set.titleCardCount > 0 && <span className={styles.countBadge}>{set.titleCardCount} card{set.titleCardCount !== 1 ? 's' : ''}</span>}
+            {enabledTypes.has('backdrop')   && set.backdropCount > 0  && <span className={styles.countBadge}>{set.backdropCount} backdrop{set.backdropCount !== 1 ? 's' : ''}</span>}
           </div>
 
           <div className={styles.setActions}>
@@ -1566,10 +1578,9 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, fo
           >
             {(() => {
               let flat = -1
-              return groups.map(g => {
-                const dim = !enabledTypes.has(g.kind)
+              return visibleGroups.map(g => {
                 return (
-                  <div key={g.label} className={`${styles.group} ${dim ? styles.groupDim : ''}`}>
+                  <div key={g.label} className={styles.group}>
                     <div className={styles.groupLabel}>
                       {g.label}
                       <span className={styles.groupCount}>{g.posters.length}</span>

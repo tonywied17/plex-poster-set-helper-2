@@ -1008,8 +1008,6 @@
 }
 
 .group { display: flex; flex-direction: column; gap: 6px; }
-.groupDim { opacity: 0.4; }
-
 .groupLabel {
   display: flex;
   align-items: center;
