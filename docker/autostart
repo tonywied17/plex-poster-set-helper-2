@@ -1,8 +1,0 @@
-#!/bin/bash
-# Launch the Plex Poster Helper GUI inside the KasmVNC desktop.
-# Relaunch if it exits (e.g. the user closes the window).
-cd /app || exit 1
-while true; do
-  /app/node_modules/.bin/electron /app --no-sandbox --disable-gpu
-  sleep 2
-done

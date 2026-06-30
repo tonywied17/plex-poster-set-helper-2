@@ -4,6 +4,13 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.2.3
+
+### Docker now ships the native web UI
+The Docker image now builds and serves the native web UI on port `3939` instead of the old KasmVNC desktop. Open `http://<host>:3939` in your browser and sign in with Plex - no VNC client and no separate HTTPS port for clipboard support. The Compose file, `run.sh` / `run.ps1` launchers, and unraid template are all updated to the single 3939 port, and existing `/config` volumes carry over unchanged.
+
+Thanks to @SanchoBlaze for the web UI Docker work.
+
 ## What's new in v2.2.2
 
 ### Windows desktop startup fixes
