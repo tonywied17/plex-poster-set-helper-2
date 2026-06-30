@@ -1,9 +1,9 @@
-import { shell } from 'electron'
 import type { BrowserWindow } from 'electron'
 import { ConfigService } from './config'
 import { Logger } from './logger'
 import { PlexService } from './plexService'
 import type { PlexAuthStatus } from '../ipc/types'
+import { isWebMode } from '../runtime/runtime'
 
 const PLEX_TV = 'https://plex.tv'
 const POLL_INTERVAL_MS = 2000
@@ -85,6 +85,8 @@ async function discoverPrimaryServer(
 }
 
 let _pollTimer: ReturnType<typeof setInterval> | null = null
+let _activeSignIn: Promise<string> | null = null
+let _signInReject: ((err: Error) => void) | null = null
 
 function stopPoll() {
   if (_pollTimer) {
@@ -104,18 +106,22 @@ export const PlexAuthService = {
    * @param onStatus - Receives status updates to forward to the renderer.
    * @returns The authenticated Plex token.
    */
-  async signIn(
-    _win: BrowserWindow,
+  /**
+   * Starts the PIN flow and returns the waiting status immediately while
+   * polling continues in the background (used by the web server).
+   */
+  async beginSignIn(
+    _win: BrowserWindow | null,
     onStatus: (status: PlexAuthStatus) => void,
-  ): Promise<string> {
+  ): Promise<PlexAuthStatus> {
     stopPoll()
+    if (_activeSignIn) throw new Error('Sign-in already in progress')
+
     const clientId = ConfigService.get().clientIdentifier
     const hdrs = clientHeaders(clientId)
 
     onStatus({ status: 'waiting' })
 
-    // Must be a STRONG pin - the app.plex.tv/auth redirect link only completes
-    // with strong codes (short 4-char codes are for manual plex.tv/link entry)
     const pinRes = await fetch(`${PLEX_TV}/api/v2/pins`, {
       method: 'POST',
       headers: { ...hdrs, 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -124,24 +130,28 @@ export const PlexAuthService = {
     if (!pinRes.ok) throw new Error(`PIN request failed: ${pinRes.status}`)
     const pin = await pinRes.json() as { id: number; code: string }
 
-    // In a browserless environment (Docker/KasmVNC) openExternal fails - the
-    // renderer shows the URL so the user can open it on their own device
     const authUrl =
       `https://app.plex.tv/auth#?` +
       `clientID=${encodeURIComponent(clientId)}` +
       `&code=${encodeURIComponent(pin.code)}` +
       `&context[device][product]=${encodeURIComponent('Plex Poster Set Helper 2')}`
 
-    Logger.info('PlexAuth', `PIN flow started - code: ${pin.code}`)
-    onStatus({ status: 'waiting', pin: pin.code, authUrl })
+    const waitingStatus: PlexAuthStatus = { status: 'waiting', pin: pin.code, authUrl }
 
-    try {
-      await shell.openExternal(authUrl)
-    } catch (err) {
-      Logger.warn('PlexAuth', `Could not open a browser automatically - use the link shown in the app: ${err instanceof Error ? err.message : err}`)
+    Logger.info('PlexAuth', `PIN flow started - code: ${pin.code}`)
+    onStatus(waitingStatus)
+
+    if (!isWebMode()) {
+      try {
+        const { shell } = require('electron') as typeof import('electron')
+        await shell.openExternal(authUrl)
+      } catch (err) {
+        Logger.warn('PlexAuth', `Could not open a browser automatically - use the link shown in the app: ${err instanceof Error ? err.message : err}`)
+      }
     }
 
-    return new Promise<string>((resolve, reject) => {
+    _activeSignIn = new Promise<string>((resolve, reject) => {
+      _signInReject = reject
       let attempts = 0
 
       _pollTimer = setInterval(async () => {
@@ -167,7 +177,26 @@ export const PlexAuthService = {
           // transient network error - keep polling
         }
       }, POLL_INTERVAL_MS)
+    }).finally(() => {
+      _activeSignIn = null
+      _signInReject = null
     })
+
+    return waitingStatus
+  },
+
+  /** Awaits the in-flight sign-in started by beginSignIn. */
+  waitForActiveSignIn(): Promise<string> {
+    if (!_activeSignIn) return Promise.reject(new Error('No sign-in in progress'))
+    return _activeSignIn
+  },
+
+  async signIn(
+    _win: BrowserWindow | null,
+    onStatus: (status: PlexAuthStatus) => void,
+  ): Promise<string> {
+    await this.beginSignIn(_win, onStatus)
+    return this.waitForActiveSignIn()
   },
 
   /**
@@ -236,6 +265,7 @@ export const PlexAuthService = {
   /** Cancels an in-progress sign-in poll. */
   cancel() {
     stopPoll()
+    _signInReject?.(new Error('Sign-in cancelled'))
     Logger.info('PlexAuth', 'Auth flow cancelled by user')
   },
 

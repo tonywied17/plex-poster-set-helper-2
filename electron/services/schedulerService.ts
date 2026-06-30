@@ -1,21 +1,15 @@
 import cron, { type ScheduledTask } from 'node-cron'
 import fs from 'fs'
 import path from 'path'
-import { app, type BrowserWindow } from 'electron'
+import type { BrowserWindow } from 'electron'
 import { ConfigService } from './config'
 import { Logger } from './logger'
 import { PlexService } from './plexService'
 import { ScraperFactory } from '../scrapers/scraperFactory'
 import type { ScheduledJob, SchedulerEngineStatus } from '../ipc/types'
-
-/*
- * Engine coordination: the GUI and the headless container can share one config
- * volume. To keep a job from running twice, the headless process acts as the
- * "engine": it writes a heartbeat file next to the config, and any GUI instance
- * that sees a fresh heartbeat stands down from cron firing (manual Run-now
- * still works locally). On desktop installs the file never exists, so
- * behaviour is unchanged.
- */
+import { getUserDataPath } from '../runtime/paths'
+import { appEvents } from '../runtime/events'
+import { isWebMode } from '../runtime/runtime'
 
 const ENGINE_FILE     = 'scheduler-engine.json'
 const ENGINE_WRITE_MS = 30_000
@@ -32,33 +26,25 @@ let _lastSnapshot = ''
 
 function emit(jobs: ScheduledJob[]) {
   _lastSnapshot = JSON.stringify(jobs)
+  appEvents.emitEvent('scheduler:onChange', jobs)
   _win?.webContents.send('scheduler:onChange', jobs)
 }
 
 function enginePath(): string {
-  return path.join(app.getPath('userData'), ENGINE_FILE)
+  return path.join(getUserDataPath(), ENGINE_FILE)
 }
 
-/**
- * Builds a signature from only the parts that affect cron registration -
- * status fields (lastRun etc.) change on every run and must not trigger a
- * reschedule.
- *
- * @param jobs - The full job list.
- * @returns A stable string over the enabled jobs' ids and cron expressions.
- */
 function cronSignature(jobs: ScheduledJob[]): string {
   return jobs.filter(j => j.enabled).map(j => `${j.id}@${j.cronExpr}`).sort().join('|')
 }
 
-/** Runs scheduled scrape-and-apply jobs via node-cron, coordinating with a headless engine when present. */
+function cleanupEngine() {
+  if (_engineTimer) { clearInterval(_engineTimer); _engineTimer = null }
+  try { fs.unlinkSync(enginePath()) } catch { /* already gone */ }
+}
+
+/** Runs scheduled scrape-and-apply jobs via node-cron. */
 export const SchedulerService = {
-  /**
-   * Loads saved jobs, registers their cron tasks, and starts the cross-process
-   * config watcher.
-   *
-   * @param win - Window that receives scheduler:onChange events, or null when headless.
-   */
   init(win: BrowserWindow | null) {
     _win = win
     const jobs = ConfigService.get().scheduledJobs ?? []
@@ -68,21 +54,10 @@ export const SchedulerService = {
     Logger.info('Scheduler', `Loaded ${jobs.length} job(s)`)
   },
 
-  /**
-   * Returns the saved jobs from config.
-   *
-   * @returns The job list, possibly empty.
-   */
   list(): ScheduledJob[] {
     return ConfigService.get().scheduledJobs ?? []
   },
 
-  /**
-   * Creates or updates a job, then reschedules all cron tasks.
-   *
-   * @param job - Job to upsert, matched by id.
-   * @returns The saved job.
-   */
   save(job: ScheduledJob): ScheduledJob {
     const jobs = this.list()
     const idx = jobs.findIndex(j => j.id === job.id)
@@ -95,11 +70,6 @@ export const SchedulerService = {
     return job
   },
 
-  /**
-   * Deletes a job and reschedules the remainder.
-   *
-   * @param id - Id of the job to remove.
-   */
   delete(id: string): void {
     const jobs = this.list().filter(j => j.id !== id)
     ConfigService.set({ scheduledJobs: jobs })
@@ -107,42 +77,28 @@ export const SchedulerService = {
     emit(jobs)
   },
 
-  /**
-   * Executes a job immediately, regardless of its schedule.
-   *
-   * @param id - Id of the job to run; throws when unknown.
-   */
   async runNow(id: string): Promise<void> {
     const job = this.list().find(j => j.id === id)
     if (!job) throw new Error(`Job "${id}" not found`)
     await this._execute(job)
   },
 
-  /**
-   * Toggles launching the app at OS login.
-   *
-   * @param enable - Whether to open at login.
-   */
   setAutoStart(enable: boolean): void {
+    if (isWebMode()) {
+      Logger.info('Scheduler', `Auto-start not available in web mode (${enable ? 'requested' : 'disabled'})`)
+      return
+    }
     const { app } = require('electron') as typeof import('electron')
     app.setLoginItemSettings({ openAtLogin: enable })
     Logger.info('Scheduler', `Auto-start ${enable ? 'enabled' : 'disabled'}`)
   },
 
-  /**
-   * Returns whether the app launches at OS login.
-   *
-   * @returns The current login-item setting.
-   */
   getAutoStart(): boolean {
+    if (isWebMode()) return false
     const { app } = require('electron') as typeof import('electron')
     return app.getLoginItemSettings().openAtLogin
   },
 
-  /**
-   * Claims the engine role. Headless containers call this once at boot so GUI
-   * instances sharing the same config volume stop firing jobs themselves.
-   */
   startEngineHeartbeat(): void {
     _isEngine = true
     const write = () => {
@@ -155,22 +111,18 @@ export const SchedulerService = {
     write()
     _engineTimer = setInterval(write, ENGINE_WRITE_MS)
 
-    const cleanup = () => {
-      if (_engineTimer) { clearInterval(_engineTimer); _engineTimer = null }
-      try { fs.unlinkSync(enginePath()) } catch { /* already gone */ }
+    if (isWebMode()) {
+      process.once('SIGTERM', cleanupEngine)
+      process.once('SIGINT', cleanupEngine)
+    } else {
+      const { app } = require('electron') as typeof import('electron')
+      app.once('will-quit', cleanupEngine)
+      process.once('SIGTERM', () => { cleanupEngine(); app.quit() })
+      process.once('SIGINT',  () => { cleanupEngine(); app.quit() })
     }
-    app.once('will-quit', cleanup)
-    process.once('SIGTERM', () => { cleanup(); app.quit() })
-    process.once('SIGINT',  () => { cleanup(); app.quit() })
     Logger.info('Scheduler', 'Running as the 24/7 engine - GUI instances on this config will defer to it')
   },
 
-  /**
-   * Reports whether an external engine owns this config's jobs.
-   *
-   * @returns external: true with the heartbeat timestamp when a fresh
-   *   heartbeat file exists and this process isn't the engine.
-   */
   engineStatus(): SchedulerEngineStatus {
     if (_isEngine) return { external: false }
     try {
@@ -179,15 +131,10 @@ export const SchedulerService = {
       if (!Number.isNaN(ts) && Date.now() - ts < ENGINE_FRESH_MS) {
         return { external: true, updatedAt: raw.updatedAt }
       }
-    } catch { /* no heartbeat - no engine */ }
+    } catch { /* no heartbeat */ }
     return { external: false }
   },
 
-  /**
-   * Polls the config for changes made by the other process (GUI edits picked
-   * up by the engine, engine run-statuses reflected in the GUI). conf re-reads
-   * the file on every access, so this sees cross-process writes.
-   */
   _startConfigWatcher(): void {
     if (_watchTimer) return
     _watchTimer = setInterval(() => {
@@ -199,15 +146,10 @@ export const SchedulerService = {
         }
         const snap = JSON.stringify(jobs)
         if (snap !== _lastSnapshot) emit(jobs)
-      } catch { /* config mid-write; next tick catches up */ }
+      } catch { /* config mid-write */ }
     }, WATCH_MS)
   },
 
-  /**
-   * Stops all cron tasks and re-registers the enabled jobs.
-   *
-   * @param jobs - The full job list to schedule from.
-   */
   _rescheduleAll(jobs: ScheduledJob[]): void {
     for (const t of tasks.values()) t.stop()
     tasks.clear()
@@ -217,19 +159,12 @@ export const SchedulerService = {
     _activeSignature = cronSignature(jobs)
   },
 
-  /**
-   * Registers a single job's cron task.
-   *
-   * @param job - Job whose cronExpr is validated and scheduled.
-   */
   _schedule(job: ScheduledJob): void {
     if (!cron.validate(job.cronExpr)) {
       Logger.warn('Scheduler', `Invalid cron for "${job.name}": ${job.cronExpr}`)
       return
     }
     const task = cron.schedule(job.cronExpr, () => {
-      // Re-read at fire time: the job may have been edited (possibly from the
-      // other container) since this task was registered.
       const fresh = this.list().find(j => j.id === job.id)
       if (!fresh?.enabled) return
       if (this.engineStatus().external) {
@@ -242,12 +177,6 @@ export const SchedulerService = {
     Logger.info('Scheduler', `Scheduled "${job.name}" [${job.cronExpr}]`)
   },
 
-  /**
-   * Patches a job's status fields in config and notifies the renderer.
-   *
-   * @param id - Id of the job to update.
-   * @param patch - Fields to merge into the stored job.
-   */
   _updateStatus(id: string, patch: Partial<ScheduledJob>): void {
     const jobs = this.list()
     const idx = jobs.findIndex(j => j.id === id)
@@ -257,12 +186,6 @@ export const SchedulerService = {
     emit(jobs)
   },
 
-  /**
-   * Scrapes each of the job's URLs and applies the resulting posters to
-   * matching library items, recording results into the applied history.
-   *
-   * @param job - Job to execute.
-   */
   async _execute(job: ScheduledJob): Promise<void> {
     Logger.session('Scheduler', `Running job "${job.name}"`)
     this._updateStatus(job.id, { lastRun: new Date().toISOString(), lastStatus: 'running' })
@@ -270,36 +193,54 @@ export const SchedulerService = {
     try {
       let uploaded = 0
       let errors = 0
-      const appliedItems = new Map<string, { key: string; title: string; year?: number; type: 'movie' | 'show'; libraryTitle: string; source: 'mediux' | 'posterdb'; thumb?: string; thumbIsMain: boolean; posterUrls: string[] }>()
+      const appliedItems = new Map<string, { key: string; title: string; year?: number; type: 'movie' | 'show' | 'collection'; libraryTitle: string; source: 'mediux' | 'posterdb'; thumb?: string; thumbIsMain: boolean; posterUrls: string[] }>()
 
       for (const url of job.urls) {
         try {
           const posters = await ScraperFactory.scrapeUrl(url, () => {})
           for (const poster of posters) {
             try {
-              const item = await PlexService.findInLibrary({
-                title: poster.title,
-                year: poster.year,
-                libraries: [],
-                tmdbId: poster.tmdbId,
-              })
-              if (!item) continue
+              let itemKey: string
+              let title: string
+              let year: number | undefined
+              let itemType: 'movie' | 'show' | 'collection'
+              let libraryTitle: string
+
+              if (poster.isCollection) {
+                const coll = await PlexService.findCollection({ title: poster.title })
+                if (!coll) continue
+                itemKey = coll.key
+                title = coll.title
+                itemType = 'collection'
+                libraryTitle = coll.libraryTitle
+              } else {
+                const item = await PlexService.findInLibrary({
+                  title: poster.title,
+                  year: poster.year,
+                  libraries: [],
+                  tmdbId: poster.tmdbId,
+                })
+                if (!item) continue
+                itemKey = item.key
+                title = item.title
+                year = item.year
+                itemType = item.type === 'movie' ? 'movie' : 'show'
+                libraryTitle = item.libraryTitle
+              }
+
               const res = await PlexService.uploadPoster({
-                itemKey: item.key,
+                itemKey,
                 imageUrl: poster.url,
                 source: poster.source,
                 season: poster.season,
                 episode: poster.episode,
+                isCollection: poster.isCollection,
               })
               if (res.success) {
                 uploaded++
-                // Mirror the manual paths: record a preview thumb + the exact
-                // poster URLs so Reset Posters shows an image and the "in
-                // library" markers light up. Prefer the main poster's thumb
-                // over a season/episode card for the row preview.
                 const isMain = poster.season == null && poster.episode == null
                 const thumb  = poster.thumbUrl ?? poster.url
-                const existing = appliedItems.get(item.key)
+                const existing = appliedItems.get(itemKey)
                 if (existing) {
                   existing.posterUrls.push(poster.url)
                   if ((isMain && !existing.thumbIsMain) || !existing.thumb) {
@@ -307,10 +248,10 @@ export const SchedulerService = {
                     existing.thumbIsMain = existing.thumbIsMain || isMain
                   }
                 } else {
-                  appliedItems.set(item.key, {
-                    key: item.key, title: item.title, year: item.year,
-                    type: item.type === 'movie' ? 'movie' : 'show',
-                    libraryTitle: item.libraryTitle, source: poster.source,
+                  appliedItems.set(itemKey, {
+                    key: itemKey, title, year,
+                    type: itemType,
+                    libraryTitle, source: poster.source,
                     thumb, thumbIsMain: isMain, posterUrls: [poster.url],
                   })
                 }
@@ -323,7 +264,6 @@ export const SchedulerService = {
         }
       }
 
-      // Record into the local applied history (drives Reset Posters tracking)
       if (appliedItems.size) {
         const existing = ConfigService.get().appliedPosters ?? []
         const now = new Date().toISOString()

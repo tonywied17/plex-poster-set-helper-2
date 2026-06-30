@@ -1,19 +1,22 @@
+import { ipcMain } from 'electron'
 import type { IpcMain } from 'electron'
-import { SchedulerService } from '../services/schedulerService'
+import { handlers } from '../handlers'
+import { appEvents } from '../runtime/events'
 import type { ScheduledJob } from './types'
 
-/**
- * Registers scheduler IPC handlers: job CRUD, manual runs, auto-start, and
- * engine status.
- *
- * @param ipcMain - The main-process IPC bus.
- */
-export function registerSchedulerHandlers(ipcMain: IpcMain) {
-  ipcMain.handle('scheduler:list',         ()           => SchedulerService.list())
-  ipcMain.handle('scheduler:save',         (_e, job: ScheduledJob) => SchedulerService.save(job))
-  ipcMain.handle('scheduler:delete',       (_e, id: string)        => SchedulerService.delete(id))
-  ipcMain.handle('scheduler:runNow',       (_e, id: string)        => SchedulerService.runNow(id))
-  ipcMain.handle('scheduler:setAutoStart', (_e, enable: boolean)   => SchedulerService.setAutoStart(enable))
-  ipcMain.handle('scheduler:getAutoStart', ()                      => SchedulerService.getAutoStart())
-  ipcMain.handle('scheduler:engineStatus', ()                      => SchedulerService.engineStatus())
+export function registerSchedulerHandlers(_ipcMain: IpcMain) {
+  ipcMain.handle('scheduler:list', () => handlers.scheduler.list())
+  ipcMain.handle('scheduler:save', (_e, job: ScheduledJob) => handlers.scheduler.save(job))
+  ipcMain.handle('scheduler:delete', (_e, id: string) => handlers.scheduler.delete(id))
+  ipcMain.handle('scheduler:runNow', (_e, id: string) => handlers.scheduler.runNow(id))
+  ipcMain.handle('scheduler:setAutoStart', (_e, enable: boolean) => handlers.scheduler.setAutoStart(enable))
+  ipcMain.handle('scheduler:getAutoStart', () => handlers.scheduler.getAutoStart())
+  ipcMain.handle('scheduler:engineStatus', () => handlers.scheduler.engineStatus())
+}
+
+/** Wire scheduler change events to an Electron window. */
+export function wireSchedulerEvents(win: Electron.BrowserWindow) {
+  appEvents.onEvent('scheduler:onChange', (jobs: ScheduledJob[]) => {
+    if (!win.isDestroyed()) win.webContents.send('scheduler:onChange', jobs)
+  })
 }

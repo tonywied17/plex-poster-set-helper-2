@@ -108,9 +108,9 @@ function ApplicationSection() {
         </div>
       </FieldRow>
 
-      <FieldRow label="Logs" hint="Open the folder containing the app log files">
-        <Button variant="ghost" size="sm" icon={<FolderOpen size={13} />} onClick={() => window.api.app.openLogFolder()}>
-          Open log folder
+      <FieldRow label="Logs" hint={env?.web ? 'Copies the log folder path to your clipboard' : 'Open the folder containing the app log files'}>
+        <Button variant="ghost" size="sm" icon={<FolderOpen size={13} />} onClick={() => void window.api.app.openLogFolder()}>
+          {env?.web ? 'Copy log path' : 'Open log folder'}
         </Button>
       </FieldRow>
 
@@ -344,7 +344,8 @@ export default function SettingsPage() {
     setSigningIn(true)
     setAuthStatus({ status: 'waiting' })
     try {
-      await window.api.auth.signIn()
+      const authUrl = await window.api.auth.signIn()
+      if (authUrl) setAuthStatus({ status: 'waiting', authUrl })
     } catch {
       setSigningIn(false)
       setAuthStatus({ status: 'idle' })
@@ -840,7 +841,7 @@ export default function SettingsPage() {
                   </div>
                   <p className={styles.engineSub}>
                     {browserStatus.installed
-                      ? 'Bundled and ready - launched headlessly to render and scrape poster pages.'
+                      ? 'Bundled and ready — launched headlessly to render and scrape poster pages.'
                       : 'Not installed yet. Install Chromium to enable scraping. Node.js must be on your system PATH.'}
                   </p>
                   <div className={styles.browserActions}>

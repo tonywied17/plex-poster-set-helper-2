@@ -142,6 +142,14 @@ export const ScraperFactory = {
     return getMediux().browseSets(tmdbId, type)
   },
 
+  async browseMediuxCollection(
+    collectionTitle: string,
+    tmdbCollectionId: string | undefined,
+    childTmdbIds: string[],
+  ) {
+    return getMediux().browseCollectionSets(collectionTitle, tmdbCollectionId, childTmdbIds)
+  },
+
   /**
    * Lists a MediUX creator's sets.
    *

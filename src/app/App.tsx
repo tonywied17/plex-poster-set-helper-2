@@ -13,6 +13,7 @@ import MappingsPage from '../features/mappings/MappingsPage'
 import ResetPage from '../features/reset/ResetPage'
 import SettingsPage from '../features/settings/SettingsPage'
 import SetupScreen from '../features/setup/SetupScreen'
+import WebSignInScreen from '../features/auth/WebSignInScreen'
 import { UpdaterProvider } from '../features/updater/UpdaterContext'
 import { ResetProvider } from '../features/reset/ResetContext'
 import UpdateToast from '../features/updater/UpdateToast'
@@ -42,6 +43,9 @@ export default function App() {
   const [plexConnected, setPlexConnected] = useState(false)
   // null = still checking, false = setup needed, true = ready
   const [browserReady, setBrowserReady] = useState<boolean | null>(null)
+  // Web mode: null = checking env, then SSO gate until Plex authorizes
+  const [isWeb, setIsWeb] = useState<boolean | null>(null)
+  const [authReady, setAuthReady] = useState(false)
   // In Docker/VNC, skip the animated background to keep idle CPU low.
   const [reduceMotion, setReduceMotion] = useState(false)
 
@@ -58,11 +62,40 @@ export default function App() {
     return () => { unsub() }
   }, [])
 
+  // Web vs desktop + Plex SSO gate (web only)
+  useEffect(() => {
+    window.api.app.getEnv().then(e => {
+      const web = !!e.web
+      setIsWeb(web)
+      setReduceMotion(e.container || web)
+      if (!web) {
+        setAuthReady(true)
+        return
+      }
+      window.api.auth.getStatus().then(s => {
+        const ok = s.status === 'authorized'
+        setAuthReady(ok)
+        setPlexConnected(ok)
+      })
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!isWeb) return
+    const off = window.api.auth.onStatusChange(s => {
+      const ok = s.status === 'authorized'
+      setAuthReady(ok)
+      setPlexConnected(ok)
+    })
+    return () => { off() }
+  }, [isWeb])
+
   // Check browser on mount - SetupScreen handles install if needed
   useEffect(() => {
-    window.api.browser.getStatus().then(s => setBrowserReady(s.installed))
-    window.api.app.getEnv().then(e => setReduceMotion(e.container))
-  }, [])
+    if (isWeb === false || (isWeb && authReady)) {
+      window.api.browser.getStatus().then(s => setBrowserReady(s.installed))
+    }
+  }, [isWeb, authReady])
 
   // Global Ctrl/Cmd+F toggles the command palette (search).
   useEffect(() => {
@@ -75,6 +108,27 @@ export default function App() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  if (isWeb === null) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        height: '100vh', background: 'var(--color-bg-base)',
+        color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)',
+      }}>
+        Loading…
+      </div>
+    )
+  }
+
+  if (isWeb && !authReady) {
+    return (
+      <WebSignInScreen onAuthorized={() => {
+        setAuthReady(true)
+        setPlexConnected(true)
+      }} />
+    )
+  }
 
   return (
     <AppContext.Provider value={{ navigate, plexConnected }}>

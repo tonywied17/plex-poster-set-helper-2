@@ -1,7 +1,9 @@
-import Store from 'electron-store'
-import { app, safeStorage } from 'electron'
+import fs from 'fs'
+import path from 'path'
 import { randomUUID } from 'crypto'
 import type { AppConfig } from '../ipc/types'
+import { getUserDataPath, getLogPath } from '../runtime/paths'
+import { isWebMode, isHeadlessMode } from '../runtime/runtime'
 
 const DEFAULTS: AppConfig = {
   baseUrl: 'http://localhost:32400',
@@ -21,6 +23,7 @@ const DEFAULTS: AppConfig = {
   logAppend: true,
   clientIdentifier: '',
   logDrawerHeight: 300,
+  libraryPanelWidth: 560,
   plexServerName: '',
   scheduledJobs: [],
   tmdbApiKey: '',
@@ -31,63 +34,109 @@ const DEFAULTS: AppConfig = {
   excludedLibraries: [],
 }
 
-const store = new Store<Record<string, unknown>>({ name: 'app-config' })
+/** Web/Docker store tokens in plain JSON; desktop encrypts with OS keychain when available. */
+function persistTokensAsPlaintext(): boolean {
+  return isWebMode() || isHeadlessMode() || !!process.env.PLEX_HELPER_CONFIG_DIR
+}
 
-/** Persistent app configuration backed by electron-store, with the Plex token encrypted at rest. */
+function jsonConfigPath(): string {
+  return path.join(getUserDataPath(), 'config.json')
+}
+
+function readJsonStore(): Partial<AppConfig> {
+  try {
+    const raw = fs.readFileSync(jsonConfigPath(), 'utf8')
+    return JSON.parse(raw) as Partial<AppConfig>
+  } catch {
+    return {}
+  }
+}
+
+function writeJsonStore(data: Record<string, unknown>): void {
+  const dir = getUserDataPath()
+  fs.mkdirSync(dir, { recursive: true })
+  fs.writeFileSync(jsonConfigPath(), JSON.stringify(data, null, 2), 'utf8')
+}
+
+/** One-time import from legacy electron-store file (app-config.json). */
+function migrateLegacyElectronStore(): void {
+  const target = jsonConfigPath()
+  if (fs.existsSync(target)) return
+
+  const legacyPath = path.join(getUserDataPath(), 'app-config.json')
+  if (!fs.existsSync(legacyPath)) return
+
+  try {
+    const legacy = JSON.parse(fs.readFileSync(legacyPath, 'utf8')) as Record<string, unknown>
+    writeJsonStore(legacy)
+    fs.renameSync(legacyPath, `${legacyPath}.migrated`)
+  } catch {
+    /* keep legacy file; fresh config will be created on first write */
+  }
+}
+
+function readRaw(): Partial<AppConfig> {
+  return readJsonStore()
+}
+
+function writeKey(key: string, value: unknown): void {
+  const current = readJsonStore()
+  writeJsonStore({ ...current, [key]: value })
+}
+
+function decryptToken(stored: string): string {
+  if (!stored) return ''
+  if (persistTokensAsPlaintext()) return stored
+  try {
+    const { safeStorage } = require('electron') as typeof import('electron')
+    if (safeStorage.isEncryptionAvailable()) {
+      const buf = Buffer.from(stored, 'base64')
+      return safeStorage.decryptString(buf)
+    }
+  } catch { /* fall through */ }
+  return stored
+}
+
+function encryptToken(token: string): string {
+  if (persistTokensAsPlaintext()) return token
+  try {
+    const { safeStorage } = require('electron') as typeof import('electron')
+    if (safeStorage.isEncryptionAvailable()) {
+      return safeStorage.encryptString(token).toString('base64')
+    }
+  } catch { /* fall through */ }
+  return token
+}
+
+/** Persistent app configuration in userData/config.json (all runtimes). */
 export const ConfigService = {
-  /** Ensures a stable clientIdentifier exists (generated once per install). */
   async init() {
-    if (!store.get('clientIdentifier')) {
-      store.set('clientIdentifier', randomUUID())
+    migrateLegacyElectronStore()
+    if (!readRaw().clientIdentifier) {
+      writeKey('clientIdentifier', randomUUID())
     }
   },
 
-  /**
-   * Reads the stored configuration.
-   *
-   * @returns The full config merged over defaults, with the Plex token decrypted.
-   */
   get(): AppConfig {
-    const raw = store.store as Partial<AppConfig>
+    const raw = readRaw()
     const config = { ...DEFAULTS, ...raw }
-
-    if (config.token && safeStorage.isEncryptionAvailable()) {
-      try {
-        const buf = Buffer.from(config.token as string, 'base64')
-        config.token = safeStorage.decryptString(buf)
-      } catch {
-        config.token = ''
-      }
+    if (config.token) {
+      config.token = decryptToken(config.token as string)
     }
-
     return config
   },
 
-  /**
-   * Persists a partial config update.
-   *
-   * @param partial - Keys to write; the Plex token is encrypted when the OS
-   *   keychain is available.
-   */
   set(partial: Partial<AppConfig>) {
     const updates = { ...partial }
-
-    if (updates.token !== undefined && safeStorage.isEncryptionAvailable()) {
-      const encrypted = safeStorage.encryptString(updates.token)
-      updates.token = encrypted.toString('base64')
+    if (updates.token !== undefined) {
+      updates.token = encryptToken(updates.token)
     }
-
     Object.entries(updates).forEach(([key, value]) => {
-      store.set(key, value)
+      writeKey(key, value)
     })
   },
 
-  /**
-   * Returns the OS log directory for this app.
-   *
-   * @returns Absolute path to the log folder.
-   */
   getLogPath(): string {
-    return app.getPath('logs')
+    return getLogPath()
   },
 }

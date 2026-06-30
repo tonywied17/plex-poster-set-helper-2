@@ -1,53 +1,16 @@
 import type { IpcMain } from 'electron'
-import { PlexService } from '../services/plexService'
+import { handlers } from '../handlers'
 import type { ConnectReq, FindItemReq, FindCollectionReq, UploadReq, LabelReq, ResetReq } from './types'
 
-/**
- * Registers Plex server IPC handlers: connection, lookups, poster upload/reset,
- * and stats.
- *
- * @param ipcMain - The main-process IPC bus.
- */
 export function registerPlexHandlers(ipcMain: IpcMain) {
-  ipcMain.handle('plex:connect', (_e, req: ConnectReq) =>
-    PlexService.connect(req)
-  )
-
-  ipcMain.handle('plex:getLibraries', () => {
-    const conn = PlexService.getConnection()
-    if (!conn) return []
-    return PlexService.fetchLibraries(conn.baseUrl, conn.token)
-  })
-
-  ipcMain.handle('plex:getLibraryCount', (_e, key: string, type: 'movie' | 'show') =>
-    PlexService.getLibraryCount(key, type)
-  )
-
-  ipcMain.handle('plex:findItem', (_e, req: FindItemReq) =>
-    PlexService.findInLibrary(req)
-  )
-
-  ipcMain.handle('plex:findCollection', (_e, req: FindCollectionReq) =>
-    PlexService.findCollection(req)
-  )
-
-  ipcMain.handle('plex:uploadPoster', (_e, req: UploadReq) =>
-    PlexService.uploadPoster(req)
-  )
-
-  ipcMain.handle('plex:getLabeledItems', (_e, req: LabelReq) =>
-    PlexService.getLabeledItems(req)
-  )
-
-  ipcMain.handle('plex:resetPoster', async (_e, req: ResetReq) => {
-    await PlexService.resetPoster(req)
-  })
-
-  ipcMain.handle('plex:cleanBundles', () =>
-    PlexService.cleanBundles()
-  )
-
-  ipcMain.handle('plex:getStats', () =>
-    PlexService.getStats()
-  )
+  ipcMain.handle('plex:connect', (_e, req: ConnectReq) => handlers.plex.connect(req))
+  ipcMain.handle('plex:getLibraries', () => handlers.plex.getLibraries())
+  ipcMain.handle('plex:getLibraryCount', (_e, key: string, type: 'movie' | 'show') => handlers.plex.getLibraryCount(key, type))
+  ipcMain.handle('plex:findItem', (_e, req: FindItemReq) => handlers.plex.findItem(req))
+  ipcMain.handle('plex:findCollection', (_e, req: FindCollectionReq) => handlers.plex.findCollection(req))
+  ipcMain.handle('plex:uploadPoster', (_e, req: UploadReq) => handlers.plex.uploadPoster(req))
+  ipcMain.handle('plex:getLabeledItems', (_e, req: LabelReq) => handlers.plex.getLabeledItems(req))
+  ipcMain.handle('plex:resetPoster', (_e, req: ResetReq) => handlers.plex.resetPoster(req))
+  ipcMain.handle('plex:cleanBundles', () => handlers.plex.cleanBundles())
+  ipcMain.handle('plex:getStats', () => handlers.plex.getStats())
 }

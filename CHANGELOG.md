@@ -4,6 +4,31 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.2.1
+
+### Windows desktop startup fixes
+Packaged Windows builds no longer crash on launch (`electron-store` was ESM-only and incompatible with the packaged main process). Config now lives in `config.json` under your app data folder, with automatic migration from the old store file.
+
+First-run Chromium setup, window visibility, and tray behaviour are more reliable on Windows. Startup diagnostics are written to `boot.log` in app data (or `%TEMP%\plex-poster-helper-boot.log`).
+
+If the app seems to flash and quit, check Task Manager for leftover **Plex Poster Set Helper 2** processes from a previous run and end them before launching again.
+
+## What's new in v2.2.0
+
+### Plex collection posters
+The Library Browser now has a **Collections** tab. Browse your Plex collections, discover matching MediUX sets, and apply a collection poster plus member movie posters in one go. Choose whether to update just the collection art, the child movies, or both.
+
+### Current Plex Art strip
+When you select a movie, show, or collection, a **Current Plex Art** row shows what's on Plex right now (poster, background, season art) so you can compare before applying a set.
+
+### Library Browser layout
+- Wider, resizable Sets panel (drag the left edge; width is remembered)
+- Fluid layout that scales set previews and thumbnails with panel size
+- MediUX set lists are cached for 30 minutes with a manual refresh button
+
+### Docker / web mode
+The Docker image now serves the app as a native web UI (no VNC desktop). Sign in with Plex to access the app in your browser.
+
 ## What's new in v2.1.2
 
 ### Anime (HAMA) now matches MediUX automatically

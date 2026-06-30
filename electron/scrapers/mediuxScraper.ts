@@ -11,7 +11,7 @@ import type { Page } from 'playwright'
  * into the raw HTML, so a plain fetch works; a browser is only a fallback.
  *
  * Approach ported from the Python project:
- * github.com/molexxxx/plex-poster-set-helper-2 (src/scrapers/mediux_scraper.py)
+ * github.com/tonywied17/plex-poster-set-helper-2 (src/scrapers/mediux_scraper.py)
  */
 
 const ASSET_BASE = 'https://api.mediux.pro/assets'
@@ -638,6 +638,87 @@ export class MediuxScraper extends BaseScraper {
   }
 
   /**
+   * Finds MediUX sets with collection-level art for a Plex Collection.
+   * Tries the TMDB collection page first, then scans member movies' set lists.
+   */
+  async browseCollectionSets(
+    collectionTitle: string,
+    tmdbCollectionId: string | undefined,
+    childTmdbIds: string[],
+  ): Promise<MediuxSetSummary[]> {
+    const allTypes = new Set(['poster', 'backdrop', 'title_card'])
+    const collNorm = collectionTitle.toLowerCase().replace(/\s+collection$/i, '').trim()
+
+    const matchesTitle = (name: string) => {
+      const n = name.toLowerCase().replace(/\s+collection$/i, '').trim()
+      return n === collNorm || n.includes(collNorm) || collNorm.includes(n)
+    }
+
+    const hasCollectionArt = (s: MediuxSetSummary) =>
+      s.posters.some(p => p.isCollection)
+      || (/\bcollection\b/i.test(s.setName) && matchesTitle(s.setName))
+
+    const filterSummaries = (raw: MediuxSet[]) =>
+      raw
+        .map(s => setToSummary(s, allTypes, deriveSetFallback(s)))
+        .filter(s => {
+          if (!hasCollectionArt(s)) return false
+          if (matchesTitle(s.setName)) return true
+          return s.posters.some(p => p.isCollection && matchesTitle(p.title))
+        })
+
+    const rawById = new Map<string, MediuxSet>()
+    const fetchInto = async (url: string, timeoutMs: number) => {
+      try {
+        const result = await this._fetchSets(url, timeoutMs)
+        for (const s of result?.sets ?? []) rawById.set(String(s.id), s)
+      } catch (err) {
+        Logger.warn('MediUX', `Collection fetch failed for ${url}: ${err instanceof Error ? err.message : err}`)
+      }
+    }
+
+    const finalize = async (): Promise<MediuxSetSummary[]> => {
+      if (!rawById.size) return []
+      const enriched = await this._enrichCollectionSets([...rawById.values()])
+      return filterSummaries(enriched)
+    }
+
+    Logger.scrape('MediUX', `Browsing collection sets: "${collectionTitle}"`)
+
+    // TMDB collection pages can be very large (multi-MB); use a longer timeout and
+    // skip member-movie scans when this page already yields matches.
+    if (tmdbCollectionId) {
+      await fetchInto(`https://mediux.pro/collections/${tmdbCollectionId}`, 90_000)
+      const fromCollection = await finalize()
+      if (fromCollection.length) {
+        Logger.scrape('MediUX', `Collection browse: ${fromCollection.length} matching set(s) for "${collectionTitle}"`)
+        return fromCollection
+      }
+    }
+
+    // Fall back to member movies (cap scans — franchise pages are also huge).
+    const maxChildScans = tmdbCollectionId ? 2 : 3
+    for (const id of childTmdbIds.slice(0, maxChildScans)) {
+      if (this._aborted) break
+      await fetchInto(`https://mediux.pro/movies/${id}`, 60_000)
+      const partial = await finalize()
+      if (partial.length) {
+        Logger.scrape('MediUX', `Collection browse: ${partial.length} matching set(s) for "${collectionTitle}"`)
+        return partial
+      }
+    }
+
+    if (!rawById.size) {
+      Logger.warn('MediUX', `No raw sets found for collection "${collectionTitle}"`)
+      return []
+    }
+
+    const summaries = await finalize()
+    Logger.scrape('MediUX', `Collection browse: ${summaries.length} matching set(s) for "${collectionTitle}"`)
+    return summaries
+  }
+
+  /**
    * Lists a creator's most-recent sets (for subscriptions) with a parsed
    * title/year per set so the caller can match them against the Plex library.
    * matchedKey is filled in later by the library handler.
@@ -702,7 +783,10 @@ export class MediuxScraper extends BaseScraper {
    * @param url - Page to fetch.
    * @returns The sets plus an og:title fallback, or null when none were found.
    */
-  private async _fetchSets(url: string): Promise<{ sets: MediuxSet[]; fallback: Fallback } | null> {
+  private async _fetchSets(
+    url: string,
+    timeoutMs = 25_000,
+  ): Promise<{ sets: MediuxSet[]; fallback: Fallback } | null> {
     try {
       const res = await fetch(url, {
         headers: {
@@ -711,7 +795,7 @@ export class MediuxScraper extends BaseScraper {
           'Accept-Language': 'en-US,en;q=0.9',
           'Cache-Control':   'no-cache',
         },
-        signal: AbortSignal.timeout(25_000),
+        signal: AbortSignal.timeout(timeoutMs),
       })
 
       // MediUX set/boxset pages return HTTP 500 while still streaming the RSC

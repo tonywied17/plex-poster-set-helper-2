@@ -29,6 +29,7 @@ export interface PosterGroup<T extends PosterInfo = PosterInfo> {
  * @returns Ordered groups, each holding posters of a single kind.
  */
 export function groupPosters<T extends PosterInfo>(posters: T[]): PosterGroup<T>[] {
+  const collectionArt: T[] = []
   const showPosters: T[] = []
   const seasonPosters = new Map<number, T[]>()
   const titleCards = new Map<number, T[]>()
@@ -41,6 +42,7 @@ export function groupPosters<T extends PosterInfo>(posters: T[]): PosterGroup<T>
   }
 
   for (const p of posters) {
+    if (p.isCollection) { collectionArt.push(p); continue }
     if (p.season === 'Backdrop') backdrops.push(p)
     else if (p.episode != null) push(titleCards, typeof p.season === 'number' ? p.season : 0, p)
     else if (typeof p.season === 'number') push(seasonPosters, p.season, p)
@@ -48,6 +50,7 @@ export function groupPosters<T extends PosterInfo>(posters: T[]): PosterGroup<T>
   }
 
   const groups: PosterGroup<T>[] = []
+  if (collectionArt.length) groups.push({ label: 'Collection Poster', kind: 'poster', posters: collectionArt })
   if (showPosters.length) groups.push({ label: 'Main Poster', kind: 'poster', posters: showPosters })
   for (const s of [...seasonPosters.keys()].sort((a, b) => a - b))
     groups.push({ label: s === 0 ? 'Specials Poster' : `Season ${s} Poster`, kind: 'poster', posters: seasonPosters.get(s)! })
@@ -57,4 +60,21 @@ export function groupPosters<T extends PosterInfo>(posters: T[]): PosterGroup<T>
   }
   if (backdrops.length) groups.push({ label: 'Backdrop', kind: 'backdrop', posters: backdrops })
   return groups
+}
+
+/** How movie posters from a collection set should be applied. */
+export type MovieApplyScope = 'this' | 'all' | 'none'
+
+/** Independent apply targets for a MediUX collection/boxset set. */
+export interface SetApplyScope {
+  movies: MovieApplyScope
+  collectionPoster: boolean
+}
+
+/** Default scope: all library movies + collection poster when both exist. */
+export function defaultSetApplyScope(hasCollectionArt: boolean, moviesInLib: number): SetApplyScope {
+  return {
+    movies: moviesInLib > 1 ? 'all' : moviesInLib >= 1 ? 'this' : 'none',
+    collectionPoster: hasCollectionArt,
+  }
 }

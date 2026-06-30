@@ -1,12 +1,7 @@
 import type { IpcMain } from 'electron'
-import { Logger } from '../services/logger'
+import { handlers } from '../handlers'
 
-/**
- * Registers logging IPC handlers: in-memory log history retrieval.
- *
- * @param ipcMain - The main-process IPC bus.
- */
 export function registerLogHandlers(ipcMain: IpcMain) {
-  ipcMain.handle('log:getHistory', () => Logger.getHistory())
-  ipcMain.handle('log:clear', () => Logger.clear())
+  ipcMain.handle('log:getHistory', () => handlers.log.getHistory())
+  ipcMain.handle('log:clear', () => handlers.log.clear())
 }

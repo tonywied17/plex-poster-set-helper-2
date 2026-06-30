@@ -1,16 +1,14 @@
-import type { IpcMain } from 'electron'
-import { PlaywrightService } from '../services/playwrightService'
+import type { IpcMain, BrowserWindow } from 'electron'
+import { handlers } from '../handlers'
+import { appEvents } from '../runtime/events'
 
-/**
- * Registers Playwright browser IPC handlers: install status and on-demand install.
- *
- * @param ipcMain - The main-process IPC bus.
- */
 export function registerBrowserHandlers(ipcMain: IpcMain) {
-  ipcMain.handle('browser:status',  () => PlaywrightService.getStatus())
-  ipcMain.handle('browser:install', async () => {
-    await PlaywrightService.install()
-    // Re-resolve PLEX_BROWSER_EXEC now that the binary exists
-    PlaywrightService.setupEnv()
+  ipcMain.handle('browser:status', () => handlers.browser.getStatus())
+  ipcMain.handle('browser:install', () => handlers.browser.install())
+}
+
+export function wireBrowserEvents(win: BrowserWindow) {
+  appEvents.onEvent('browser:installProgress', (line: string) => {
+    if (!win.isDestroyed()) win.webContents.send('browser:installProgress', line)
   })
 }

@@ -1,8 +1,10 @@
 import fs from 'fs'
 import path from 'path'
-import { app } from 'electron'
+import { spawn } from 'child_process'
 import type { BrowserWindow } from 'electron'
 import { Logger } from './logger'
+import { getUserDataPath, getAppRoot } from '../runtime/paths'
+import { appEvents } from '../runtime/events'
 
 export interface BrowserStatus {
   installed: boolean
@@ -13,15 +15,6 @@ export interface BrowserStatus {
 let _win: BrowserWindow | null = null
 let _installing: Promise<void> | null = null
 
-/**
- * Returns the per-platform browser executable filename. Playwright's subdir
- * names vary by OS / arch / version, so discovery searches by file name
- * instead of hardcoding paths. On macOS the headed build is an app bundle
- * whose binary is named "Chromium".
- *
- * @param headless - Whether the headless-shell build is wanted.
- * @returns The executable filename to search for.
- */
 function execName(headless: boolean): string {
   const base = headless ? 'chrome-headless-shell' : 'chrome'
   if (process.platform === 'win32') return `${base}.exe`
@@ -29,14 +22,6 @@ function execName(headless: boolean): string {
   return base
 }
 
-/**
- * Recursively looks for a file with the given name.
- *
- * @param dir - Directory to search.
- * @param name - Exact filename to match.
- * @param depth - Remaining recursion depth.
- * @returns Full path of the first match, or null.
- */
 function findFile(dir: string, name: string, depth = 4): string | null {
   let entries: fs.Dirent[]
   try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch { return null }
@@ -51,14 +36,6 @@ function findFile(dir: string, name: string, depth = 4): string | null {
   return null
 }
 
-/**
- * Scans the browsers dir for an installed Chromium executable; prefers
- * chromium_headless_shell (playwright's default for headless: true), falling
- * back to full chromium.
- *
- * @param browsersPath - Root of the Playwright browsers directory.
- * @returns Full path to the executable, or null when nothing is installed.
- */
 export function findBrowserExec(browsersPath: string): string | null {
   if (!fs.existsSync(browsersPath)) return null
   const entries = fs.readdirSync(browsersPath)
@@ -73,7 +50,6 @@ export function findBrowserExec(browsersPath: string): string | null {
     if (exec) return exec
   }
 
-  // Fallback: full chromium
   const chromiumDir = entries
     .filter(e => e.startsWith('chromium-') && !e.includes('headless'))
     .sort()
@@ -87,31 +63,23 @@ export function findBrowserExec(browsersPath: string): string | null {
   return null
 }
 
+function sendProgress(line: string) {
+  if (!line.trim()) return
+  appEvents.emitEvent('browser:installProgress', line.trim())
+  _win?.webContents.send('browser:installProgress', line.trim())
+  Logger.info('Playwright', line.trim())
+}
+
 /** Manages the bundled Playwright Chromium: discovery, installation, and launch environment. */
 export const PlaywrightService = {
-  /**
-   * Stores the window used to stream install progress to the renderer.
-   *
-   * @param win - Window that receives browser:installProgress events.
-   */
-  init(win: BrowserWindow) {
+  init(win: BrowserWindow | null) {
     _win = win
   },
 
-  /**
-   * Returns the app-local directory where Playwright browsers are installed.
-   *
-   * @returns Absolute path under userData.
-   */
   getBrowsersPath(): string {
-    return path.join(app.getPath('userData'), 'browsers')
+    return path.join(getUserDataPath(), 'browsers')
   },
 
-  /**
-   * Reports whether a usable Chromium binary is installed and where.
-   *
-   * @returns Install state plus the resolved executable and browsers paths.
-   */
   async getStatus(): Promise<BrowserStatus> {
     const browsersPath = this.getBrowsersPath()
     const execPath = findBrowserExec(browsersPath)
@@ -122,11 +90,6 @@ export const PlaywrightService = {
     }
   },
 
-  /**
-   * Installs Chromium via the Playwright CLI. Coalesces concurrent calls
-   * (e.g. the SetupScreen and the main-process bootstrap both asking at once)
-   * into a single download.
-   */
   install(): Promise<void> {
     if (_installing) return _installing
     _installing = this._doInstall().finally(() => { _installing = null })
@@ -135,22 +98,21 @@ export const PlaywrightService = {
 
   _doInstall(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const appRoot = app.isPackaged
-        ? path.join(process.resourcesPath, 'app.asar.unpacked')
-        : app.getAppPath()
+      const appRoot = getAppRoot()
       const cliPath = path.join(appRoot, 'node_modules', 'playwright', 'cli.js')
+      const env: NodeJS.ProcessEnv = {
+        ...process.env,
+        PLAYWRIGHT_BROWSERS_PATH: this.getBrowsersPath(),
+        ELECTRON_RUN_AS_NODE: '1',
+      }
+
+      if (!fs.existsSync(cliPath)) {
+        reject(new Error(`Playwright CLI not found at ${cliPath}`))
+        return
+      }
 
       Logger.info('Playwright', `Installing via ${cliPath}`)
       Logger.info('Playwright', `Browsers path: ${this.getBrowsersPath()}`)
-
-      const { utilityProcess } = require('electron') as typeof import('electron')
-      const child = utilityProcess.fork(cliPath, ['install', 'chromium'], {
-        stdio: ['ignore', 'pipe', 'pipe'] as unknown as Array<'pipe' | 'ignore' | 'inherit'>,
-        env: {
-          ...process.env,
-          PLAYWRIGHT_BROWSERS_PATH: this.getBrowsersPath(),
-        },
-      })
 
       let settled = false
       const done = (err?: Error) => {
@@ -161,29 +123,26 @@ export const PlaywrightService = {
         else resolve()
       }
 
-      const send = (line: string) => {
-        if (!line.trim()) return
-        _win?.webContents.send('browser:installProgress', line.trim())
-        Logger.info('Playwright', line.trim())
-      }
-
-      child.stdout?.on('data', (d: Buffer) => String(d).split('\n').forEach(send))
-      child.stderr?.on('data', (d: Buffer) => String(d).split('\n').forEach(send))
-
-      child.on('exit', (code: number) => {
+      const onStdout = (d: Buffer) => String(d).split('\n').forEach(sendProgress)
+      const onStderr = (d: Buffer) => String(d).split('\n').forEach(sendProgress)
+      const onExit = (code: number | null) => {
         if (code === 0) {
           Logger.success('Playwright', 'Chromium installed')
           done()
         } else {
-          done(new Error(`playwright install exited with code ${code}`))
+          done(new Error(`playwright install exited with code ${code ?? 'unknown'}`))
         }
-      })
+      }
 
-      // Fallback: in containers the utility process exit event can silently drop.
-      // Poll the browsers dir every 3 s; if a binary appears that wasn't there
-      // before (first install or version upgrade), we're done. On a same-version
-      // reinstall the path never changes, so the exit event stays authoritative
-      // and the poll can't resolve early while the download is still running.
+      const child = spawn(process.execPath, [cliPath, 'install', 'chromium'], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env,
+      })
+      child.stdout?.on('data', onStdout)
+      child.stderr?.on('data', onStderr)
+      child.on('error', err => done(err))
+      child.on('exit', onExit)
+
       const browsersPath = this.getBrowsersPath()
       const preExisting = findBrowserExec(browsersPath)
       const poll = setInterval(() => {
@@ -196,12 +155,6 @@ export const PlaywrightService = {
     })
   },
 
-  /**
-   * Points Playwright at the app-local browsers dir and exposes the resolved
-   * executable via PLEX_BROWSER_EXEC so scrapers can bypass playwright's
-   * registry lookup. Must run before any chromium.launch() calls and again
-   * after install.
-   */
   setupEnv() {
     const browsersPath = this.getBrowsersPath()
     process.env.PLAYWRIGHT_BROWSERS_PATH = browsersPath

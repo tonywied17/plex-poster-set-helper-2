@@ -9,6 +9,7 @@ build/
 
 # build outputs
 electron/dist/
+server/dist/
 src/dist/
 dist-electron/
 
@@ -48,6 +49,10 @@ latest-mac.yml
 # Docker runtime data
 /config/
 docker/config/
+data/
+
+# local web dev env
+.env.web
 
 # Daddy files
 CLAUDE.md

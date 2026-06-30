@@ -71,6 +71,8 @@ export interface UploadReq {
    * episode under itemKey instead of the show itself.
    */
   episode?: number
+  /** When true, itemKey is a Plex Collection ratingKey (not a movie/show). */
+  isCollection?: boolean
 }
 
 export interface UploadRes {
@@ -147,6 +149,8 @@ export interface AppConfig {
   plexAccountEmail?: string
   plexAccountThumb?: string
   logDrawerHeight: number
+  /** Library Browser Sets panel width in pixels. */
+  libraryPanelWidth?: number
   /** Friendly name of the connected Plex server. */
   plexServerName?: string
   scheduledJobs?: ScheduledJob[]
@@ -206,6 +210,7 @@ export interface UpdateInfo {
 export interface AppEnv {
   packaged: boolean
   container: boolean
+  web?: boolean
   version: string
   repoUrl: string
 }
@@ -267,9 +272,13 @@ export interface LibraryItem {
   key: string
   title: string
   year?: number
-  type: 'movie' | 'show'
+  type: 'movie' | 'show' | 'collection'
   /** Full, token-bearing transcode URL for the UI. */
   thumb?: string
+  /** Plex library name (collections). */
+  libraryTitle?: string
+  /** Member count (collections). */
+  childCount?: number
   tmdbId?: string
   tvdbId?: string
   imdbId?: string
@@ -314,6 +323,17 @@ export interface BrowseSetsReq {
   anidbId?: string
 }
 
+export interface CollectionsReq {
+  offset: number
+  limit: number
+  search?: string
+}
+
+export interface CollectionSetsReq {
+  collectionKey: string
+  title: string
+}
+
 /** A set from a creator's page, with library-match info resolved. */
 export interface MediuxUserSet extends MediuxSetSummary {
   /** Parsed media title (for matching). */
@@ -355,6 +375,29 @@ export interface BrowseSetsRes {
   tmdbId?: string
   /** e.g. "no_tmdb" when the item can't be matched. */
   error?: string
+  /** Plex collection member movies (collection browse only). */
+  collectionMembers?: LibraryItem[]
+}
+
+export interface PlexArtSlot {
+  key: string
+  label: string
+  thumb?: string
+  kind: 'collection' | 'movie' | 'show' | 'season'
+  season?: number
+  /** True when this slot is the item the user selected */
+  highlight?: boolean
+}
+
+export interface CurrentArtReq {
+  key: string
+  type: 'movie' | 'show' | 'collection'
+  title: string
+  year?: number
+}
+
+export interface CurrentArtRes {
+  slots: PlexArtSlot[]
 }
 
 export type IpcChannels = {
@@ -408,7 +451,10 @@ export type IpcChannels = {
   'browser:installProgress': { event: string }
   'library:sections':        { req: void; res: LibrarySection[] }
   'library:items':           { req: SectionItemsReq; res: SectionItemsRes }
+  'library:collections':     { req: CollectionsReq; res: SectionItemsRes }
+  'library:collectionSets':  { req: CollectionSetsReq; res: BrowseSetsRes }
   'library:sets':            { req: BrowseSetsReq; res: BrowseSetsRes }
   'library:userSets':        { req: UserSetsReq; res: UserSetsRes }
   'library:creatorSearch':   { req: CreatorSearchReq; res: UserSetsRes }
+  'library:currentArt':      { req: CurrentArtReq; res: CurrentArtRes }
 }
