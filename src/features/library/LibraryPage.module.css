@@ -733,20 +733,11 @@
 
 .filters {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
   flex-shrink: 0;
-}
-
-/* The uploader dropdown fills the row; it wraps above the type toggles only
-   when the panel is too narrow to hold both on one line, so neither control
-   stretches awkwardly as the panel widens. */
-.filters > :first-child {
-  flex: 1 1 200px;
-  min-width: 160px;
 }
 
 .filterRow {
@@ -768,44 +759,47 @@
   cursor: pointer;
 }
 
-/* Segmented control: an inset track with a raised pill for the active type.
-   Sized to its content so it never stretches across a wide panel, and the
-   same 36px height as the uploader Select so the two line up cleanly. */
+/* Multi-select filter chips - all three are on by default. No enclosing track,
+   so they sit cleanly on the panel instead of inside a dark inset box. A chip
+   is filled-gold when its type is shown and dimmed when it's hidden. */
 .typeToggles {
   display: flex;
-  flex: 0 0 auto;
-  align-items: stretch;
-  gap: 2px;
-  height: 36px;
-  padding: 3px;
-  background: var(--color-bg-base);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .typeToggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 11px;
-  border: none;
-  background: none;
-  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-elevated);
   color: var(--color-text-secondary);
   font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
-  transition: color var(--duration-fast), background var(--duration-fast);
+  transition: color var(--duration-fast), background var(--duration-fast), border-color var(--duration-fast);
 }
 
-.typeToggle:hover { color: var(--color-text-primary); }
+.typeToggle:hover {
+  color: var(--color-text-primary);
+  border-color: rgba(255, 255, 255, 0.18);
+}
 
 .typeToggleOn,
 .typeToggleOn:hover {
   background: var(--color-accent-soft);
+  border-color: var(--color-accent-border);
   color: var(--color-accent-hover);
-  font-weight: 600;
+}
+
+.typeToggleOn:hover { background: var(--color-accent-soft-hover); }
+
+/* On a wider panel the dropdown and chips share one row; otherwise they stack. */
+@container sets-panel (min-width: 460px) {
+  .filters { flex-direction: row; align-items: center; }
+  .filters > :first-child { flex: 1 1 auto; min-width: 0; }
+  .typeToggles { flex: 0 0 auto; flex-wrap: nowrap; }
 }
 
 .panelBody {
