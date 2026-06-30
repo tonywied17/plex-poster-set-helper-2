@@ -8,13 +8,14 @@
 
 name: Build & Release
 
+# Runs only on tag pushes. Every job here publishes a release artifact (GitHub
+# release, Docker Hub image, release notes) and needs repo secrets plus a real
+# tag, neither of which exist on a pull request - running it on PRs just fails
+# the Docker login and release-notes steps. PR validation lives in ci.yml.
 on:
   push:
     tags:
       - 'v*'
-
-  pull_request:
-    branches: [ main ]
 
 jobs:
   build:

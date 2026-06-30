@@ -61,3 +61,10 @@ updates:
       - docker
     commit-message:
       prefix: "docker(deps)"
+    ignore:
+      # Stay on the Node 22 base to match ci.yml, build.yml and local dev.
+      # The image already re-pulls the base on every release for security
+      # patches; bump this major deliberately, in lockstep with the toolchain.
+      - dependency-name: node
+        update-types:
+          - version-update:semver-major

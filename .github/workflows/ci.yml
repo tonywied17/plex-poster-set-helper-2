@@ -40,6 +40,12 @@ jobs:
       - name: Typecheck main process
         run: npx tsc -p tsconfig.electron.json --noEmit
 
+      # The web/server build (used by the Docker image) imports deps like
+      # @fastify/static that the renderer/main typechecks don't cover, so
+      # check it here too - this is the path a server dependency bump breaks.
+      - name: Typecheck server
+        run: npx tsc -p tsconfig.server.json --noEmit
+
       - name: Build renderer
         run: npx vite build
 
