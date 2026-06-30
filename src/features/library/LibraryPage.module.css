@@ -721,6 +721,12 @@
   box-shadow: 0 0 0 1px var(--color-accent, #e5a00d);
 }
 
+.artCardClickable { cursor: pointer; }
+.artCardClickable .artCardImg { transition: border-color 0.15s ease, transform 0.15s ease; }
+.artCardClickable:hover .artCardImg { border-color: var(--color-accent); transform: scale(1.04); }
+.artCardClickable:focus-visible { outline: none; }
+.artCardClickable:focus-visible .artCardImg { border-color: var(--color-accent); box-shadow: 0 0 0 2px var(--color-accent-soft); }
+
 .artLabel {
   font-size: 9px;
   line-height: 1.2;

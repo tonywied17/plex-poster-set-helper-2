@@ -43,6 +43,26 @@ const BROWSE_CACHE_TTL = 30 * 60 * 1000
 
 interface ArtCacheEntry { slots: PlexArtSlot[]; fetchedAt: number }
 const currentArtCache = new Map<string, ArtCacheEntry>()
+
+/** Human label for an art slot's kind, shown under the lightbox image. */
+const ART_KIND_LABEL: Record<PlexArtSlot['kind'], string> = {
+  collection: 'Collection',
+  movie: 'Movie',
+  show: 'Show',
+  season: 'Season',
+}
+
+/**
+ * Upsizes a Plex thumb transcode URL for a crisp full-screen lightbox view.
+ * The strip requests small posters (240x360); Plex transcodes from the full-res
+ * source, so asking for a larger size yields a genuinely sharper image.
+ *
+ * @param thumb - The slot's transcode thumb URL.
+ * @returns The same URL with the transcode dimensions bumped up.
+ */
+function hiResArt(thumb: string): string {
+  return thumb.replace(/width=\d+&height=\d+/, 'width=800&height=1200')
+}
 const ART_CACHE_TTL = 5 * 60 * 1000
 
 const PANEL_WIDTH_DEFAULT = 560
@@ -612,9 +632,21 @@ function ItemCard({ item, active, onClick }: { item: LibraryItem; active: boolea
   )
 }
 
-/** Right drawer listing MediUX sets for the selected library item, with apply controls. */
+/** Collapsible strip of the item's current Plex art, clickable into a lightbox. */
 function CurrentArtStrip({ slots, loading }: { slots: PlexArtSlot[]; loading: boolean }) {
   const [expanded, setExpanded] = useState(true)
+  const [lightbox, setLightbox] = useState<number | null>(null)
+
+  // Only slots with a thumb are viewable; the lightbox index lines up with this
+  // filtered list, so each card carries its position into it.
+  const lightboxImages = useMemo<LightboxImage[]>(
+    () => slots.filter(s => !!s.thumb).map(s => ({
+      url: hiResArt(s.thumb!),
+      label: s.label,
+      caption: s.season != null ? `Season ${s.season}` : ART_KIND_LABEL[s.kind],
+    })),
+    [slots],
+  )
 
   if (loading) {
     return (
@@ -625,6 +657,8 @@ function CurrentArtStrip({ slots, loading }: { slots: PlexArtSlot[]; loading: bo
     )
   }
   if (!slots.length) return null
+
+  let imgIdx = -1
   return (
     <div className={styles.artStripSection}>
       <button
@@ -644,23 +678,41 @@ function CurrentArtStrip({ slots, loading }: { slots: PlexArtSlot[]; loading: bo
       <div className={`${styles.artStripBody} ${expanded ? '' : styles.artStripBodyCollapsed}`}>
         <div className={styles.artStripScroll}>
           <div className={styles.artStrip}>
-            {slots.map(s => (
-              <div
-                key={`${s.kind}-${s.key}`}
-                className={`${styles.artCard} ${s.highlight ? styles.artHighlight : ''}`}
-                title={s.label}
-              >
-                {s.thumb ? (
-                  <img src={s.thumb} alt={s.label} className={styles.artCardImg} loading="lazy" draggable={false} />
-                ) : (
-                  <div className={styles.artCardFallback}><ImageIcon size={16} /></div>
-                )}
-                <span className={styles.artLabel}>{s.label}</span>
-              </div>
-            ))}
+            {slots.map(s => {
+              const i = s.thumb ? ++imgIdx : -1
+              return (
+                <div
+                  key={`${s.kind}-${s.key}`}
+                  className={`${styles.artCard} ${s.highlight ? styles.artHighlight : ''} ${s.thumb ? styles.artCardClickable : ''}`}
+                  title={s.label}
+                  {...(s.thumb
+                    ? {
+                        role: 'button',
+                        tabIndex: 0,
+                        onClick: () => setLightbox(i),
+                        onKeyDown: (e: React.KeyboardEvent) => {
+                          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightbox(i) }
+                        },
+                      }
+                    : {})}
+                >
+                  {s.thumb ? (
+                    <img src={s.thumb} alt={s.label} className={styles.artCardImg} loading="lazy" draggable={false} />
+                  ) : (
+                    <div className={styles.artCardFallback}><ImageIcon size={16} /></div>
+                  )}
+                  <span className={styles.artLabel}>{s.label}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>
+      <AnimatePresence>
+        {lightbox !== null && (
+          <Lightbox images={lightboxImages} index={lightbox} onClose={() => setLightbox(null)} />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

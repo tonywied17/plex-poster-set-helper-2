@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
 #
-# Plex Poster Helper - native web UI (no KasmVNC).
+# Plex Poster Helper - native web UI served in the browser.
 #
 #   http://<host>:3939  - full app in your browser
 #
-#   docker build -f docker/Dockerfile -t plex-poster-helper-2:gui .
+#   docker build -f docker/Dockerfile -t plex-poster-helper-2 .
 
 # ----- Build stage -------------------------------------------------------------
 FROM node:22-bookworm AS build

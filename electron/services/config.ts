@@ -3,7 +3,7 @@ import path from 'path'
 import { randomUUID } from 'crypto'
 import type { AppConfig } from '../ipc/types'
 import { getUserDataPath, getLogPath } from '../runtime/paths'
-import { isWebMode, isHeadlessMode } from '../runtime/runtime'
+import { isWebMode } from '../runtime/runtime'
 
 const DEFAULTS: AppConfig = {
   baseUrl: 'http://localhost:32400',
@@ -36,7 +36,7 @@ const DEFAULTS: AppConfig = {
 
 /** Web/Docker store tokens in plain JSON; desktop encrypts with OS keychain when available. */
 function persistTokensAsPlaintext(): boolean {
-  return isWebMode() || isHeadlessMode() || !!process.env.PLEX_HELPER_CONFIG_DIR
+  return isWebMode() || !!process.env.PLEX_HELPER_CONFIG_DIR
 }
 
 function jsonConfigPath(): string {

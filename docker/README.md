@@ -26,7 +26,7 @@ You'll also want your **Plex login** ready (you sign in during setup - no token 
 ## Step 1 - Get the files
 
 ```bash
-git clone https://github.com/tonywied17/plex-poster-set-helper-2.git
+git clone https://github.com/molexxxx/plex-poster-set-helper-2.git
 cd plex-poster-set-helper-2
 ```
 
@@ -45,7 +45,7 @@ cd plex-poster-set-helper-2
 
 **Docker Compose:**
 ```bash
-docker compose -f docker/docker-compose.yml up -d --build gui
+docker compose -f docker/docker-compose.yml up -d --build
 ```
 
 When it finishes, open in your browser:
@@ -135,21 +135,8 @@ Give it ~20 seconds on first boot (Chromium may be downloading). Refresh the pag
 </details>
 
 <details>
-<summary><b>Do I need the headless container?</b></summary>
-
-No. The web UI includes a built-in scheduler. The separate headless image is legacy
-for scheduler-only setups: `./docker/run.sh headless`.
-</details>
-
-<details>
 <summary><b>Who can access the app?</b></summary>
 
 Anyone on your network who can reach the port must sign in with Plex before using any
 features. Your Plex token is stored in the config volume.
 </details>
-
----
-
-> **Headless scheduler (legacy, optional)**
-> `./docker/run.sh headless` runs only the scheduler with no UI. The web container
-> is sufficient for most users.

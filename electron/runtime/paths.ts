@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { isWebMode, isHeadlessMode } from './runtime'
+import { isWebMode } from './runtime'
 
 let _userDataPath: string | null = null
 
@@ -18,7 +18,7 @@ export function getUserDataPath(): string {
     return _userDataPath
   }
 
-  if (isWebMode() || isHeadlessMode()) {
+  if (isWebMode()) {
     const fallback = path.join(process.cwd(), 'data')
     fs.mkdirSync(fallback, { recursive: true })
     _userDataPath = fallback

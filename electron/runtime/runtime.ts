@@ -5,10 +5,6 @@ export function isWebMode(): boolean {
   return process.env.PLEX_HELPER_WEB === '1'
 }
 
-export function isHeadlessMode(): boolean {
-  return process.env.PLEX_HELPER_HEADLESS === '1'
-}
-
 export function isDockerEnv(): boolean {
   return process.env.PLEX_HELPER_DOCKER === '1'
 }
@@ -32,7 +28,7 @@ function readPackageVersion(): string {
 
 /** True when not a packaged Electron desktop app. */
 export function isContainerEnv(): boolean {
-  if (isWebMode() || isHeadlessMode() || isDockerEnv() || isProdUnpackaged()) return true
+  if (isWebMode() || isDockerEnv() || isProdUnpackaged()) return true
   try {
     const { app } = require('electron') as typeof import('electron')
     return !app.isPackaged
@@ -43,7 +39,7 @@ export function isContainerEnv(): boolean {
 
 /** App version from package.json (works without Electron). */
 export function getAppVersion(): string {
-  if (isWebMode() || isHeadlessMode()) return readPackageVersion()
+  if (isWebMode()) return readPackageVersion()
   try {
     const { app } = require('electron') as typeof import('electron')
     return app.getVersion()

@@ -24,15 +24,6 @@ import { PlaywrightService } from './services/playwrightService'
  */
 const isDev = !app.isPackaged && process.env.PLEX_HELPER_PROD !== '1'
 
-/** Headless mode for Docker / unraid: run the scheduler with no GUI or tray. */
-const HEADLESS = process.env.PLEX_HELPER_HEADLESS === '1' || process.argv.includes('--headless')
-
-/**
- * No-tray mode for the container GUI (KasmVNC), where there's no usable system
- * tray to restore from, so closing should quit (the desktop autostart relaunches).
- */
-const NO_TRAY = process.env.PLEX_HELPER_NO_TRAY === '1'
-
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let forceQuit = false
@@ -46,12 +37,6 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', () => {
     if (mainWindow) showWindow()
   })
-}
-
-// Containers have no GPU/display and run as root - relax accordingly
-if (HEADLESS) {
-  app.disableHardwareAcceleration()
-  app.commandLine.appendSwitch('no-sandbox')
 }
 
 // Custom data dir (config, logs, browsers) for Docker volume mounts
@@ -281,10 +266,10 @@ function createWindow(appIconPath: string) {
     }
   }, 5000)
 
-  // Hide to tray instead of closing, unless forceQuit was set or there's no
-  // usable tray (container GUI)
+  // Hide to tray instead of closing, unless forceQuit was set or the tray
+  // couldn't be created
   mainWindow.on('close', e => {
-    if (!forceQuit && trayAvailable && !NO_TRAY) {
+    if (!forceQuit && trayAvailable) {
       e.preventDefault()
       hideToTray(appIconPath)
     }
@@ -304,7 +289,7 @@ function createWindow(appIconPath: string) {
   })
   // Title-bar close button behaves the same as clicking X
   ipcMain.on('window:close', () => {
-    if (!forceQuit && trayAvailable && !NO_TRAY) {
+    if (!forceQuit && trayAvailable) {
       hideToTray(appIconPath)
     } else {
       mainWindow?.close()
@@ -376,68 +361,7 @@ function registerIpcHandlers() {
   registerLibraryHandlers(ipcMain)
 }
 
-/**
- * Headless boot (Docker / unraid): runs config + scheduler with no window.
- * Plex creds come from PLEX_BASEURL / PLEX_TOKEN env vars (safeStorage is
- * unavailable in containers).
- */
-async function runHeadless() {
-  await ConfigService.init()
-  Logger.init(null)
-  PlaywrightService.setupEnv()
-
-  // Auto-install Chromium on first run (no GUI setup screen in headless)
-  const browser = await PlaywrightService.getStatus()
-  if (!browser.installed) {
-    Logger.info('Headless', 'Installing Chromium (first run)…')
-    try {
-      await PlaywrightService.install()
-      PlaywrightService.setupEnv()
-      Logger.success('Headless', 'Chromium installed')
-    } catch (err) {
-      Logger.error('Headless', `Chromium install failed: ${err instanceof Error ? err.message : err}`)
-    }
-  }
-
-  // Env vars override stored config; when absent, credentials come from the
-  // shared config volume
-  const envBase  = process.env.PLEX_BASEURL?.trim()
-  const envToken = process.env.PLEX_TOKEN?.trim()
-  if (envBase && envToken) {
-    ConfigService.set({ baseUrl: envBase, token: envToken })
-    Logger.info('Headless', 'Using Plex credentials from environment variables (PLEX_BASEURL / PLEX_TOKEN)')
-  }
-
-  const cfg = ConfigService.get()
-  const baseUrl = envBase || cfg.baseUrl
-  const token   = envToken || cfg.token
-
-  if (baseUrl && token) {
-    const res = await PlexService.connect({ baseUrl, token })
-    if (res.success) Logger.success('Headless', `Connected to Plex "${res.serverName}"`)
-    else Logger.error('Headless', `Plex connection failed: ${res.error}`)
-  } else {
-    Logger.warn('Headless', 'No Plex credentials found in config or environment variables. ' +
-      'Either mount a config volume with existing credentials, or set PLEX_BASEURL and PLEX_TOKEN.')
-  }
-
-  SchedulerService.init(null)
-  // Claim the engine role so any GUI sharing this config volume defers its
-  // cron firing and jobs never run twice
-  SchedulerService.startEngineHeartbeat()
-  const jobs = ConfigService.get().scheduledJobs ?? []
-  Logger.success('Headless', `Scheduler running - ${jobs.filter(j => j.enabled).length}/${jobs.length} job(s) active. Press Ctrl+C to stop.`)
-}
-
 app.whenReady().then(async () => {
-  if (HEADLESS) {
-    await runHeadless().catch(err => {
-      console.error('Headless boot failed:', err)
-      app.exit(1)
-    })
-    return
-  }
-
   try {
     bootLog(`startup userData=${app.getPath('userData')} resources=${process.resourcesPath}`)
     await ConfigService.init()
@@ -448,14 +372,12 @@ app.whenReady().then(async () => {
     const appIcon = resolveAppIconPath(iconsDir)
     bootLog(`icons dir=${iconsDir} tray=${trayIcon} app=${appIcon}`)
 
-    if (!NO_TRAY) {
-      try {
-        setupTray(trayIcon)
-        bootLog('tray created')
-      } catch (err) {
-        bootLog(`tray failed: ${err instanceof Error ? err.message : err}`)
-        trayAvailable = false
-      }
+    try {
+      setupTray(trayIcon)
+      bootLog('tray created')
+    } catch (err) {
+      bootLog(`tray failed: ${err instanceof Error ? err.message : err}`)
+      trayAvailable = false
     }
 
     createWindow(appIcon)
@@ -501,10 +423,10 @@ process.on('unhandledRejection', reason => {
   bootLog(`unhandledRejection: ${reason instanceof Error ? reason.stack ?? reason.message : String(reason)}`)
 })
 
-// The tray keeps the app alive when all windows close; in no-tray container
-// GUI mode, quit so the desktop autostart relaunches cleanly
+// The tray keeps the app alive when all windows close. If the tray couldn't be
+// created there's nothing to restore from, so quit instead of orphaning.
 app.on('window-all-closed', () => {
-  if (NO_TRAY) app.quit()
+  if (!trayAvailable) app.quit()
 })
 
 // Ensure forceQuit is set before close handlers fire (e.g. from app.quit() calls)

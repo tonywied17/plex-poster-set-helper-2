@@ -1,12 +1,12 @@
 # Plex Poster Helper - Docker Compose
 #
-#   docker compose -f docker/docker-compose.yml up -d gui
-#   docker compose -f docker/docker-compose.yml up -d --build gui
+#   docker compose -f docker/docker-compose.yml up -d
+#   docker compose -f docker/docker-compose.yml up -d --build
 #
-# Access: http://<host>:3939
+# Then open http://<host>:3939 and sign in with Plex.
 
 services:
-  gui:
+  web:
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -15,25 +15,8 @@ services:
     ports:
       - "3939:3939"
     environment:
-      - PUID=1000
-      - PGID=1000
       - TZ=America/New_York
       - PORT=3939
     volumes:
       - ./config:/config
-    shm_size: "1gb"
     restart: unless-stopped
-
-  headless:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.headless
-    image: plex-poster-helper-2:headless
-    container_name: plex-poster-helper-2-scheduler
-    environment:
-      - TZ=America/New_York
-    volumes:
-      - ./config:/config
-    shm_size: "1gb"
-    restart: unless-stopped
-    profiles: ["headless"]

@@ -4,6 +4,17 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.2.4
+
+### Faster collection art in the Library Browser
+Finding MediUX sets for a Plex collection is noticeably quicker. The member TMDB lookups and the per-set metadata fetches now run in parallel instead of one after another, and sets that were already scanned aren't re-fetched on the fallback passes.
+
+### Browse current Plex art in a lightbox
+The **Current Plex Art** strip is now clickable. Open any poster, season, or collection image full-screen and arrow through them with the same lightbox used elsewhere in the Library Browser.
+
+### Docker: web UI only
+The legacy headless scheduler container has been removed. The web UI already includes a built-in scheduler and is now the single supported container, so the Compose file, `run.sh` / `run.ps1` launchers, and unraid template are trimmed to match. The image no longer requests a 1 GB shared-memory bump (Chromium runs with `--disable-dev-shm-usage`, so the default is enough). Existing `/config` volumes carry over unchanged.
+
 ## What's new in v2.2.3
 
 ### Docker now ships the native web UI

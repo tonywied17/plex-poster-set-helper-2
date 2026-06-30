@@ -80,11 +80,12 @@ export const handlers = {
         const title = info.title || req.title
         if (!info.children.length) return { sets: [], error: 'no_movies' }
 
-        const childTmdbIds: string[] = []
-        for (const child of info.children) {
-          const tmdbId = await PlexService.resolveTmdbId(child)
-          if (tmdbId) childTmdbIds.push(tmdbId)
-        }
+        // Resolve every member's TMDB id at once - each is an independent Plex/
+        // TMDB lookup, so a sequential loop just stacks the latency. Promise.all
+        // preserves order, which matters: the first id seeds the collection-id
+        // lookup and the fallback scan walks members in order.
+        const resolved = await Promise.all(info.children.map(child => PlexService.resolveTmdbId(child)))
+        const childTmdbIds = resolved.filter((id): id is string => !!id)
 
         let tmdbCollectionId = info.tmdbCollectionId
         if (!tmdbCollectionId && childTmdbIds[0]) {

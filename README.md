@@ -111,12 +111,10 @@ npm run dev
 Run the full app in your browser - schedules keep firing 24/7 as long as the container is up. One script gets you going:
 
 ```bash
-./docker/run.sh    # start the GUI in your browser   (Windows: ./docker/run.ps1)
+./docker/run.sh    # start the web UI in your browser   (Windows: ./docker/run.ps1)
 ```
 
-Then open `http://localhost:3939` - or `https://localhost:3940` to enable copy & paste
-between your machine and the app (browsers require a secure page for clipboard access;
-accept the self-signed certificate warning once).
+Then open `http://localhost:3939` and sign in with Plex.
 
 > **On unraid?** Install it straight from **Community Applications** - search _Plex Poster
 > Helper_ in the **Apps** tab ([Community Apps page](https://ca.unraid.net/apps/plex-poster-helper-2-0va8t8c08x3sa0)).
@@ -180,7 +178,7 @@ git pull
 **Docker Compose:**
 ```bash
 git pull
-docker compose -f docker/docker-compose.yml up -d --build gui
+docker compose -f docker/docker-compose.yml up -d --build
 ```
 
 More detail (unraid, ports, volumes) in the [Docker guide](docker/README.md#updating-to-a-new-version).
@@ -210,7 +208,7 @@ npm run typecheck    # type-check renderer + main process
 npm run lint         # eslint
 ```
 
-**Stack:** Electron · React 18 · TypeScript · Vite · Playwright (scraping) · electron‑store.
+**Stack:** Electron · React 19 · TypeScript · Vite · Tailwind · Playwright (scraping) · Fastify (web / Docker mode).
 
 ---
 

@@ -14,7 +14,7 @@
   <WebUI>http://[IP]:[PORT:3939]</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/docker/unraid-template.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/resources/icon.png</Icon>
-  <ExtraParams>--shm-size=1g</ExtraParams>
+  <ExtraParams/>
   <PostArgs/>
   <DateInstalled/>
   <DonateText/>
@@ -23,7 +23,5 @@
 
   <Config Name="WebUI" Target="3939" Default="3939" Mode="tcp" Description="Web UI port. Open http://[IP]:3939 in your browser. Sign in with Plex to access the app." Type="Port" Display="always" Required="true" Mask="false">3939</Config>
   <Config Name="Config" Target="/config" Default="/mnt/user/appdata/plex-poster-helper-2" Mode="rw" Description="Config, schedules, applied-poster history, and installed Chromium." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/plex-poster-helper-2</Config>
-  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID" Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
-  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID" Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
   <Config Name="TZ" Target="TZ" Default="America/New_York" Mode="" Description="Timezone (matches scheduler cron times)" Type="Variable" Display="always" Required="true" Mask="false">America/New_York</Config>
 </Container>

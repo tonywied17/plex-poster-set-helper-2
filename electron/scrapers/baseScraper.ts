@@ -51,6 +51,32 @@ export function sleep(ms: number): Promise<void> {
 }
 
 /**
+ * Maps items through an async function with bounded concurrency, preserving
+ * input order. Used to fan out independent network fetches without launching
+ * one request per item all at once.
+ *
+ * @param items - Inputs to process.
+ * @param limit - Maximum number of concurrent calls.
+ * @param fn - Async mapper invoked with each item and its index.
+ * @returns Results in the same order as items.
+ */
+export async function mapPool<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let next = 0
+  const workers = Array.from({ length: Math.min(Math.max(1, limit), items.length) }, async () => {
+    for (let i = next++; i < items.length; i = next++) {
+      results[i] = await fn(items[i], i)
+    }
+  })
+  await Promise.all(workers)
+  return results
+}
+
+/**
  * Sleeps for the configured scraper delay of the given type.
  *
  * @param type - Which delay setting to apply.

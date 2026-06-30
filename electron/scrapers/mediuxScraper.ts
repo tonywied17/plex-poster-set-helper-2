@@ -1,4 +1,4 @@
-import { BaseScraper, USER_AGENTS, pick, sleepConfig } from './baseScraper'
+import { BaseScraper, USER_AGENTS, pick, sleepConfig, mapPool } from './baseScraper'
 import { Logger } from '../services/logger'
 import { ConfigService } from '../services/config'
 import type { PosterInfo, MediuxSetSummary, MediuxUserSet } from '../ipc/types'
@@ -551,9 +551,10 @@ export class MediuxScraper extends BaseScraper {
    * @returns The same sets, with collection sets replaced by enriched copies.
    */
   private async _enrichCollectionSets(sets: MediuxSet[]): Promise<MediuxSet[]> {
-    const out: MediuxSet[] = []
-    for (const s of sets) {
-      if (this._aborted) { out.push(s); continue }
+    // Each set's /sets/{id} re-fetch is independent, so fan them out with a small
+    // concurrency cap instead of one slow round-trip after another.
+    return mapPool(sets, 4, async s => {
+      if (this._aborted) return s
       const posters = (s.files ?? []).filter(f => (f.fileType ?? '').toLowerCase().includes('poster'))
       // Movie/show browse pages strip per-file movie_id and the set-level
       // collection ref, leaving only file titles. Treat a set as a collection
@@ -571,22 +572,20 @@ export class MediuxScraper extends BaseScraper {
         /\bcollection\b/i.test(s.set_name ?? s.name ?? '') ||
         datedMovies.size > 1
       const needsEnrich = looksLikeCollection && posters.length > 1 && !posters.some(f => f.movie_id)
-      if (!needsEnrich) { out.push(s); continue }
+      if (!needsEnrich) return s
       try {
         const full = await this._fetchSets(`https://mediux.pro/sets/${s.id}`)
         const fullSet = full?.sets.find(x => String(x.id) === String(s.id))
         if (fullSet?.files?.some(f => f.movie_id)) {
           Logger.scrape('MediUX', `Enriched collection set ${s.id} (${s.collection?.collection_name}) via /sets/${s.id}`)
-          out.push(fullSet)
-        } else {
-          out.push(fullSet ?? s)
+          return fullSet
         }
+        return fullSet ?? s
       } catch (err) {
         Logger.warn('MediUX', `Enrich failed for set ${s.id}: ${err instanceof Error ? err.message : err}`)
-        out.push(s)
+        return s
       }
-    }
-    return out
+    })
   }
 
   /**
@@ -677,10 +676,15 @@ export class MediuxScraper extends BaseScraper {
       }
     }
 
+    // Cache enrichment so the member-movie fallback loop, which calls finalize()
+    // after every fetch, only re-fetches /sets/{id} for sets it hasn't enriched
+    // yet instead of re-enriching the whole accumulated pile each pass.
+    const enrichedById = new Map<string, MediuxSet>()
     const finalize = async (): Promise<MediuxSetSummary[]> => {
-      if (!rawById.size) return []
-      const enriched = await this._enrichCollectionSets([...rawById.values()])
-      return filterSummaries(enriched)
+      const pending = [...rawById.values()].filter(s => !enrichedById.has(String(s.id)))
+      for (const s of await this._enrichCollectionSets(pending)) enrichedById.set(String(s.id), s)
+      if (!enrichedById.size) return []
+      return filterSummaries([...enrichedById.values()])
     }
 
     Logger.scrape('MediUX', `Browsing collection sets: "${collectionTitle}"`)
