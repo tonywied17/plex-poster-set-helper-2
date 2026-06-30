@@ -733,11 +733,20 @@
 
 .filters {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
   flex-shrink: 0;
+}
+
+/* The uploader dropdown fills the row; it wraps above the type toggles only
+   when the panel is too narrow to hold both on one line, so neither control
+   stretches awkwardly as the panel widens. */
+.filters > :first-child {
+  flex: 1 1 200px;
+  min-width: 160px;
 }
 
 .filterRow {
@@ -759,32 +768,44 @@
   cursor: pointer;
 }
 
-.typeToggles { display: flex; }
-
-.typeToggle {
-  flex: 1;
-  padding: 4px 8px;
-  background: var(--color-bg-elevated);
+/* Segmented control: an inset track with a raised pill for the active type.
+   Sized to its content so it never stretches across a wide panel, and the
+   same 36px height as the uploader Select so the two line up cleanly. */
+.typeToggles {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: stretch;
+  gap: 2px;
+  height: 36px;
+  padding: 3px;
+  background: var(--color-bg-base);
   border: 1px solid var(--color-border);
-  border-radius: 0;
-  margin-left: -1px;
-  color: var(--color-text-muted);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  position: relative;
-  transition: color var(--duration-fast), background var(--duration-fast), border-color var(--duration-fast);
+  border-radius: var(--radius-md);
 }
 
-.typeToggle:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); margin-left: 0; }
-.typeToggle:last-child  { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-.typeToggle:hover       { color: var(--color-text-primary); z-index: 1; }
+.typeToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 11px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--duration-fast), background var(--duration-fast);
+}
 
-.typeToggleOn {
+.typeToggle:hover { color: var(--color-text-primary); }
+
+.typeToggleOn,
+.typeToggleOn:hover {
   background: var(--color-accent-soft);
-  border-color: var(--color-accent, #e5a00d);
-  color: var(--color-text-primary);
-  z-index: 2;
+  color: var(--color-accent-hover);
+  font-weight: 600;
 }
 
 .panelBody {
@@ -1035,9 +1056,6 @@
 
 /* Panel width tiers — respond to SetsPanel inline width, not viewport */
 @container sets-panel (min-width: 520px) {
-  .filters { flex-direction: row; align-items: center; gap: var(--space-3); }
-  .filters > :first-child { flex: 1; min-width: 0; }
-  .typeToggles { flex: 0 0 auto; }
   .setPreview { width: 72px; }
   .groupThumbs { grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); }
   .groupThumbsWide { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
