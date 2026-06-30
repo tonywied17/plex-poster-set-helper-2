@@ -120,7 +120,7 @@ Run the full app in your browser - schedules keep firing 24/7 as long as the con
 Then open `http://localhost:3939` and sign in with Plex.
 
 > **On unraid?** Install it straight from **Community Applications** - search _Plex Poster
-> Helper_ in the **Apps** tab ([Community Apps page](https://ca.unraid.net/apps/plex-poster-helper-2-0va8t8c08x3sa0)).
+> Helper_ in the **Apps** tab ([Community Apps page](https://ca.unraid.net/apps/plex-poster-helper-2-1qbjs0q1mmwhy6)).
 > It pulls the prebuilt Docker Hub image and gives you a **WebUI** button - no commands needed.
 
 👉 **[Read the Docker guide →](docker/README.md)**
