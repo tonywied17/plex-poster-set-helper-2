@@ -271,6 +271,12 @@ export const handlers = {
     }),
     openExternal: (url: string) => {
       if (isWebMode()) return
+      // Only hand web links to the OS. Refusing other schemes (file:, custom
+      // protocol handlers, etc.) stops a compromised renderer or a malicious
+      // scraped link from launching arbitrary apps via the shell.
+      let parsed: URL
+      try { parsed = new URL(url) } catch { return }
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return
       const { shell } = require('electron') as typeof import('electron')
       void shell.openExternal(url)
     },
