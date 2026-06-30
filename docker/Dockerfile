@@ -7,7 +7,7 @@
 #   docker build -f docker/Dockerfile -t plex-poster-helper-2:gui .
 
 # ----- Build stage -------------------------------------------------------------
-FROM node:22-bookworm AS build
+FROM node:26-bookworm AS build
 WORKDIR /build
 
 RUN apt-get update && apt-get install -y --no-install-recommends unzip \
@@ -24,7 +24,7 @@ RUN npm run build:web
 RUN npm prune --omit=dev
 
 # ----- Runtime -----------------------------------------------------------------
-FROM node:22-bookworm-slim
+FROM node:26-bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       tini \
