@@ -439,7 +439,61 @@ export const PlexService = {
     if (exact) return exact
 
     const fuse = new Fuse(candidates, { keys: ['title'], threshold: 0.3 })
-    return fuse.search(title)[0]?.item ?? null
+    const best = fuse.search(title)[0]?.item
+    if (!best) return null
+    // Guard the fuzzy result: only accept it when the normalised collection
+    // title contains (or is contained by) the normalised query. This still
+    // allows "Toy Story" -> "Toy Story Collection" but rejects loose lookalike
+    // hits such as "8 Mile" -> "One Mile Collection".
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '')
+    const nc = norm(best.title)
+    const accepted = [norm(title), norm(altTitle)]
+      .filter(Boolean)
+      .some(nq => nc.includes(nq) || nq.includes(nc))
+    return accepted ? best : null
+  },
+
+  /**
+   * Resolves a Plex Collection by its exact name (case-insensitive), optionally
+   * scoped to a single library section. Maps a movie's real collection
+   * membership (its metadata Collection tags) to the collection's key, thumb
+   * and children with no fuzzy matching, so lookalike titles are never picked
+   * up. Scoping to the item's own library also avoids listing collections in
+   * every library.
+   */
+  async resolveCollectionByName(name: string, librarySectionId?: string): Promise<PlexCollection | null> {
+    if (!_conn) return null
+    const { baseUrl, token, libraries: allLibs } = _conn
+    const wanted = name.trim().toLowerCase()
+    if (!wanted) return null
+    const scoped = librarySectionId
+      ? allLibs.filter(l => String(l.key) === String(librarySectionId))
+      : []
+    const libs = scoped.length ? scoped : allLibs
+    for (const lib of libs) {
+      if (lib.type !== 'movie' && lib.type !== 'show') continue
+      try {
+        const data = await plexFetch(
+          baseUrl, token,
+          `/library/sections/${lib.key}/collections`,
+        ) as { MediaContainer?: { Metadata?: Array<{ ratingKey?: string; title?: string; childCount?: number; thumb?: string }> } }
+        for (const c of data?.MediaContainer?.Metadata ?? []) {
+          if (!c.ratingKey || !c.title) continue
+          if (c.title.trim().toLowerCase() === wanted) {
+            return {
+              key: c.ratingKey,
+              title: c.title,
+              libraryTitle: lib.title,
+              childCount: c.childCount,
+              thumb: c.thumb,
+            }
+          }
+        }
+      } catch {
+        // section may not support collections - skip silently
+      }
+    }
+    return null
   },
 
   /**
@@ -592,16 +646,32 @@ export const PlexService = {
     }
 
     if (req.type === 'movie') {
+      let collectionTags: string[] = []
+      let librarySectionId: string | undefined
       try {
         const data = await plexFetch(
           baseUrl, token,
           `/library/metadata/${req.key}?includeGuids=1`,
         ) as {
-          MediaContainer?: { Metadata?: Array<{ title?: string; year?: number; thumb?: string }> }
+          MediaContainer?: { Metadata?: Array<{
+            title?: string; year?: number; thumb?: string
+            librarySectionID?: string | number
+            Collection?: Array<{ tag?: string }>
+          }> }
         }
         const meta = data?.MediaContainer?.Metadata?.[0]
         const title = meta?.title ?? req.title
         const year = meta?.year ?? req.year
+        librarySectionId = meta?.librarySectionID != null ? String(meta.librarySectionID) : undefined
+        // Use the movie's real collection membership as reported by Plex (its
+        // Collection tags), rather than guessing a collection from the movie
+        // title - the old title guess fuzzy-matched unrelated collections
+        // (e.g. "8 Mile" -> "One Mile Collection").
+        collectionTags = Array.from(new Set(
+          (Array.isArray(meta?.Collection) ? meta!.Collection : [])
+            .map(c => c?.tag?.trim())
+            .filter((t): t is string => !!t),
+        ))
         slots.push({
           key: req.key,
           label: movieLabel(title, year),
@@ -618,10 +688,9 @@ export const PlexService = {
         })
       }
 
-      const collTitle = req.title.replace(/\s*\(\d{4}\)\s*$/, '').trim()
-      const coll = await PlexService.findCollection({ title: collTitle })
-        ?? await PlexService.findCollection({ title: req.title })
-      if (coll) {
+      for (const tag of collectionTags) {
+        const coll = await PlexService.resolveCollectionByName(tag, librarySectionId)
+        if (!coll) continue
         slots.push({
           key: coll.key,
           label: coll.title,
