@@ -470,27 +470,71 @@
   top: 0;
   left: 0;
   bottom: 0;
-  width: 6px;
+  width: 11px;
+  /* Extend the grab zone a few px past the panel edge so the seam is easy to hit. */
+  margin-left: -4px;
   cursor: col-resize;
   z-index: 12;
   display: flex;
   align-items: center;
   justify-content: center;
+  touch-action: none;
 }
 
-.panelResizeHandle:hover {
-  background: rgba(255, 255, 255, 0.04);
+/* Faint vertical seam so the edge reads as a divider even at rest. */
+.panelResizeHandle::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 4px;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(255, 255, 255, 0.09) 14%,
+    rgba(255, 255, 255, 0.09) 86%,
+    transparent
+  );
 }
 
 .panelResizeGrip {
-  width: 2px;
-  height: 32px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.12);
+  position: relative;
+  width: 4px;
+  height: 44px;
+  border-radius: var(--radius-full, 999px);
+  /* Raised pill: top-light gradient + drop shadow + inner highlight for depth. */
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.30),
+    rgba(255, 255, 255, 0.16)
+  );
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition:
+    width 0.18s ease,
+    height 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
-.panelResizeHandle:hover .panelResizeGrip {
-  background: rgba(255, 255, 255, 0.28);
+.panelResizeHandle:hover { background: var(--color-accent-soft); }
+.panelResizeHandleActive { background: var(--color-accent-soft-hover); }
+
+.panelResizeHandle:hover .panelResizeGrip,
+.panelResizeHandleActive .panelResizeGrip {
+  width: 5px;
+  height: 66px;
+  background: linear-gradient(
+    to bottom,
+    var(--color-accent-hover),
+    var(--color-accent)
+  );
+  box-shadow:
+    0 0 0 1px var(--color-accent-border),
+    0 0 14px var(--color-accent-interactive-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
 .panelHeader {
@@ -561,21 +605,79 @@
   border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
 }
 
+.artStripHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  user-select: none;
+}
+
+.artStripHeader:hover { color: var(--color-text-secondary); }
+.artStripHeader:hover .artStripLabel { color: var(--color-text-secondary); }
+
+.artStripChevron {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.artStripChevronCollapsed { transform: rotate(-90deg); }
+
 .artStripLabel {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--color-text-muted);
-  margin-bottom: var(--space-2);
+}
+
+.artStripCount {
+  margin-left: auto;
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full, 999px);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .artStripLoading {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  margin-top: var(--space-2);
   font-size: var(--text-xs);
   color: var(--color-text-muted);
+}
+
+/* Collapse with a 1fr -> 0fr grid row so the height animates without JS measuring. */
+.artStripBody {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.artStripBodyCollapsed { grid-template-rows: 0fr; }
+
+.artStripScroll {
+  min-height: 0;
+  overflow: hidden;
+  padding-top: var(--space-2);
+}
+
+/* When open, cap the height and scroll internally so the strip never crowds out
+   the sets list below it - a long show with many seasons stays contained. */
+.artStripBody:not(.artStripBodyCollapsed) .artStripScroll {
+  overflow-y: auto;
+  max-height: clamp(160px, 34vh, 380px);
 }
 
 .artStrip {

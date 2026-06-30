@@ -614,10 +614,12 @@ function ItemCard({ item, active, onClick }: { item: LibraryItem; active: boolea
 
 /** Right drawer listing MediUX sets for the selected library item, with apply controls. */
 function CurrentArtStrip({ slots, loading }: { slots: PlexArtSlot[]; loading: boolean }) {
+  const [expanded, setExpanded] = useState(true)
+
   if (loading) {
     return (
       <div className={styles.artStripSection}>
-        <div className={styles.artStripLabel}>Current Plex Art</div>
+        <span className={styles.artStripLabel}>Current Plex Art</span>
         <div className={styles.artStripLoading}><Spinner size="sm" /> <span>Loading…</span></div>
       </div>
     )
@@ -625,22 +627,39 @@ function CurrentArtStrip({ slots, loading }: { slots: PlexArtSlot[]; loading: bo
   if (!slots.length) return null
   return (
     <div className={styles.artStripSection}>
-      <div className={styles.artStripLabel}>Current Plex Art</div>
-      <div className={styles.artStrip}>
-        {slots.map(s => (
-          <div
-            key={`${s.kind}-${s.key}`}
-            className={`${styles.artCard} ${s.highlight ? styles.artHighlight : ''}`}
-            title={s.label}
-          >
-            {s.thumb ? (
-              <img src={s.thumb} alt={s.label} className={styles.artCardImg} loading="lazy" draggable={false} />
-            ) : (
-              <div className={styles.artCardFallback}><ImageIcon size={16} /></div>
-            )}
-            <span className={styles.artLabel}>{s.label}</span>
+      <button
+        type="button"
+        className={styles.artStripHeader}
+        onClick={() => setExpanded(v => !v)}
+        aria-expanded={expanded}
+        title={expanded ? 'Collapse current art' : 'Expand current art'}
+      >
+        <ChevronDown
+          size={13}
+          className={`${styles.artStripChevron} ${expanded ? '' : styles.artStripChevronCollapsed}`}
+        />
+        <span className={styles.artStripLabel}>Current Plex Art</span>
+        <span className={styles.artStripCount}>{slots.length}</span>
+      </button>
+      <div className={`${styles.artStripBody} ${expanded ? '' : styles.artStripBodyCollapsed}`}>
+        <div className={styles.artStripScroll}>
+          <div className={styles.artStrip}>
+            {slots.map(s => (
+              <div
+                key={`${s.kind}-${s.key}`}
+                className={`${styles.artCard} ${s.highlight ? styles.artHighlight : ''}`}
+                title={s.label}
+              >
+                {s.thumb ? (
+                  <img src={s.thumb} alt={s.label} className={styles.artCardImg} loading="lazy" draggable={false} />
+                ) : (
+                  <div className={styles.artCardFallback}><ImageIcon size={16} /></div>
+                )}
+                <span className={styles.artLabel}>{s.label}</span>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
     </div>
   )
@@ -680,6 +699,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
   const [collectionMembers, setCollectionMembers] = useState<LibraryItem[]>([])
   const [panelWidth, setPanelWidth] = useState(PANEL_WIDTH_DEFAULT)
   const panelWidthRef = useRef(PANEL_WIDTH_DEFAULT)
+  const [resizing, setResizing] = useState(false)
 
   const subSet = useMemo(() => new Set(subs), [subs])
   const isCollectionItem = item.type === 'collection'
@@ -841,6 +861,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
     e.preventDefault()
     const startX = e.clientX
     const startW = panelWidthRef.current
+    setResizing(true)
 
     function onMove(ev: MouseEvent) {
       const next = clampPanelWidth(startW + (startX - ev.clientX))
@@ -853,6 +874,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
       document.removeEventListener('mouseup', onUp)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
+      setResizing(false)
       window.api.config.set({ libraryPanelWidth: panelWidthRef.current }).catch(() => {})
     }
 
@@ -1142,7 +1164,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
       transition={{ ease: [0.16, 1, 0.3, 1], duration: 0.3 }}
     >
       <div
-        className={styles.panelResizeHandle}
+        className={`${styles.panelResizeHandle} ${resizing ? styles.panelResizeHandleActive : ''}`}
         onMouseDown={startPanelResize}
         onDoubleClick={resetPanelWidth}
         title="Drag to resize · double-click to reset"
