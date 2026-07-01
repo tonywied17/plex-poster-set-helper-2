@@ -38,6 +38,8 @@ export interface PlexCollection {
   libraryTitle: string
   thumb?: string
   childCount?: number
+  /** True for rule-based (dynamic) Plex collections such as "Trending Movies". */
+  smart?: boolean
 }
 
 export interface PlexItem {

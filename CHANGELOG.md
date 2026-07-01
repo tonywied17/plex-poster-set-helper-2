@@ -4,6 +4,17 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.2.7
+
+### Cleaner Current Plex Art
+The **Current Plex Art** strip no longer floods with unrelated posters. If a movie belonged to a large or smart collection - the kind Kometa builds, like "Trending Movies", "Top Pirated Movies", or "Metacritic Must See" - the strip used to pull in every member of those collections, burying the movie's own art under dozens of unrelated titles. It now shows only genuine franchise collections (Toy Story, Harry Potter) with their sibling movies and skips those organizational buckets entirely.
+
+### Smoother Library Browser
+Resizing, opening, and closing the Sets panel no longer shuffles and squishes the library thumbnails. The grid now snaps cleanly to its new width in one step instead of reflowing every frame, dragging the panel edge tracks the cursor without stutter, and the last poster column keeps a proper gap from the panel instead of tucking underneath it.
+
+### Paginated Reset Posters
+The **Reset Posters** list is now paginated (20 rows at a time) instead of rendering your entire applied-poster history at once, so large histories stay fast and smooth. This also fixes a bug where a long list would squish every row down to an unreadable sliver instead of scrolling.
+
 ## What's new in v2.2.6
 
 ### Fixed applying MediUX sets to movies and shows in the Library Browser

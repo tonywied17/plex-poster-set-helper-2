@@ -215,14 +215,29 @@
   scrollbar-color: rgba(255,255,255,0.07) transparent;
   /* Bleed into the page wrapper's right/bottom padding so the scrollbar sits
      flush to the window edge and content scrolls all the way down behind the
-     dock (dock-clearance keeps the last row clear of it). padding-right matches
-     the wrapper's left padding so the full-width rows stay symmetric, with the
-     gap living between the rows and the scrollbar. */
+     dock (dock-clearance keeps the last element - now the pager - clear of it).
+     A little top padding keeps a hovered row's lift + shadow from being clipped
+     by the scroller's overflow. */
   margin-right: calc(-1 * var(--content-padding));
   padding-right: var(--content-padding);
+  padding-top: 2px;
   margin-bottom: calc(-1 * var(--content-padding));
   padding-bottom: var(--dock-clearance);
 }
+
+/* -- Pager bar (flows with the list, below the last row) ------------------- */
+
+.pagerBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
+.pagerStatus { font-size: var(--text-xs); color: var(--color-text-muted); white-space: nowrap; }
 
 /* -- Loading skeletons ----------------------------------------------------- */
 
@@ -230,6 +245,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  flex-shrink: 0;
   padding: var(--space-2) var(--space-3);
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
@@ -270,6 +286,9 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  /* Keep each row at its natural height: without this the flex-column list
+     shrinks every row to fit instead of overflowing, squishing the whole list. */
+  flex-shrink: 0;
   padding: var(--space-2) var(--space-3) var(--space-2) calc(var(--space-3) + 4px);
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);

@@ -505,7 +505,7 @@ export const PlexService = {
         const data = await plexFetch(
           baseUrl, token,
           `/library/sections/${lib.key}/collections`,
-        ) as { MediaContainer?: { Metadata?: Array<{ ratingKey?: string; title?: string; childCount?: number; thumb?: string }> } }
+        ) as { MediaContainer?: { Metadata?: Array<{ ratingKey?: string; title?: string; childCount?: number; thumb?: string; smart?: string | number }> } }
         for (const c of data?.MediaContainer?.Metadata ?? []) {
           if (!c.ratingKey || !c.title) continue
           if (c.title.trim().toLowerCase() === wanted) {
@@ -515,6 +515,7 @@ export const PlexService = {
               libraryTitle: lib.title,
               childCount: c.childCount,
               thumb: c.thumb,
+              smart: c.smart === '1' || c.smart === 1,
             }
           }
         }
@@ -726,16 +727,25 @@ export const PlexService = {
         })
       }
 
+      // Only surface genuine franchise collections (Toy Story, Harry Potter) and
+      // their sibling movies. Smart/rule-based or oversized collections - e.g. the
+      // Kometa-managed "Trending Movies", "All Ages", "Metacritic Must See" - are
+      // organisational buckets, not artwork families, so they're skipped entirely
+      // (neither the collection nor its members belong in this item's art strip).
+      const MEMBER_EXPAND_CAP = 30
       for (const tag of collectionTags) {
         const coll = await PlexService.resolveCollectionByName(tag, librarySectionId)
         if (!coll) continue
+        if (coll.smart || (coll.childCount != null && coll.childCount > MEMBER_EXPAND_CAP)) continue
+        const children = await PlexService.getCollectionChildren(coll.key)
+        if (children.length > MEMBER_EXPAND_CAP) continue
         slots.push({
           key: coll.key,
           label: coll.title,
           thumb: thumbUrl(baseUrl, token, coll.thumb),
           kind: 'collection',
         })
-        for (const child of await PlexService.getCollectionChildren(coll.key)) {
+        for (const child of children) {
           if (child.key === req.key) continue
           slots.push({
             key: child.key,

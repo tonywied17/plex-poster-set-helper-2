@@ -11,6 +11,7 @@ import Switch from '../../components/ui/Switch'
 import EmptyState from '../../components/ui/EmptyState'
 import Modal from '../../components/ui/Modal'
 import Lightbox, { type LightboxImage } from '../../components/ui/Lightbox'
+import Pager from '../../components/ui/Pager'
 import PlexConnectBanner from '../../components/ui/PlexConnectBanner'
 import { useAppContext } from '../../app/AppContext'
 import { useReset, type ResetItemStatus } from './ResetContext'
@@ -49,6 +50,9 @@ function timeAgo(iso?: string): string {
 type SourceFilter = 'all' | 'mediux' | 'posterdb'
 type TypeFilter   = 'all' | 'movie' | 'show'
 type CleanState   = 'idle' | 'cleaning' | 'done' | 'error'
+
+/** Rows per page in the tracked-poster list; keeps large histories smooth. */
+const PAGE_SIZE = 20
 
 interface TrackedItem extends AppliedRecord {
   /** itemKey alias for existing markup. */
@@ -127,6 +131,7 @@ export default function ResetPage() {
   const [sourceFilter, setSource]   = useState<SourceFilter>('all')
   const [typeFilter, setType]       = useState<TypeFilter>('all')
   const [search, setSearch]         = useState('')
+  const [page, setPage]             = useState(0)
   const [confirmAll, setConfirmAll] = useState(false)
   const [lightbox, setLightbox]     = useState<number | null>(null)
   const [deleteUploads, setDeleteUploads] = useState(false)
@@ -189,6 +194,14 @@ export default function ResetPage() {
     if (search && !i.title.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
+
+  // Client-side pagination: the whole history is already in memory, so we just
+  // slice it. safePage clamps the page as rows drop off (e.g. after a reset)
+  // without needing to reach for state in an effect.
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage  = Math.min(page, pageCount - 1)
+  const pageStart = safePage * PAGE_SIZE
+  const pageItems = filtered.slice(pageStart, pageStart + PAGE_SIZE)
 
   const stats = useMemo<Stats>(() => ({
     total:    items.length,
@@ -308,7 +321,7 @@ export default function ResetPage() {
           <input
             className={styles.searchInput}
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => { setSearch(e.target.value); setPage(0) }}
             placeholder="Search by title…"
           />
           <div className={styles.filterGroup}>
@@ -316,7 +329,7 @@ export default function ResetPage() {
               <button
                 key={f}
                 className={`${styles.filterBtn} ${sourceFilter === f ? styles.filterActive : ''}`}
-                onClick={() => setSource(f)}
+                onClick={() => { setSource(f); setPage(0) }}
               >
                 {f === 'all' ? 'All Sources' : f === 'mediux' ? 'MediUX' : 'PosterDB'}
               </button>
@@ -327,7 +340,7 @@ export default function ResetPage() {
               <button
                 key={f}
                 className={`${styles.filterBtn} ${typeFilter === f ? styles.filterActive : ''}`}
-                onClick={() => setType(f)}
+                onClick={() => { setType(f); setPage(0) }}
               >
                 {f === 'all' ? 'All Types' : f === 'movie' ? 'Movies' : 'Shows'}
               </button>
@@ -357,7 +370,7 @@ export default function ResetPage() {
           />
         ) : (
           <AnimatePresence initial={false}>
-            {filtered.map(item => {
+            {pageItems.map(item => {
               const status = (statuses[item.key] ?? 'idle') as ResetItemStatus | 'idle'
               return (
               <motion.div
@@ -446,6 +459,18 @@ export default function ResetPage() {
               )
             })}
           </AnimatePresence>
+        )}
+
+        {/* Pager + status flow inside the scrolling list, so the page keeps its
+            natural top-to-bottom scroll with the dock floating over the bottom
+            (rather than a pinned footer that boxes the list in). */}
+        {!loading && filtered.length > 0 && (
+          <div className={styles.pagerBar}>
+            <span className={styles.pagerStatus}>
+              Showing {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)} of {filtered.length}
+            </span>
+            <Pager page={safePage} pageCount={pageCount} onPage={setPage} />
+          </div>
         )}
       </div>
 

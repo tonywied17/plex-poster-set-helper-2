@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, useCallback, useMemo, createContext, useContext } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Search, X, Upload, Check, AlertCircle, Loader2, User, Image as ImageIcon, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Plus, UserPlus, Trash2, CalendarClock, CheckCircle2, RefreshCw, Star, Library, Download, LayoutGrid, Users, Film, Tv, Layers, ArrowUp, ArrowDown } from 'lucide-react'
+import { Search, X, Upload, Check, AlertCircle, Loader2, User, Image as ImageIcon, ChevronDown, ChevronUp, Plus, UserPlus, Trash2, CalendarClock, CheckCircle2, RefreshCw, Star, Library, Download, LayoutGrid, Users, Film, Tv, Layers, ArrowUp, ArrowDown } from 'lucide-react'
 import type { ScheduledJob } from '../../../electron/ipc/types'
 import Button from '../../components/ui/Button'
 import Select from '../../components/ui/Select'
 import Checkbox from '../../components/ui/Checkbox'
 import Spinner from '../../components/ui/Spinner'
 import Lightbox, { type LightboxImage } from '../../components/ui/Lightbox'
+import Pager from '../../components/ui/Pager'
 import PlexConnectBanner from '../../components/ui/PlexConnectBanner'
 import { groupPosters, posterFileType, ALL_TYPES, defaultSetApplyScope, type FileType, type SetApplyScope } from '../../utils/posterGroups'
 import { recordApplied, recordAppliedBatch, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../utils/appliedTracker'
@@ -841,9 +842,13 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
     })
   }, [])
 
+  // The grid's reserved gap and the panel itself both read --library-panel-width,
+  // so a resize updates both from one value. We don't clear it on unmount: while
+  // switching between items both panels are briefly mounted, and the outgoing
+  // one's cleanup would otherwise wipe the width the incoming one just set. The
+  // grid only consumes the gap while a panel is open, so a stale value is inert.
   useEffect(() => {
     document.documentElement.style.setProperty('--library-panel-width', `${panelWidth}px`)
-    return () => { document.documentElement.style.removeProperty('--library-panel-width') }
   }, [panelWidth])
 
   useEffect(() => {
@@ -961,7 +966,11 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
     function onMove(ev: MouseEvent) {
       const next = clampPanelWidth(startW + (startX - ev.clientX))
       panelWidthRef.current = next
-      setPanelWidth(next)
+      // Drive the drag straight through the CSS var: the panel and the grid gap
+      // both track the cursor 1:1 without re-rendering the (heavy) panel on every
+      // frame - the per-frame React re-render is what made resizing stutter. The
+      // final value is committed to state in onUp so React stays in sync.
+      document.documentElement.style.setProperty('--library-panel-width', `${next}px`)
     }
 
     function onUp() {
@@ -970,6 +979,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
       setResizing(false)
+      setPanelWidth(panelWidthRef.current)
       window.api.config.set({ libraryPanelWidth: panelWidthRef.current }).catch(() => {})
     }
 
@@ -1262,7 +1272,6 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
   return (
     <motion.div
       className={styles.panel}
-      style={{ width: panelWidth }}
       initial={{ x: '100%' }}
       animate={{ x: 0 }}
       exit={{ x: '100%' }}
@@ -1942,50 +1951,6 @@ function SkeletonTabs() {
 /** How many sets / files render per page in the creator browser. */
 const CREATOR_SETS_PER_PAGE = 24
 const CREATOR_FILES_PER_PAGE = 60
-
-/**
- * Builds the page tokens for the pager: first and last page always show, a
- * small window around the current page, and 'gap' ellipses fill the rest.
- */
-function pagerTokens(page: number, pageCount: number): (number | 'gap')[] {
-  const out: (number | 'gap')[] = []
-  const last = pageCount - 1
-  const from = Math.max(1, page - 1)
-  const to = Math.min(last - 1, page + 1)
-  out.push(0)
-  if (from > 1) out.push('gap')
-  for (let p = from; p <= to; p++) out.push(p)
-  if (to < last - 1) out.push('gap')
-  if (last > 0) out.push(last)
-  return out
-}
-
-/** Numbered pager (0-based `page`) with prev/next and ellipsis for many pages. */
-function Pager({ page, pageCount, onPage }: { page: number; pageCount: number; onPage: (p: number) => void }) {
-  if (pageCount <= 1) return null
-  return (
-    <div className={styles.pager}>
-      <button className={styles.pagerBtn} onClick={() => onPage(page - 1)} disabled={page <= 0} aria-label="Previous page">
-        <ChevronLeft size={14} />
-      </button>
-      {pagerTokens(page, pageCount).map((t, i) =>
-        t === 'gap'
-          ? <span key={`gap-${i}`} className={styles.pagerGap}>…</span>
-          : <button
-              key={t}
-              className={`${styles.pagerBtn} ${t === page ? styles.pagerBtnActive : ''}`}
-              onClick={() => onPage(t)}
-              aria-current={t === page ? 'page' : undefined}
-            >
-              {t + 1}
-            </button>,
-      )}
-      <button className={styles.pagerBtn} onClick={() => onPage(page + 1)} disabled={page >= pageCount - 1} aria-label="Next page">
-        <ChevronRight size={14} />
-      </button>
-    </div>
-  )
-}
 
 /** A creator's recent sets with tabs, deep search, selection, and weekly-sync scheduling. */
 function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, onApplied }: {

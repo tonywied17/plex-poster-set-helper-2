@@ -1,0 +1,32 @@
+.pager { display: flex; align-items: center; gap: 4px; }
+
+.pagerBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 var(--space-2);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary, var(--color-text-muted));
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.pagerBtn:hover:not(:disabled) {
+  color: var(--color-accent, #e5a00d);
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-soft);
+}
+.pagerBtn:disabled { opacity: 0.4; cursor: default; }
+.pagerBtnActive,
+.pagerBtnActive:hover {
+  background: var(--color-accent, #e5a00d);
+  border-color: var(--color-accent, #e5a00d);
+  color: #1b1300;
+}
+.pagerGap { color: var(--color-text-disabled); padding: 0 2px; user-select: none; }

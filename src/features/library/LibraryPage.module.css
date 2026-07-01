@@ -152,7 +152,9 @@
   gap: var(--space-1);
   flex-shrink: 0;
 }
-.sortControl > :first-child { min-width: 150px; }
+/* Wide enough that the longest option ("Recently Added") stays on one line in
+   the dropdown once its row padding and selected-check are accounted for. */
+.sortControl > :first-child { min-width: 184px; }
 
 .searchBox {
   position: relative;
@@ -306,8 +308,15 @@
 }
 
 .gridScrollWithPanel {
-  padding-right: var(--library-panel-width, 560px);
-  transition: padding-right 0.2s var(--ease-out-expo, ease);
+  /* Reserve the panel's width plus a gap so the last poster column clears the
+     panel's left edge and shadow. The extra --content-padding cancels this
+     scroller's negative right margin (which bleeds it to the window edge, past
+     the panel's inset), and --space-4 is the visible breathing room.
+     No transition on the gap: an animated padding change would reflow the
+     auto-fill grid every frame, visibly squishing and shuffling the thumbnails
+     as the panel opens, closes, or resizes. Snapping reflows once; the panel's
+     own slide (framer-motion) covers the seam. */
+  padding-right: calc(var(--library-panel-width, 560px) + var(--content-padding) + var(--space-4));
 }
 
 @media (min-width: 1200px) {
@@ -464,6 +473,9 @@
   top: 0;
   right: 0;
   bottom: 0;
+  /* Shares one width source with the grid's reserved gap so a resize moves both
+     together; framer-motion animates the slide (transform) independently. */
+  width: var(--library-panel-width, 560px);
   container-type: inline-size;
   container-name: sets-panel;
   background: var(--color-bg-surface);
@@ -1504,37 +1516,7 @@
   padding-bottom: var(--dock-clearance);
 }
 .pagerStatus { font-size: var(--text-xs); color: var(--color-text-muted); white-space: nowrap; }
-
-.pager { display: flex; align-items: center; gap: 4px; }
-.pagerBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 30px;
-  height: 30px;
-  padding: 0 var(--space-2);
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary, var(--color-text-muted));
-  font-size: var(--text-xs);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--duration-fast);
-}
-.pagerBtn:hover:not(:disabled) {
-  color: var(--color-accent, #e5a00d);
-  border-color: var(--color-accent-border);
-  background: var(--color-accent-soft);
-}
-.pagerBtn:disabled { opacity: 0.4; cursor: default; }
-.pagerBtnActive,
-.pagerBtnActive:hover {
-  background: var(--color-accent, #e5a00d);
-  border-color: var(--color-accent, #e5a00d);
-  color: #1b1300;
-}
-.pagerGap { color: var(--color-text-disabled); padding: 0 2px; user-select: none; }
+/* The pager button group itself lives in the shared ui/Pager component. */
 
 /* -- Creator selection + schedule tip ------------------------------------- */
 .selectBar {
