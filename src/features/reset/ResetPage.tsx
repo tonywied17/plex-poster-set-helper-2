@@ -137,6 +137,10 @@ export default function ResetPage() {
   const [deleteUploads, setDeleteUploads] = useState(false)
   const [cleanState, setCleanState] = useState<CleanState>('idle')
   const cleanTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+
+  /** Change page and snap the list back to the top. */
+  const goToPage = (p: number) => { setPage(p); listRef.current?.scrollTo({ top: 0 }) }
 
 
   const load = useCallback(async (quiet = false) => {
@@ -355,7 +359,7 @@ export default function ResetPage() {
       )}
 
       {/* Item list */}
-      <div className={styles.list}>
+      <div className={styles.list} ref={listRef}>
         {loading ? (
           <SkeletonRows />
         ) : filtered.length === 0 ? (
@@ -369,6 +373,9 @@ export default function ResetPage() {
             }
           />
         ) : (
+          // Keyed per page so a page change is a clean remount (no rows panning
+          // in from the side) while single-row reset keeps its exit animation.
+          <div key={safePage} className={styles.pageRows}>
           <AnimatePresence initial={false}>
             {pageItems.map(item => {
               const status = (statuses[item.key] ?? 'idle') as ResetItemStatus | 'idle'
@@ -459,20 +466,20 @@ export default function ResetPage() {
               )
             })}
           </AnimatePresence>
-        )}
-
-        {/* Pager + status flow inside the scrolling list, so the page keeps its
-            natural top-to-bottom scroll with the dock floating over the bottom
-            (rather than a pinned footer that boxes the list in). */}
-        {!loading && filtered.length > 0 && (
-          <div className={styles.pagerBar}>
-            <span className={styles.pagerStatus}>
-              Showing {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)} of {filtered.length}
-            </span>
-            <Pager page={safePage} pageCount={pageCount} onPage={setPage} />
           </div>
         )}
       </div>
+
+      {/* Pager overlay: pinned at the bottom flanking the dock, while the list
+          scrolls cleanly under both. */}
+      {!loading && filtered.length > 0 && (
+        <div className={styles.pagerBar}>
+          <span className={styles.pagerStatus}>
+            Showing {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)} of {filtered.length}
+          </span>
+          <Pager page={safePage} pageCount={pageCount} onPage={goToPage} />
+        </div>
+      )}
 
       {/* Confirm all modal */}
       <Modal

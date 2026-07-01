@@ -4,6 +4,8 @@
   gap: var(--space-4);
   height: 100%;
   min-height: 0;
+  /* Anchor the overlaid pager (position: absolute) to the page. */
+  position: relative;
 }
 
 /* -- Header --------------------------------------------------------------- */
@@ -225,16 +227,32 @@
   padding-bottom: var(--dock-clearance);
 }
 
-/* -- Pager bar (flows with the list, below the last row) ------------------- */
-
-.pagerBar {
+/* Rows for the current page; wrapped so a page change remounts cleanly (no
+   rows panning in from the side) while single-row reset keeps its animation. */
+.pageRows {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* -- Pager bar (overlaid at the bottom, flanking the floating dock) -------- */
+/* Pinned over the bottom of the scrolling list so the list scrolls cleanly
+   under the dock while the pager stays visible. A scrim fades the content out
+   beneath the controls; the bar is click-through except the controls
+   themselves (pointer-events lives on .pager in the shared component). */
+.pagerBar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-3);
-  flex-shrink: 0;
   flex-wrap: wrap;
-  margin-top: var(--space-2);
+  padding: var(--space-6) 0 var(--space-4) 0;
+  background: linear-gradient(to top, var(--color-bg-base) 55%, transparent);
+  pointer-events: none;
 }
 
 .pagerStatus { font-size: var(--text-xs); color: var(--color-text-muted); white-space: nowrap; }

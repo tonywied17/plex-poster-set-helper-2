@@ -1,4 +1,6 @@
-.pager { display: flex; align-items: center; gap: 4px; }
+/* pointer-events:auto so the buttons stay clickable even when the containing
+   pager bar is a click-through scrim overlaid on a scrolling list. */
+.pager { display: flex; align-items: center; gap: 4px; pointer-events: auto; }
 
 .pagerBtn {
   display: flex;

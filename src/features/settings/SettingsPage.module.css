@@ -158,9 +158,9 @@
 }
 
 .fieldHint {
-  font-size: 10px;
-  color: var(--color-text-disabled);
-  line-height: 1.4;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  line-height: 1.45;
 }
 
 .versionTag {

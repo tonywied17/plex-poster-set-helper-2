@@ -1440,6 +1440,8 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+  /* Anchor the overlaid pager (position: absolute) to this pane. */
+  position: relative;
 }
 
 .creatorEmpty {
@@ -1494,26 +1496,32 @@
   flex-direction: column;
   gap: var(--space-3);
   /* Bleed into the page wrapper's right padding so the scrollbar sits flush to
-     the window edge. The pager below owns the bottom dock clearance. */
+     the window edge. Bottom clearance lets the list scroll cleanly under the
+     floating dock and the pager overlaid at the bottom. */
   margin-right: calc(-1 * var(--content-padding));
   padding-right: var(--space-3);
-  padding-bottom: var(--space-2);
+  padding-bottom: var(--dock-clearance);
 }
 
 /* -- Pager ---------------------------------------------------------------- */
+/* Overlaid on the bottom of the scrolling list (not a footer that reserves
+   space), so the list scrolls cleanly under the floating dock while the pager
+   stays pinned at the bottom, flanking the centered dock. A scrim fades the
+   scrolling content out beneath the controls; the bar is click-through except
+   the controls themselves (pointer-events lives on .pager). */
 .pagerBar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-3);
-  flex-shrink: 0;
   flex-wrap: wrap;
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
-  margin-right: calc(-1 * var(--content-padding));
-  padding-right: var(--space-3);
-  margin-bottom: calc(-1 * var(--content-padding));
-  padding-bottom: var(--dock-clearance);
+  padding: var(--space-6) var(--space-3) var(--space-4) 0;
+  background: linear-gradient(to top, var(--color-bg-base) 55%, transparent);
+  pointer-events: none;
 }
 .pagerStatus { font-size: var(--text-xs); color: var(--color-text-muted); white-space: nowrap; }
 /* The pager button group itself lives in the shared ui/Pager component. */

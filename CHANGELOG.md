@@ -4,6 +4,14 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.2.8
+
+### Smoother pagination
+The paginated lists in the **Reset Posters** page and the **Creators** browser are cleaner to navigate. Changing pages now snaps the list back to the top and the rows just appear, instead of the old row-by-row slide-in animation. The page controls now sit pinned at the bottom, flanking the floating dock, while the list scrolls cleanly underneath both, so the pager is always in reach without hiding your content.
+
+### Readable Settings hints
+The small helper text under each Settings field (like the TMDB API key note) was too dark and too small to read comfortably. It's now a lighter, slightly larger style.
+
 ## What's new in v2.2.7
 
 ### Cleaner Current Plex Art
