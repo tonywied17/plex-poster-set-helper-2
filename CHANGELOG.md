@@ -6,8 +6,8 @@ so keep each version under its own `## What's new in vX.Y.Z` heading.
 
 ## What's new in v2.2.6
 
-### Apply now works for movies and shows in the Library Browser
-Applying a MediUX set to a movie or show from the Library Browser did nothing - the Apply button was a silent no-op. It now correctly uploads the set's posters, backdrops, and title cards to the selected title. Collections were unaffected and continue to work as before.
+### Fixed applying MediUX sets to movies and shows in the Library Browser
+Applying a MediUX set to a movie or show from the Library Browser failed silently. The Apply button now correctly uploads the set's posters, backdrops, and title cards to the selected title. Collections were unaffected.
 
 ### Faster creator browsing with real pagination
 Opening a MediUX creator no longer blocks on a full catalog crawl before showing anything. Sets now stream in as they are found, and the browser is **paginated** - only one page renders at a time, so even creators with thousands of sets stay fast and responsive instead of choking on one endless list. The crawl runs in the background, so you can switch creators or leave the Library Browser and come back to find it further along.
