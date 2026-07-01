@@ -242,16 +242,19 @@
    themselves (pointer-events lives on .pager in the shared component). */
 .pagerBar {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  /* Bleed to the window edges and down to the status bar so the scrim is a
+     flush full-width bottom fade, not an inset box that masks the ambient
+     background glow around it. Content is padded back to align with the list. */
+  left: calc(-1 * var(--content-padding));
+  right: calc(-1 * var(--content-padding));
+  bottom: calc(-1 * var(--content-padding));
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-3);
   flex-wrap: wrap;
-  padding: var(--space-6) 0 var(--space-4) 0;
-  background: linear-gradient(to top, var(--color-bg-base) 55%, transparent);
+  padding: var(--space-6) var(--content-padding) calc(var(--space-4) + var(--content-padding)) var(--content-padding);
+  background: linear-gradient(to top, var(--color-bg-base) 60%, transparent);
   pointer-events: none;
 }
 

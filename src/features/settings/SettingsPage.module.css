@@ -158,9 +158,9 @@
 }
 
 .fieldHint {
-  font-size: var(--text-xs);
+  font-size: 11px;
   color: var(--color-text-muted);
-  line-height: 1.45;
+  line-height: 1.4;
 }
 
 .versionTag {
@@ -186,6 +186,28 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+/* Inline variant: label + hint fill the row while the control sits compact and
+   centered on the right. Used for toggles, action buttons, and value chips
+   (General / Application), where the default stacked full-width control wastes
+   space and stretches buttons too wide. The label also gets the full row width,
+   so long hints wrap far less than in the narrow 180px label column. */
+.fieldRowInline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.fieldRowInline .fieldLabel {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0;
+}
+.fieldRowInline .fieldControl {
+  flex-direction: row;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 /* -- Text input ------------------------------------------------------------ */

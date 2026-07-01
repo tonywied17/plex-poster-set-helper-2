@@ -4,6 +4,14 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.2.9
+
+### Settings layout polish
+The **General** and **Application** settings use a tighter, more modern layout: each option's control now sits compact and aligned on the right instead of stretching into an oversized full-width button, and the helper text gets the full row width so it no longer crams into a few narrow lines. The helper text was also tuned to be easier to read.
+
+### Pagination polish
+The pinned page controls on the **Reset Posters** and **Creators** views now blend flush with the background. The bottom fade behind them spans edge to edge instead of showing a boxed-in strip with a gap around it.
+
 ## What's new in v2.2.8
 
 ### Smoother pagination

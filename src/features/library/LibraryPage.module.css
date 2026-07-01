@@ -1511,16 +1511,20 @@
    the controls themselves (pointer-events lives on .pager). */
 .pagerBar {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  /* Bleed to the right/bottom edges and left across the rail gap (--space-4, the
+     .creators row gap) so the scrim is a flush bottom fade with no ambient-glow
+     strip beside the sidebar. Content is padded back so the status stays aligned
+     with the list above. */
+  left: calc(-1 * var(--space-4));
+  right: calc(-1 * var(--content-padding));
+  bottom: calc(-1 * var(--content-padding));
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-3);
   flex-wrap: wrap;
-  padding: var(--space-6) var(--space-3) var(--space-4) 0;
-  background: linear-gradient(to top, var(--color-bg-base) 55%, transparent);
+  padding: var(--space-6) var(--content-padding) calc(var(--space-4) + var(--content-padding)) var(--space-4);
+  background: linear-gradient(to top, var(--color-bg-base) 60%, transparent);
   pointer-events: none;
 }
 .pagerStatus { font-size: var(--text-xs); color: var(--color-text-muted); white-space: nowrap; }

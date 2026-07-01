@@ -67,11 +67,11 @@ function ApplicationSection() {
 
   return (
     <Section icon={<Package size={15} />} title="Application" anchor="application">
-      <FieldRow label="Version" hint={env?.container ? 'Running in Docker' : lastText}>
+      <FieldRow compact label="Version" hint={env?.container ? 'Running in Docker' : lastText}>
         <span className={styles.versionTag}>v{version || '…'}</span>
       </FieldRow>
 
-      <FieldRow label="Updates" hint={isDocker ? 'Docker is updated by pulling a new image' : 'Check GitHub for a newer release'}>
+      <FieldRow compact label="Updates" hint={isDocker ? 'Docker is updated by pulling a new image' : 'Check GitHub for a newer release'}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
           {/* Docker can't self-update and the headless container is viewed from a
               remote browser, so show the pull-and-recreate steps inline */}
@@ -108,7 +108,7 @@ function ApplicationSection() {
         </div>
       </FieldRow>
 
-      <FieldRow label="Logs" hint={env?.web ? 'Copies the log folder path to your clipboard' : 'Open the folder containing the app log files'}>
+      <FieldRow compact label="Logs" hint={env?.web ? 'Copies the log folder path to your clipboard' : 'Open the folder containing the app log files'}>
         <Button variant="ghost" size="sm" icon={<FolderOpen size={13} />} onClick={() => void window.api.app.openLogFolder()}>
           {env?.web ? 'Copy log path' : 'Open log folder'}
         </Button>
@@ -151,10 +151,16 @@ function Section({
   )
 }
 
-/** Labelled settings row with an optional hint. */
-function FieldRow({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+/**
+ * Labelled settings row with an optional hint.
+ *
+ * @param compact - Lay the control out inline on the right (label + hint fill
+ *   the row), for toggle/action/value rows. Default stacks a full-width control
+ *   below, for text inputs and sliders.
+ */
+function FieldRow({ label, hint, compact, children }: { label: string; hint?: string; compact?: boolean; children: React.ReactNode }) {
   return (
-    <div className={styles.fieldRow}>
+    <div className={`${styles.fieldRow} ${compact ? styles.fieldRowInline : ''}`}>
       <div className={styles.fieldLabel}>
         <span>{label}</span>
         {hint && <span className={styles.fieldHint}>{hint}</span>}
@@ -945,13 +951,13 @@ export default function SettingsPage() {
 
         {/* General */}
         <Section icon={<Wrench size={15} />} title="General" anchor="general">
-          <FieldRow label="Tray Notification" hint="Show a notice when the app minimizes to the system tray">
+          <FieldRow compact label="Tray Notification" hint="Show a notice when the app minimizes to the system tray">
             <Switch
               checked={merged.trayNotice ?? true}
               onChange={v => autosave('trayNotice', v)}
             />
           </FieldRow>
-          <FieldRow label="Log File" hint="Logs rotate automatically at 10 MB, keeping the 3 most recent files. Clear empties the current log.">
+          <FieldRow compact label="Log File" hint="Logs rotate automatically at 10 MB, keeping the 3 most recent files. Clear empties the current log.">
             <Button
               variant="ghost"
               size="sm"
