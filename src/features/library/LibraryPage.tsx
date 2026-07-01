@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo, createContext, useContext } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Search, X, Upload, Check, AlertCircle, Loader2, User, Image as ImageIcon, ChevronDown, ChevronUp, Plus, UserPlus, Trash2, CalendarClock, CheckCircle2, RefreshCw, Star, Library, Download, LayoutGrid, Users, Film, Tv, Layers } from 'lucide-react'
+import { Search, X, Upload, Check, AlertCircle, Loader2, User, Image as ImageIcon, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Plus, UserPlus, Trash2, CalendarClock, CheckCircle2, RefreshCw, Star, Library, Download, LayoutGrid, Users, Film, Tv, Layers, ArrowUp, ArrowDown } from 'lucide-react'
 import type { ScheduledJob } from '../../../electron/ipc/types'
 import Button from '../../components/ui/Button'
 import Select from '../../components/ui/Select'
@@ -13,24 +13,25 @@ import { recordApplied, recordAppliedBatch, appliedKey, loadAppliedIndex, type A
 import { useAppContext } from '../../app/AppContext'
 import { useNavStore } from '../../app/navStore'
 import type {
-  LibrarySection, LibraryItem, MediuxSetSummary, BrowseSetsRes, PosterInfo, MediuxUserSet, UserSetsRes, AppliedRecord,
-  PlexArtSlot,
+  LibrarySection, LibraryItem, MediuxSetSummary, BrowseSetsRes, PosterInfo, MediuxUserSet, AppliedRecord,
+  PlexArtSlot, LibrarySort, SortDir,
 } from '../../../electron/ipc/types'
 import styles from './LibraryPage.module.css'
 
 const PAGE_SIZE = 60
+
+/** Library Browser grid sort options and their labels. */
+const SORT_LABEL: Record<LibrarySort, string> = {
+  recentlyAdded: 'Recently Added',
+  title: 'Title',
+  year: 'Release Year',
+  lastPlayed: 'Last Played',
+}
+/** Collections only support title / date-added ordering. */
+const COLLECTION_SORTS: LibrarySort[] = ['recentlyAdded', 'title']
+const ALL_SORTS: LibrarySort[] = ['recentlyAdded', 'title', 'year', 'lastPlayed']
 /** Sentinel activeKey for the movie-collections browser tab. */
 const COLLECTIONS_TAB_KEY = '__collections__'
-
-/**
- * Session cache for a creator's fully-paginated sets, so flipping between
- * creators (or re-opening one) is instant instead of re-scraping every time.
- * Lives for the renderer process lifetime; a manual Refresh or a stale entry
- * (older than the TTL) triggers a re-fetch.
- */
-interface CreatorCacheEntry { sets: MediuxUserSet[]; capped: boolean; fetchedAt: number }
-const creatorSetsCache = new Map<string, CreatorCacheEntry>()
-const CREATOR_CACHE_TTL = 30 * 60 * 1000
 
 interface BrowseCacheEntry {
   sets: MediuxSetSummary[]
@@ -176,12 +177,18 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
   const [manualRefreshing, setManualRefreshing] = useState(false)
   // Global "include collections" setting; collections live in movie libraries.
   const [collectionsEnabled, setCollectionsEnabled] = useState(true)
+  const [sort, setSort] = useState<LibrarySort>('recentlyAdded')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   const offsetRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    window.api.config.get().then(c => setCollectionsEnabled(c.collectionsEnabled !== false))
+    window.api.config.get().then(c => {
+      setCollectionsEnabled(c.collectionsEnabled !== false)
+      if (c.librarySort) setSort(c.librarySort)
+      if (c.librarySortDir) setSortDir(c.librarySortDir)
+    })
   }, [reloadNonce])
 
   const isCollectionsView = activeKey === COLLECTIONS_TAB_KEY && search.trim().length === 0
@@ -247,27 +254,27 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
     setLoading(true)
     const offset = append ? offsetRef.current : 0
     try {
-      const res = await window.api.library.items({ sectionKey: key, offset, limit: PAGE_SIZE, search: q })
+      const res = await window.api.library.items({ sectionKey: key, offset, limit: PAGE_SIZE, search: q, sort, sortDir })
       setTotal(res.total)
       offsetRef.current = offset + res.items.length
       setItems(prev => append ? [...prev, ...res.items] : res.items)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [sort, sortDir])
 
   const loadCollections = useCallback(async (q: string, append: boolean) => {
     setLoading(true)
     const offset = append ? offsetRef.current : 0
     try {
-      const res = await window.api.library.collections({ offset, limit: PAGE_SIZE, search: q || undefined })
+      const res = await window.api.library.collections({ offset, limit: PAGE_SIZE, search: q || undefined, sort, sortDir })
       setTotal(res.total)
       offsetRef.current = offset + res.items.length
       setItems(prev => append ? [...prev, ...res.items] : res.items)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [sort, sortDir])
 
   useEffect(() => {
     if (!activeKey || isGlobalSearch) return
@@ -290,13 +297,13 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
       Promise.all([
         Promise.all(
           sections.map(s =>
-            window.api.library.items({ sectionKey: s.key, offset: 0, limit: 24, search: q })
+            window.api.library.items({ sectionKey: s.key, offset: 0, limit: 24, search: q, sort, sortDir })
               .then(res => ({ section: s, items: res.items }))
               .catch(() => ({ section: s, items: [] as LibraryItem[] }))
           ),
         ),
         showCollections
-          ? window.api.library.collections({ offset: 0, limit: 48, search: q })
+          ? window.api.library.collections({ offset: 0, limit: 48, search: q, sort, sortDir })
               .then(res => res.items)
               .catch(() => [] as LibraryItem[])
           : Promise.resolve([] as LibraryItem[]),
@@ -308,7 +315,7 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
       })
     }, 300)
     return () => { cancelled = true; clearTimeout(t) }
-  }, [search, isGlobalSearch, sections, showCollections, reloadNonce])
+  }, [search, isGlobalSearch, sections, showCollections, reloadNonce, sort, sortDir])
 
   // Infinite scroll, single-tab mode only
   function onScroll() {
@@ -347,6 +354,20 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
     }
   }
 
+  // Collections only support a subset of sorts; coerce the shown value so the
+  // dropdown never displays an option it isn't offering on that tab.
+  const sortList = isCollectionsView ? COLLECTION_SORTS : ALL_SORTS
+  const shownSort: LibrarySort = sortList.includes(sort) ? sort : 'title'
+  function changeSort(next: LibrarySort) {
+    setSort(next)
+    window.api.config.set({ librarySort: next }).catch(() => {})
+  }
+  function toggleSortDir() {
+    const next: SortDir = sortDir === 'asc' ? 'desc' : 'asc'
+    setSortDir(next)
+    window.api.config.set({ librarySortDir: next }).catch(() => {})
+  }
+
   return (
     <>
       {/* Controls */}
@@ -382,6 +403,21 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
         </div>
 
         <div className={styles.controlsRight}>
+          <div className={styles.sortControl}>
+            <Select
+              value={shownSort}
+              onChange={v => changeSort(v as LibrarySort)}
+              options={sortList.map(s => ({ value: s, label: SORT_LABEL[s] }))}
+            />
+            <button
+              className={styles.refreshBtn}
+              onClick={toggleSortDir}
+              title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
+              aria-label={`Sort direction: ${sortDir === 'asc' ? 'ascending' : 'descending'}`}
+            >
+              {sortDir === 'asc' ? <ArrowUp size={15} /> : <ArrowDown size={15} />}
+            </button>
+          </div>
           <div className={styles.searchBox}>
             <Search size={14} className={styles.searchIcon} />
             <input
@@ -1902,6 +1938,55 @@ function SkeletonTabs() {
   )
 }
 
+/** One creator poster/backdrop/title-card file, paired with its parent set. */
+/** How many sets / files render per page in the creator browser. */
+const CREATOR_SETS_PER_PAGE = 24
+const CREATOR_FILES_PER_PAGE = 60
+
+/**
+ * Builds the page tokens for the pager: first and last page always show, a
+ * small window around the current page, and 'gap' ellipses fill the rest.
+ */
+function pagerTokens(page: number, pageCount: number): (number | 'gap')[] {
+  const out: (number | 'gap')[] = []
+  const last = pageCount - 1
+  const from = Math.max(1, page - 1)
+  const to = Math.min(last - 1, page + 1)
+  out.push(0)
+  if (from > 1) out.push('gap')
+  for (let p = from; p <= to; p++) out.push(p)
+  if (to < last - 1) out.push('gap')
+  if (last > 0) out.push(last)
+  return out
+}
+
+/** Numbered pager (0-based `page`) with prev/next and ellipsis for many pages. */
+function Pager({ page, pageCount, onPage }: { page: number; pageCount: number; onPage: (p: number) => void }) {
+  if (pageCount <= 1) return null
+  return (
+    <div className={styles.pager}>
+      <button className={styles.pagerBtn} onClick={() => onPage(page - 1)} disabled={page <= 0} aria-label="Previous page">
+        <ChevronLeft size={14} />
+      </button>
+      {pagerTokens(page, pageCount).map((t, i) =>
+        t === 'gap'
+          ? <span key={`gap-${i}`} className={styles.pagerGap}>…</span>
+          : <button
+              key={t}
+              className={`${styles.pagerBtn} ${t === page ? styles.pagerBtnActive : ''}`}
+              onClick={() => onPage(t)}
+              aria-current={t === page ? 'page' : undefined}
+            >
+              {t + 1}
+            </button>,
+      )}
+      <button className={styles.pagerBtn} onClick={() => onPage(page + 1)} disabled={page >= pageCount - 1} aria-label="Next page">
+        <ChevronRight size={14} />
+      </button>
+    </div>
+  )
+}
+
 /** A creator's recent sets with tabs, deep search, selection, and weekly-sync scheduling. */
 function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, onApplied }: {
   username: string
@@ -1913,8 +1998,10 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
 }) {
   const { navigate } = useAppContext()
   const [sets, setSets]       = useState<MediuxUserSet[]>([])
+  // First paint (nothing buffered yet) shows skeletons; `crawling` means a
+  // background crawl is still streaming in more sets behind what's shown.
   const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
+  const [crawling, setCrawling] = useState(true)
   const [error, setError]     = useState<string | null>(null)
   const [applyMap, setApplyMap] = useState<Record<string, ApplyState>>({})
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -1930,6 +2017,13 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
   const [searchResults, setSearchResults] = useState<MediuxUserSet[]>([])
   const [searching, setSearching] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
+  // Current page (0-based) of the active tab; only this page's items render.
+  const [page, setPage] = useState(0)
+  // Scroll container for the current page of sets / files.
+  const listRef = useRef<HTMLDivElement>(null)
+  // Latest sets, for reading inside the chunk subscription without stale closure.
+  const setsRef = useRef<MediuxUserSet[]>([])
+  useEffect(() => { setsRef.current = sets }, [sets])
 
   // Sets already covered by a saved schedule, individually or by a
   // whole-creator "/user/{name}/sets" sync job
@@ -1943,65 +2037,83 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
     })
   }, [])
 
-  const refresh = useCallback(() => setReloadKey(k => k + 1), [])
+  const refresh = useCallback(() => { setRefreshing(true); setReloadKey(k => k + 1) }, [])
 
-  // Auto-load the creator's full set catalog in the background. The backend
-  // (library:userSets) crawls every MediUX page and dedupes by set id: MediUX
-  // serves a ~24-set sliding window per page (+12 new each, not cumulative), so
-  // one page is never the whole catalog. A large creator's first load can take a
-  // while; it resolves in a single call. Cancels cleanly when switching creators.
-  //
-  // Backed by a session cache: a fresh cached entry is served instantly with no
-  // network. A manual Refresh (reloadKey > 0) or a stale entry re-fetches; when
-  // cached sets are already shown, the re-fetch happens quietly in the
-  // background so the list never blanks or visibly re-sorts.
+  // Stream the creator's full catalog from the backend's per-creator buffer.
+  // start()/refresh() return whatever is buffered right now (instant when the
+  // crawl already ran), then `library:userSetsChunk` events append each batch as
+  // MediUX pages land. The crawl lives in the main process, so it keeps running
+  // when you navigate away - returning re-start()s and paints the grown buffer.
   useEffect(() => {
     let cancelled = false
-    const cached = creatorSetsCache.get(username)
+    const target = username.toLowerCase()
     const forced = reloadKey > 0
-    const fresh  = !!cached && Date.now() - cached.fetchedAt < CREATOR_CACHE_TTL
 
     setError(null)
     setSelected(new Set())
+    setSets([])
+    setsRef.current = []
+    setCapped(false)
+    setLoading(true)
+    setCrawling(true)
 
-    if (cached) {
-      setSets(cached.sets); setCapped(cached.capped); setLastChecked(cached.fetchedAt)
-      setLoading(false); setLoadingMore(false)
-    } else {
-      setSets([]); setCapped(false); setLoading(true); setLoadingMore(false)
+    const merge = (incoming: MediuxUserSet[]) => {
+      if (!incoming.length) return
+      setSets(prev => {
+        const seen = new Set(prev.map(s => s.id))
+        const out = prev.slice()
+        for (const s of incoming) if (!seen.has(s.id)) out.push(s)
+        return out
+      })
     }
 
-    // Fresh cache and not an explicit refresh: no network at all
-    if (fresh && !forced) return
-
-    const hasCache = !!cached
-    if (hasCache) setRefreshing(true)
-
-    ;(async () => {
-      let res: UserSetsRes
-      try { res = await window.api.library.userSets({ username }) }
-      catch (e) {
-        if (!cancelled) {
-          if (!hasCache) setError(e instanceof Error ? e.message : String(e))
-          setLoading(false); setLoadingMore(false); setRefreshing(false)
+    // Subscribe before start() so no batch emitted in between is missed.
+    const unsub = window.api.library.onUserSetsChunk(chunk => {
+      if (cancelled || chunk.username.toLowerCase() !== target) return
+      if (chunk.reset) {
+        // Incremental resync: replace the list with the merged result.
+        setSets(chunk.sets)
+        setsRef.current = chunk.sets
+      } else {
+        merge(chunk.sets)
+      }
+      setCapped(chunk.capped)
+      if (chunk.sets.length || chunk.reset) setLoading(false)
+      if (chunk.done) {
+        setCrawling(false); setLoading(false); setRefreshing(false)
+        setLastChecked(Date.now())
+        if (chunk.status === 'error' && setsRef.current.length === 0) {
+          setError(chunk.error ?? 'Could not load sets')
         }
-        return
       }
+    })
+
+    const load = forced
+      ? window.api.library.refreshUserSets({ username })
+      : window.api.library.startUserSets({ username })
+
+    load.then(snap => {
       if (cancelled) return
-      if (res.error) {
-        if (!hasCache) setError(res.error)
-        setLoading(false); setLoadingMore(false); setRefreshing(false)
-        return
+      merge(snap.sets)
+      setCapped(snap.capped)
+      if (snap.sets.length) setLoading(false)
+      if (snap.status === 'done' || snap.status === 'capped') {
+        setCrawling(false); setLoading(false); setRefreshing(false); setLastChecked(Date.now())
+      } else if (snap.status === 'error') {
+        setCrawling(false); setLoading(false); setRefreshing(false)
+        if (snap.sets.length === 0) setError(snap.error ?? 'Could not load sets')
       }
-      const now = Date.now()
-      const capped = res.capped ?? false
-      setSets(res.sets); setCapped(capped)
-      setLoading(false); setLoadingMore(false); setRefreshing(false)
-      setLastChecked(now)
-      creatorSetsCache.set(username, { sets: res.sets, capped, fetchedAt: now })
-    })()
-    return () => { cancelled = true }
+    }).catch(e => {
+      if (cancelled) return
+      setError(e instanceof Error ? e.message : String(e))
+      setLoading(false); setCrawling(false); setRefreshing(false)
+    })
+
+    return () => { cancelled = true; unsub() }
   }, [username, reloadKey])
+
+  // Jump back to the first page whenever the view the user is paging changes.
+  useEffect(() => { setPage(0) }, [username, tab, query])
 
   // Keep the "checked Xm ago" stamp honest while sitting on a creator
   useEffect(() => {
@@ -2058,22 +2170,29 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
     return [...searchResults.filter(s => !seen.has(s.id)), ...sets]
   }, [sets, searchResults])
 
-  // Tab data, filtered by the title search and sorted matches-first. A creator's
+  // Tab data, filtered by the title search. While the crawl is streaming we keep
+  // MediUX arrival order (newest-first) so the list never visibly reshuffles as
+  // batches land; the matches-first sort is applied once, on settle. A creator's
   // uploads on MediUX are always single-title sets; multi-title boxsets live on
   // a separate URL space (/boxsets/N) and are handled by manual import, not here
-  const setsFiltered = useMemo(() => allSets.filter(s => matchQuery(s)).sort(matchFirst), [allSets, q])
+  const setsFiltered = useMemo(() => {
+    const list = allSets.filter(s => matchQuery(s))
+    return crawling ? list : list.sort(matchFirst)
+  }, [allSets, q, crawling])
   const flatFiles = useMemo(() => allSets.flatMap(s => s.posters.map(poster => ({ set: s, poster }))), [allSets])
+  const sortFiles = (list: { set: MediuxUserSet; poster: PosterInfo }[]) =>
+    crawling ? list : list.sort((a, b) => matchFirst(a.set, b.set))
   const posterItems = useMemo(
-    () => flatFiles.filter(f => posterFileType(f.poster) === 'poster' && matchQuery(f.set)).sort((a, b) => matchFirst(a.set, b.set)),
-    [flatFiles, q],
+    () => sortFiles(flatFiles.filter(f => posterFileType(f.poster) === 'poster' && matchQuery(f.set))),
+    [flatFiles, q, crawling],
   )
   const backdropItems = useMemo(
-    () => flatFiles.filter(f => posterFileType(f.poster) === 'backdrop' && matchQuery(f.set)).sort((a, b) => matchFirst(a.set, b.set)),
-    [flatFiles, q],
+    () => sortFiles(flatFiles.filter(f => posterFileType(f.poster) === 'backdrop' && matchQuery(f.set))),
+    [flatFiles, q, crawling],
   )
   const titleCardItems = useMemo(
-    () => flatFiles.filter(f => posterFileType(f.poster) === 'title_card' && matchQuery(f.set)).sort((a, b) => matchFirst(a.set, b.set)),
-    [flatFiles, q],
+    () => sortFiles(flatFiles.filter(f => posterFileType(f.poster) === 'title_card' && matchQuery(f.set))),
+    [flatFiles, q, crawling],
   )
 
   // Unfiltered counts for the tab labels
@@ -2283,18 +2402,33 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
     [fileItems],
   )
 
+  // Only the current page renders, so the DOM stays tiny regardless of catalog
+  // size. As the crawl streams more sets in, the page count grows but the page
+  // the user is on stays put.
+  const perPage = tab === 'sets' ? CREATOR_SETS_PER_PAGE : CREATOR_FILES_PER_PAGE
+  const activeLen = tab === 'sets' ? setsFiltered.length : fileItems.length
+  const pageCount = Math.max(1, Math.ceil(activeLen / perPage))
+  const safePage = Math.min(page, pageCount - 1)
+  const pageStart = safePage * perPage
+  const pageSets = setsFiltered.slice(pageStart, pageStart + perPage)
+  const pageFiles = fileItems.slice(pageStart, pageStart + perPage)
+  const goPage = (p: number) => { setPage(p); listRef.current?.scrollTo({ top: 0 }) }
+
   return (
     <div className={styles.creatorSets}>
       <div className={styles.creatorBar}>
         <div className={styles.creatorBarInfo}>
           <span className={styles.creatorBarName}>{username}</span>
           <span className={styles.creatorBarMeta}>
-            {error ? (
+            {error && sets.length === 0 ? (
               'Could not load sets'
             ) : loading ? (
               'Loading…'
-            ) : loadingMore ? (
-              `Loading… ${sets.length} sets`
+            ) : crawling ? (
+              <>
+                {sets.length} sets{matchCount > 0 ? ` · ${matchCount} in your library` : ''}
+                <span className={styles.lastChecked}>· loading more…</span>
+              </>
             ) : (
               <>
                 {sets.length} sets · {matchCount} in your library
@@ -2316,7 +2450,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
             size="sm"
             icon={<RefreshCw size={12} className={refreshing ? styles.spin : ''} />}
             onClick={refresh}
-            disabled={loading || loadingMore || refreshing}
+            disabled={loading || refreshing}
           >
             Refresh
           </Button>
@@ -2393,29 +2527,27 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
         )}
       </AnimatePresence>
 
-      <div className={styles.creatorSetsList}>
-        {/* Gate the list until the background auto-load settles, so it appears
-            once (already sorted) instead of visibly re-sorting as each page
-            arrives; skeleton cards keep the layout in place meanwhile */}
-        {(loading || loadingMore) && !error &&
+      <div className={styles.creatorSetsList} ref={listRef}>
+        {/* First paint only: skeletons until the buffer has anything to show.
+            After that only the current page renders, so the DOM stays small. */}
+        {loading && !error &&
           Array.from({ length: 6 }).map((_, i) => <SetCardSkeleton key={`skel-${i}`} />)}
-        {error && <div className={styles.panelNotice}><AlertCircle size={20} /><p>{error}</p></div>}
-        {!loading && !loadingMore && !error && sets.length === 0 && (
-          <div className={styles.panelNotice}><ImageIcon size={20} /><p>No sets found for this creator.</p></div>
-        )}
+        {error && sets.length === 0 && <div className={styles.panelNotice}><AlertCircle size={20} /><p>{error}</p></div>}
 
         {/* Sets tab */}
-        {!loading && !loadingMore && !error && sets.length > 0 && tab === 'sets' && (
-          setsFiltered.length
-            ? setsFiltered.map(renderSetCard)
-            : <div className={styles.panelNotice}><ImageIcon size={20} /><p>{query ? (searching ? 'Searching their full catalog…' : 'No matches found, try a different title.') : 'No sets loaded yet.'}</p></div>
+        {!loading && !error && tab === 'sets' && (
+          pageSets.length
+            ? pageSets.map(renderSetCard)
+            : !crawling && (
+                <div className={styles.panelNotice}><ImageIcon size={20} /><p>{query ? (searching ? 'Searching their full catalog…' : 'No matches found, try a different title.') : 'No sets found for this creator.'}</p></div>
+              )
         )}
 
         {/* Posters / Backdrops / Title Cards tabs: individual files */}
-        {!loading && !loadingMore && !error && (tab === 'posters' || tab === 'backdrops' || tab === 'titlecards') && (
-          fileItems.length ? (
+        {!loading && !error && (tab === 'posters' || tab === 'backdrops' || tab === 'titlecards') && (
+          pageFiles.length ? (
             <div className={`${styles.fileGrid} ${tab === 'backdrops' || tab === 'titlecards' ? styles.fileGridWide : ''}`}>
-              {fileItems.map(({ set, poster }, i) => {
+              {pageFiles.map(({ set, poster }, i) => {
                 const key = `${set.id}:${poster.url}`
                 const st = applyMap[key]?.status
                 const done = st === 'done' || appliedIdx.posterUrls.has(poster.url)
@@ -2427,23 +2559,34 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
                     st={st}
                     done={done}
                     error={applyMap[key]?.error}
-                    onLightbox={() => setFileLightbox(i)}
+                    onLightbox={() => setFileLightbox(pageStart + i)}
                     onApply={() => applySingle(set, poster)}
                   />
                 )
               })}
             </div>
-          ) : <div className={styles.panelNotice}><ImageIcon size={20} /><p>{query ? (searching ? 'Searching their full catalog…' : 'No matches found, try a different title.') : tab === 'titlecards' ? 'No title cards loaded yet.' : `No ${tab} loaded yet.`}</p></div>
+          ) : !crawling && <div className={styles.panelNotice}><ImageIcon size={20} /><p>{query ? (searching ? 'Searching their full catalog…' : 'No matches found, try a different title.') : tab === 'titlecards' ? 'No title cards found.' : `No ${tab} found.`}</p></div>
         )}
 
         {/* Cap note (shown once the catalog has settled) */}
-        {!loading && !loadingMore && !error && capped && sets.length > 0 && (
+        {!crawling && !error && capped && sets.length > 0 && safePage >= pageCount - 1 && (
           <div className={styles.loadMoreNote}>
             Showing this creator's newest {sets.length} sets (MediUX's browse limit), with your library matches first.
             Don't see one of your titles? <button className={styles.noteSearchLink} onClick={() => searchRef.current?.focus()}>Search</button> their full catalog by title above.
           </div>
         )}
       </div>
+
+      {/* Pager + status: always visible below the (short) current page. */}
+      {!loading && !error && activeLen > 0 && (
+        <div className={styles.pagerBar}>
+          <span className={styles.pagerStatus}>
+            Page {safePage + 1} of {pageCount}
+            {crawling && <span className={styles.lastChecked}> · loading more…</span>}
+          </span>
+          <Pager page={safePage} pageCount={pageCount} onPage={goPage} />
+        </div>
+      )}
 
       <AnimatePresence>
         {fileLightbox !== null && (

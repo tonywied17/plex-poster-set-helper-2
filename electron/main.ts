@@ -358,7 +358,7 @@ function registerIpcHandlers() {
   registerLogHandlers(ipcMain)
   registerSchedulerHandlers(ipcMain)
   registerBrowserHandlers(ipcMain)
-  registerLibraryHandlers(ipcMain)
+  registerLibraryHandlers(ipcMain, mainWindow!)
 }
 
 app.whenReady().then(async () => {

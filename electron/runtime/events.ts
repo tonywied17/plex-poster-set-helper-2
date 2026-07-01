@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events'
-import type { LogEntry, PlexAuthStatus, ScrapeProgress, ScheduledJob, UpdateInfo, UpdateProgress } from '../ipc/types'
+import type { LogEntry, PlexAuthStatus, ScrapeProgress, ScheduledJob, UpdateInfo, UpdateProgress, UserSetsChunk } from '../ipc/types'
 
 export type AppEventMap = {
   'scrape:progress': ScrapeProgress
@@ -10,6 +10,7 @@ export type AppEventMap = {
   'app:updateAvailable': UpdateInfo
   'app:downloadProgress': UpdateProgress
   'app:updateReady': void
+  'library:userSetsChunk': UserSetsChunk
 }
 
 class AppEventBus extends EventEmitter {

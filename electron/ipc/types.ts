@@ -166,6 +166,10 @@ export interface AppConfig {
   excludedLibraries?: string[]
   /** Show Plex collections in the Library Browser (default true). */
   collectionsEnabled?: boolean
+  /** Library Browser grid sort field (default 'recentlyAdded'). */
+  librarySort?: LibrarySort
+  /** Library Browser grid sort direction (default 'desc'). */
+  librarySortDir?: SortDir
 }
 
 /**
@@ -286,11 +290,17 @@ export interface LibraryItem {
   anidbId?: string
 }
 
+/** Sort field for the Library Browser grid (mapped to a Plex sort key). */
+export type LibrarySort = 'recentlyAdded' | 'title' | 'year' | 'lastPlayed'
+export type SortDir = 'asc' | 'desc'
+
 export interface SectionItemsReq {
   sectionKey: string
   offset: number
   limit: number
   search?: string
+  sort?: LibrarySort
+  sortDir?: SortDir
 }
 
 export interface SectionItemsRes {
@@ -327,6 +337,8 @@ export interface CollectionsReq {
   offset: number
   limit: number
   search?: string
+  sort?: LibrarySort
+  sortDir?: SortDir
 }
 
 export interface CollectionSetsReq {
@@ -373,6 +385,42 @@ export interface UserSetsRes {
   hasMore: boolean
   /** The crawl stopped at the page cap, so some sets may be missing. */
   capped?: boolean
+  error?: string
+}
+
+/** State of a creator's background crawl. */
+export type CreatorCrawlStatus = 'crawling' | 'done' | 'capped' | 'error'
+
+/**
+ * Immediate response to startUserSets: whatever the backend has buffered for
+ * this creator so far, plus the crawl status. An empty snapshot with status
+ * 'crawling' means a fresh crawl just began; chunks arrive via userSetsChunk.
+ */
+export interface UserSetsSnapshot {
+  username: string
+  sets: MediuxUserSet[]
+  status: CreatorCrawlStatus
+  capped: boolean
+  /** Total sets buffered so far. */
+  collected: number
+  error?: string
+}
+
+/** A streamed batch of a creator's sets as the background crawl progresses. */
+export interface UserSetsChunk {
+  username: string
+  /** Newly matched sets in this batch, or the full list when `reset` is set. */
+  sets: MediuxUserSet[]
+  /** Total sets buffered so far (across all chunks). */
+  collected: number
+  /** Highest MediUX page reached so far. */
+  page: number
+  /** The crawl has finished (settled, capped, or errored). */
+  done: boolean
+  capped: boolean
+  status: CreatorCrawlStatus
+  /** Replace the list with `sets` instead of appending (incremental resync). */
+  reset?: boolean
   error?: string
 }
 
@@ -462,6 +510,9 @@ export type IpcChannels = {
   'library:collectionSets':  { req: CollectionSetsReq; res: BrowseSetsRes }
   'library:sets':            { req: BrowseSetsReq; res: BrowseSetsRes }
   'library:userSets':        { req: UserSetsReq; res: UserSetsRes }
+  'library:startUserSets':   { req: UserSetsReq; res: UserSetsSnapshot }
+  'library:refreshUserSets': { req: UserSetsReq; res: UserSetsSnapshot }
+  'library:userSetsChunk':   { event: UserSetsChunk }
   'library:creatorSearch':   { req: CreatorSearchReq; res: UserSetsRes }
   'library:currentArt':      { req: CurrentArtReq; res: CurrentArtRes }
 }

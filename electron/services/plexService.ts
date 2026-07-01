@@ -9,7 +9,22 @@ import type {
   LabelReq, ResetReq,
   LibrarySection, SectionItemsReq, SectionItemsRes, LibraryItem,
   CurrentArtReq, CurrentArtRes, PlexArtSlot,
+  LibrarySort, SortDir,
 } from '../ipc/types'
+
+/** Plex `sort` field for each Library Browser sort option. */
+const PLEX_SORT_FIELD: Record<LibrarySort, string> = {
+  recentlyAdded: 'addedAt',
+  title: 'titleSort',
+  year: 'year',
+  lastPlayed: 'lastViewedAt',
+}
+
+/** Builds a Plex `sort=field:dir` param from the Library Browser sort choice. */
+function plexSortParam(sort?: LibrarySort, dir?: SortDir): string {
+  const field = PLEX_SORT_FIELD[sort ?? 'title'] ?? 'titleSort'
+  return `${field}:${dir ?? 'asc'}`
+}
 
 interface PlexConnection {
   baseUrl: string
@@ -513,14 +528,16 @@ export const PlexService = {
   /**
    * Lists movie-library Plex Collections for the library browser.
    *
-   * @param req - Offset/limit and optional title filter.
-   * @returns Collection items sorted by title.
+   * @param req - Offset/limit, optional title filter, and sort choice.
+   * @returns Collection items in the requested order (Plex collections only
+   *   meaningfully support title and date-added; other sorts fall back to title).
    */
-  async listCollections(req: { offset: number; limit: number; search?: string }): Promise<SectionItemsRes> {
+  async listCollections(req: { offset: number; limit: number; search?: string; sort?: LibrarySort; sortDir?: SortDir }): Promise<SectionItemsRes> {
     if (!_conn) return { items: [], total: 0 }
     const { baseUrl, token, libraries } = _conn
     const excluded = ConfigService.get().excludedLibraries ?? []
     const all: LibraryItem[] = []
+    const addedAt = new Map<LibraryItem, number>()
 
     for (const lib of libraries) {
       if (lib.type !== 'movie' || excluded.includes(lib.title)) continue
@@ -528,24 +545,31 @@ export const PlexService = {
         const data = await plexFetch(
           baseUrl, token,
           `/library/sections/${lib.key}/collections`,
-        ) as { MediaContainer?: { Metadata?: Array<{ ratingKey?: string; title?: string; childCount?: number; thumb?: string }> } }
+        ) as { MediaContainer?: { Metadata?: Array<{ ratingKey?: string; title?: string; childCount?: number; thumb?: string; addedAt?: number }> } }
         for (const c of data?.MediaContainer?.Metadata ?? []) {
           if (!c.ratingKey || !c.title) continue
-          all.push({
+          const item: LibraryItem = {
             key: c.ratingKey,
             title: c.title,
             type: 'collection',
             libraryTitle: lib.title,
             childCount: c.childCount,
             thumb: thumbUrl(baseUrl, token, c.thumb),
-          })
+          }
+          addedAt.set(item, typeof c.addedAt === 'number' ? c.addedAt : 0)
+          all.push(item)
         }
       } catch {
         // section may not support collections
       }
     }
 
-    all.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }))
+    const mul = req.sortDir === 'desc' ? -1 : 1
+    if (req.sort === 'recentlyAdded') {
+      all.sort((a, b) => mul * ((addedAt.get(a) ?? 0) - (addedAt.get(b) ?? 0)))
+    } else {
+      all.sort((a, b) => mul * a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }))
+    }
     const q = req.search?.trim().toLowerCase()
     const filtered = q ? all.filter(c => c.title.toLowerCase().includes(q)) : all
     const slice = filtered.slice(req.offset, req.offset + req.limit)
@@ -800,7 +824,7 @@ export const PlexService = {
       includeGuids: '1',
       'X-Plex-Container-Start': String(req.offset),
       'X-Plex-Container-Size': String(req.limit),
-      sort: 'titleSort',
+      sort: plexSortParam(req.sort, req.sortDir),
     })
     if (req.search?.trim()) params.set('title', req.search.trim())
 

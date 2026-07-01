@@ -32,6 +32,8 @@ const DEFAULTS: AppConfig = {
   trayNotice: true,
   excludedLibraries: [],
   collectionsEnabled: true,
+  librarySort: 'recentlyAdded',
+  librarySortDir: 'desc',
 }
 
 /** Web/Docker store tokens in plain JSON; desktop encrypts with OS keychain when available. */

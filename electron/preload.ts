@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, SchedulerEngineStatus, BrowserStatus, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq, CurrentArtReq } from './ipc/types'
+import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, SchedulerEngineStatus, BrowserStatus, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq, CurrentArtReq, UserSetsChunk } from './ipc/types'
 
 /** Typed IPC bridge exposed to the renderer as window.api. */
 const api = {
@@ -43,6 +43,14 @@ const api = {
     collectionSets: (req: CollectionSetsReq) => ipcRenderer.invoke('library:collectionSets', req),
     sets: (req: BrowseSetsReq) => ipcRenderer.invoke('library:sets', req),
     userSets: (req: UserSetsReq) => ipcRenderer.invoke('library:userSets', req),
+    startUserSets: (req: UserSetsReq) => ipcRenderer.invoke('library:startUserSets', req),
+    refreshUserSets: (req: UserSetsReq) => ipcRenderer.invoke('library:refreshUserSets', req),
+    onUserSetsChunk: (cb: (chunk: UserSetsChunk) => void) =>
+    {
+      const handler = (_: unknown, data: UserSetsChunk) => cb(data)
+      ipcRenderer.on('library:userSetsChunk', handler)
+      return () => { ipcRenderer.removeListener('library:userSetsChunk', handler) }
+    },
     creatorSearch: (req: CreatorSearchReq) => ipcRenderer.invoke('library:creatorSearch', req),
     currentArt: (req: CurrentArtReq) => ipcRenderer.invoke('library:currentArt', req),
   },

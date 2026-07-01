@@ -172,13 +172,18 @@ export const ScraperFactory = {
 
   /**
    * Lists a MediUX creator's entire set catalog by crawling and deduping all
-   * pages.
+   * pages. Pass `onBatch`/`signal` to stream results and control abort from a
+   * background crawl (see MediuxScraper.browseAllUserSets).
    *
    * @param username - Creator to browse.
+   * @param opts - Optional streaming callback and per-crawl abort signal.
    * @returns Every set the creator owns and whether the page cap stopped it.
    */
-  async browseMediuxUserAll(username: string) {
-    return getMediux().browseAllUserSets(username)
+  async browseMediuxUserAll(
+    username: string,
+    opts: Parameters<ReturnType<typeof getMediux>['browseAllUserSets']>[1] = {},
+  ) {
+    return getMediux().browseAllUserSets(username, opts)
   },
 
   /**

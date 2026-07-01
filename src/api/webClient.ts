@@ -3,7 +3,7 @@ import type {
   AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress,
   AppEnv, ScheduledJob, SchedulerEngineStatus, BrowserStatus,
   SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq,
-  CurrentArtReq, CurrentArtRes,
+  CurrentArtReq, CurrentArtRes, UserSetsChunk,
 } from '../../electron/ipc/types'
 
 type SseHandler = (event: string, data: unknown) => void
@@ -35,7 +35,7 @@ function ensureSse() {
   const events = [
     'scrape:progress', 'scheduler:onChange',
     'browser:installProgress', 'log:stream', 'app:updateAvailable',
-    'app:downloadProgress', 'app:updateReady',
+    'app:downloadProgress', 'app:updateReady', 'library:userSetsChunk',
   ] as const
   for (const name of events) {
     eventSource.addEventListener(name, (e: MessageEvent) => {
@@ -104,6 +104,10 @@ export function createWebClient(): Api {
       collectionSets: (req: CollectionSetsReq) => apiFetch('/api/library/collection-sets', { method: 'POST', body: JSON.stringify(req) }),
       sets: (req: BrowseSetsReq) => apiFetch('/api/library/sets', { method: 'POST', body: JSON.stringify(req) }),
       userSets: (req: UserSetsReq) => apiFetch('/api/library/user-sets', { method: 'POST', body: JSON.stringify(req) }),
+      startUserSets: (req: UserSetsReq) => apiFetch('/api/library/start-user-sets', { method: 'POST', body: JSON.stringify(req) }),
+      refreshUserSets: (req: UserSetsReq) => apiFetch('/api/library/refresh-user-sets', { method: 'POST', body: JSON.stringify(req) }),
+      onUserSetsChunk: (cb: (chunk: UserSetsChunk) => void) =>
+        onSse('library:userSetsChunk', (_ev, data) => cb(data as UserSetsChunk)),
       creatorSearch: (req: CreatorSearchReq) => apiFetch('/api/library/creator-search', { method: 'POST', body: JSON.stringify(req) }),
       currentArt: (req: CurrentArtReq) => {
         const params = new URLSearchParams({

@@ -148,6 +148,7 @@ export async function startServer() {
       appEvents.onEvent('app:updateAvailable', d => send('app:updateAvailable', d)),
       appEvents.onEvent('app:downloadProgress', d => send('app:downloadProgress', d)),
       appEvents.onEvent('app:updateReady', () => send('app:updateReady', {})),
+      appEvents.onEvent('library:userSetsChunk', d => send('library:userSetsChunk', d)),
     ]
 
     const heartbeat = setInterval(() => reply.raw.write(': ping\n\n'), 25000)
@@ -199,6 +200,8 @@ export async function startServer() {
   app.post('/api/library/collection-sets', async (req) => handlers.library.collectionSets(req.body as Parameters<typeof handlers.library.collectionSets>[0]))
   app.post('/api/library/sets', async (req) => handlers.library.sets(req.body as Parameters<typeof handlers.library.sets>[0]))
   app.post('/api/library/user-sets', async (req) => handlers.library.userSets(req.body as Parameters<typeof handlers.library.userSets>[0]))
+  app.post('/api/library/start-user-sets', async (req) => handlers.library.startUserSets(req.body as Parameters<typeof handlers.library.startUserSets>[0]))
+  app.post('/api/library/refresh-user-sets', async (req) => handlers.library.refreshUserSets(req.body as Parameters<typeof handlers.library.refreshUserSets>[0]))
   app.post('/api/library/creator-search', async (req) => handlers.library.creatorSearch(req.body as Parameters<typeof handlers.library.creatorSearch>[0]))
   app.get('/api/library/current-art', async (req) => {
     const q = req.query as { key: string; type: string; title: string; year?: string }

@@ -145,6 +145,15 @@
   gap: var(--space-2);
 }
 
+/* Sort dropdown + direction toggle, grouped so they read as one control. */
+.sortControl {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+.sortControl > :first-child { min-width: 150px; }
+
 .searchBox {
   position: relative;
   display: flex;
@@ -1472,15 +1481,60 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  /* Bleed into the page wrapper's right/bottom padding so the scrollbar sits
-     flush to the window edge and sets scroll all the way down behind the dock
-     (dock-clearance keeps the last card clear of it). Matches the My Library
-     grid scroller; the gap then lives between the cards and the scrollbar. */
+  /* Bleed into the page wrapper's right padding so the scrollbar sits flush to
+     the window edge. The pager below owns the bottom dock clearance. */
+  margin-right: calc(-1 * var(--content-padding));
+  padding-right: var(--space-3);
+  padding-bottom: var(--space-2);
+}
+
+/* -- Pager ---------------------------------------------------------------- */
+.pagerBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
   margin-right: calc(-1 * var(--content-padding));
   padding-right: var(--space-3);
   margin-bottom: calc(-1 * var(--content-padding));
   padding-bottom: var(--dock-clearance);
 }
+.pagerStatus { font-size: var(--text-xs); color: var(--color-text-muted); white-space: nowrap; }
+
+.pager { display: flex; align-items: center; gap: 4px; }
+.pagerBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 var(--space-2);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary, var(--color-text-muted));
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+.pagerBtn:hover:not(:disabled) {
+  color: var(--color-accent, #e5a00d);
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-soft);
+}
+.pagerBtn:disabled { opacity: 0.4; cursor: default; }
+.pagerBtnActive,
+.pagerBtnActive:hover {
+  background: var(--color-accent, #e5a00d);
+  border-color: var(--color-accent, #e5a00d);
+  color: #1b1300;
+}
+.pagerGap { color: var(--color-text-disabled); padding: 0 2px; user-select: none; }
 
 /* -- Creator selection + schedule tip ------------------------------------- */
 .selectBar {
@@ -1797,9 +1851,6 @@
   color: var(--color-text-muted);
   text-align: center;
 }
-
-/* Skip rendering off-screen tiles/cards - keeps big creator catalogs smooth. */
-.fileTile { content-visibility: auto; contain-intrinsic-size: auto 220px; }
 
 .noteSearchLink {
   background: none;

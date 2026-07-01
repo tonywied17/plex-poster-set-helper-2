@@ -8,13 +8,14 @@ import { ConfigService } from '../services/config'
 import { Logger } from '../services/logger'
 import { SchedulerService } from '../services/schedulerService'
 import { PlaywrightService } from '../services/playwrightService'
+import { CreatorSetsService } from '../services/creatorSetsService'
 import { appEvents } from '../runtime/events'
 import { getAppVersion, isContainerEnv, isWebMode } from '../runtime/runtime'
 import type {
   ConnectReq, FindItemReq, FindCollectionReq, UploadReq, LabelReq, ResetReq,
   ScrapeReq, ScrapeProgress, BulkWriteReq, PlexAuthStatus, ScheduledJob,
   SectionItemsReq, BrowseSetsReq, BrowseSetsRes, UserSetsReq, UserSetsRes,
-  CollectionsReq, CollectionSetsReq,
+  UserSetsSnapshot, CollectionsReq, CollectionSetsReq,
   CreatorSearchReq, MediuxUserSet, AppEnv, UpdateInfo,
   CurrentArtReq,
 } from '../ipc/types'
@@ -145,6 +146,10 @@ export const handlers = {
         return { username: req.username, sets: [], page: 1, hasMore: false, error: err instanceof Error ? err.message : String(err) }
       }
     },
+    // Streaming entry point: returns whatever is buffered now and (re)starts a
+    // background crawl that emits `library:userSetsChunk` as pages land.
+    startUserSets: async (req: UserSetsReq): Promise<UserSetsSnapshot> => CreatorSetsService.start(req.username),
+    refreshUserSets: async (req: UserSetsReq): Promise<UserSetsSnapshot> => CreatorSetsService.refresh(req.username),
     creatorSearch: async (req: CreatorSearchReq): Promise<UserSetsRes> => {
       const username = req.username
       const q = req.query.trim()

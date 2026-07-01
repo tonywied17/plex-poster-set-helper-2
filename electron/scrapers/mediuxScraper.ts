@@ -754,7 +754,8 @@ export class MediuxScraper extends BaseScraper {
   async browseUserSets(username: string, page = 1): Promise<MediuxUserSet[]> {
     const base = `https://mediux.pro/user/${encodeURIComponent(username)}/sets`
     const url = page > 1 ? `${base}?page=${page}` : base
-    Logger.scrape('MediUX', `Browsing creator: ${url}`)
+    // No per-page log here: a full catalog crawl walks hundreds of pages, so the
+    // batch/summary lines in browseAllUserSets carry the progress instead.
 
     const allTypes = new Set(['poster', 'backdrop', 'title_card'])
     let sets = (await this._fetchSets(url))?.sets
@@ -772,10 +773,9 @@ export class MediuxScraper extends BaseScraper {
       }
     }
 
-    if (!sets?.length) {
-      Logger.warn('MediUX', `No sets found for creator "${username}"`)
-      return []
-    }
+    // An empty page is normal at the end of a crawl; stay quiet and let the
+    // caller detect the end of the catalog.
+    if (!sets?.length) return []
 
     // The page can include other creators' sets (recommendations) - keep only this
     // creator's own (plus any set lacking a denormalised username, to be safe)
@@ -795,7 +795,6 @@ export class MediuxScraper extends BaseScraper {
         dateUpdated: s.date_updated,
       } as MediuxUserSet
     })
-    Logger.scrape('MediUX', `Creator "${username}": ${out.length} set(s)`)
     return out
   }
 
@@ -810,51 +809,82 @@ export class MediuxScraper extends BaseScraper {
    * a whole batch contributes no new ids (past the end of the catalog) or the
    * page cap is hit.
    *
+   * When `onBatch` is supplied, each deduped batch is emitted as it lands (and a
+   * final `done: true` batch), so a caller can stream results instead of waiting
+   * for the whole crawl. A `signal` overrides the shared abort flag so a
+   * background crawl survives a foreground scrape cancel (and vice-versa).
+   *
    * @param username - Creator to browse.
    * @param opts.batchSize - Pages fetched concurrently per round (default 8).
    * @param opts.maxPages - Safety bound on total pages crawled (default 400 ~=
    *   4800 sets at +12/page).
+   * @param opts.signal - Per-crawl abort token; when present it replaces the
+   *   scraper's shared `_aborted` flag for this crawl's loop guard.
+   * @param opts.onBatch - Called with each batch's new sets, then once with an
+   *   empty `done: true` batch.
    * @returns The deduped sets (newest-first) and whether the page cap stopped it.
    */
   async browseAllUserSets(
     username: string,
-    opts: { batchSize?: number; maxPages?: number } = {},
+    opts: {
+      batchSize?: number
+      maxPages?: number
+      signal?: { aborted: boolean }
+      onBatch?: (newSets: MediuxUserSet[], info: { page: number; done: boolean; capped: boolean }) => void | Promise<void>
+    } = {},
   ): Promise<{ sets: MediuxUserSet[]; capped: boolean }> {
     const batchSize = Math.max(1, opts.batchSize ?? 8)
     const maxPages  = Math.max(batchSize, opts.maxPages ?? 400)
+    const { signal, onBatch } = opts
+    // A per-crawl signal takes over abort control entirely, decoupling a
+    // background creator crawl from the shared foreground-scrape abort flag.
+    const aborted = () => (signal ? signal.aborted : this._aborted)
 
     const seen = new Set<string>()
     const all: MediuxUserSet[] = []
     let reachedEnd = false
+    let lastPage = 0
 
-    for (let start = 1; start <= maxPages && !this._aborted; start += batchSize) {
+    // When streaming, fetch a small first batch so the first sets render almost
+    // immediately, then ramp up to the full concurrent batch size.
+    let start = 1
+    let curBatch = onBatch ? Math.min(2, batchSize) : batchSize
+    while (start <= maxPages && !aborted()) {
       const pages: number[] = []
-      for (let p = start; p < start + batchSize && p <= maxPages; p++) pages.push(p)
+      for (let p = start; p < start + curBatch && p <= maxPages; p++) pages.push(p)
+      lastPage = pages[pages.length - 1]
 
       // Pages are independent, so fetch the whole batch concurrently.
-      const batch = await mapPool(pages, batchSize, p => this.browseUserSets(username, p))
+      const batch = await mapPool(pages, curBatch, p => this.browseUserSets(username, p))
+      if (aborted()) break
 
-      let added = 0
+      const fresh: MediuxUserSet[] = []
       // Merge in page order so the accumulated list stays newest-first.
       for (const pageSets of batch) {
         for (const s of pageSets) {
           if (seen.has(s.id)) continue
           seen.add(s.id)
           all.push(s)
-          added++
+          fresh.push(s)
         }
       }
-      Logger.scrape('MediUX', `Creator "${username}": +${added} new (total ${all.length}) through page ${pages[pages.length - 1]}`)
 
       // A full batch with no new ids means we've gone past the catalog's end.
-      if (added === 0) { reachedEnd = true; break }
+      if (fresh.length === 0) { reachedEnd = true; break }
+
+      await onBatch?.(fresh, { page: lastPage, done: false, capped: false })
+
+      const more = start + curBatch <= maxPages
+      start += curBatch
+      curBatch = batchSize   // ramp to full batches after the fast first pull
 
       // Be polite to MediUX between concurrent batches.
-      if (start + batchSize <= maxPages && !this._aborted) await sleepConfig('batch')
+      if (more && !aborted()) await sleepConfig('batch')
     }
 
-    const capped = !reachedEnd && !this._aborted && all.length > 0
+    const capped = !reachedEnd && !aborted() && all.length > 0
     Logger.scrape('MediUX', `Creator "${username}": ${all.length} total set(s)${capped ? ' (page cap hit)' : ''}`)
+    await onBatch?.([], { page: lastPage, done: true, capped })
     return { sets: all, capped }
   }
 

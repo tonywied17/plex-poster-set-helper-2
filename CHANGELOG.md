@@ -9,6 +9,14 @@ so keep each version under its own `## What's new in vX.Y.Z` heading.
 ### Apply now works for movies and shows in the Library Browser
 Applying a MediUX set to a movie or show from the Library Browser did nothing - the Apply button was a silent no-op. It now correctly uploads the set's posters, backdrops, and title cards to the selected title. Collections were unaffected and continue to work as before.
 
+### Faster creator browsing with real pagination
+Opening a MediUX creator no longer blocks on a full catalog crawl before showing anything. Sets now stream in as they are found, and the browser is **paginated** - only one page renders at a time, so even creators with thousands of sets stay fast and responsive instead of choking on one endless list. The crawl runs in the background, so you can switch creators or leave the Library Browser and come back to find it further along.
+
+Creators are now **cached on disk** between launches: reopening one you've viewed before shows instantly with no loading spinner, and instead of re-scraping the whole catalog the app does a quick incremental check that only fetches genuinely new sets and stops as soon as it reaches ones you already have. Loading also no longer floods the log.
+
+### Sort your library
+The Library Browser grid has a new sort control: order any library (or your collections) by **Recently Added**, **Title**, **Release Year**, or **Last Played**, with a button to flip between ascending and descending. Your choice is remembered.
+
 ## What's new in v2.2.5
 
 ### Show or hide collections
